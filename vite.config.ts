@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },
   server: {
-    port: 5173,
-    proxy: { '/ws': { target: 'ws://localhost:3001', ws: true } }
+    port: 5400,
+    proxy: { '/ws': { target: 'ws://localhost:5300', ws: true } }
   }
 })
