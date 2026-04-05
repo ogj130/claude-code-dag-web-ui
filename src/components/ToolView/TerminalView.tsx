@@ -72,7 +72,7 @@ export function TerminalView({ theme }: Props) {
   // 主题切换时更新 xterm 配色
   useEffect(() => {
     if (terminalRef.current) {
-    term.options.theme = getXtermTheme(theme === 'dark');
+    terminalRef.current.options.theme = getXtermTheme(theme === 'dark');
     }
   }, [theme]);
 
