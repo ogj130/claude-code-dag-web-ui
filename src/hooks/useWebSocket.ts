@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useTaskStore } from '../stores/useTaskStore';
 import type { WSMessage, WSClientMessage } from '../types/events';
 
-const WS_URL = `ws://localhost:3001`;
+const WS_URL = `ws://localhost:5300`;
 
 export function useWebSocket(sessionId: string | null) {
   const wsRef = useRef<WebSocket | null>(null);
