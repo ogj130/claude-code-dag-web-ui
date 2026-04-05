@@ -1,4 +1,3 @@
-import React from 'react';
 import { TokenBar } from './TokenBar';
 import { SessionDropdown } from './SessionDropdown';
 import { ThemeToggle } from './ThemeToggle';

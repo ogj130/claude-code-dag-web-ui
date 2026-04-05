@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useTaskStore } from '../../stores/useTaskStore';
 
 const TOOL_COLORS: Record<string, { bg: string; color: string; border: string }> = {

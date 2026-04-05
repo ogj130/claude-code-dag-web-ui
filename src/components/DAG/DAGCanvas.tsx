@@ -1,4 +1,4 @@
-import React from 'react';
+import { useMemo } from 'react';
 import {
   ReactFlow,
   Background,
@@ -28,12 +28,11 @@ export function DAGCanvas({ style }: Props) {
   }));
 
   // 简单层级布局
-  const positionedNodes = React.useMemo(() => {
+  const positionedNodes = useMemo(() => {
     const nodesByLevel: Node[][] = [[], [], []];
 
     for (const n of flowNodes) {
-      const data = n.data as DAGNode;
-      if (!data.parentId) {
+      if (!n.data.parentId) {
         nodesByLevel[0].push(n);
       } else {
         nodesByLevel[1].push(n);

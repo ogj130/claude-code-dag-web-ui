@@ -1,5 +1,3 @@
-import React from 'react';
-
 interface Props {
   theme: 'dark' | 'light';
   onChange: (t: 'dark' | 'light') => void;

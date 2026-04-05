@@ -1,4 +1,3 @@
-import React from 'react';
 import { useTaskStore } from '../../stores/useTaskStore';
 
 export function TokenBar() {
