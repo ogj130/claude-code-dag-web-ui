@@ -1,8 +1,11 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { ClaudeCodeProcess } from './ClaudeCodeProcess.js';
+import { child as log } from './utils/logger.js';
 import type { WSMessage, WSClientMessage } from '../src/types/events.js';
 
-const PORT = 3001;
+const PORT = 5300;
+const logger = log('server');
+
 const wss = new WebSocketServer({ port: PORT });
 const processManager = new ClaudeCodeProcess();
 const clients = new Map<string, Set<WebSocket>>();
@@ -19,7 +22,7 @@ function broadcast(sessionId: string, message: string): void {
 }
 
 wss.on('connection', (ws: WebSocket) => {
-  console.log('[WS] Client connected');
+  logger.info('Client connected');
 
   ws.on('message', (data: Buffer) => {
     try {
@@ -28,7 +31,7 @@ wss.on('connection', (ws: WebSocket) => {
       switch (msg.type) {
         case 'start_session': {
           const { sessionId, projectPath, prompt } = msg;
-          console.log(`[WS] Starting session: ${sessionId}`);
+          logger.info({ sessionId, projectPath }, 'Starting session');
 
           if (!clients.has(sessionId)) {
             clients.set(sessionId, new Set());
@@ -44,6 +47,7 @@ wss.on('connection', (ws: WebSocket) => {
           });
 
           processManager.on('close', ({ sessionId, code }) => {
+            logger.info({ sessionId, code }, 'Session closed');
             broadcast(sessionId, JSON.stringify({
               event: { type: 'session_end', sessionId, reason: `exit:${code}` },
               sessionId,
@@ -57,19 +61,20 @@ wss.on('connection', (ws: WebSocket) => {
           break;
         }
         case 'kill_session': {
+          logger.info({ sessionId: msg.sessionId }, 'Killing session');
           processManager.kill(msg.sessionId);
           clients.delete(msg.sessionId);
           break;
         }
       }
     } catch (err) {
-      console.error('[WS] Parse error:', err);
+      logger.error({ err }, 'Parse error');
     }
   });
 
   ws.on('close', () => {
-    console.log('[WS] Client disconnected');
+    logger.info('Client disconnected');
   });
 });
 
-console.log(`[CC Web Server] WebSocket server running on ws://localhost:${PORT}`);
+logger.info(`WebSocket server running on ws://localhost:${PORT}`);

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useTaskStore } from '../stores/useTaskStore';
+import { createLogger } from '../utils/logger';
 import type { WSMessage, WSClientMessage } from '../types/events';
 
+const log = createLogger('WebSocket');
 const WS_URL = `ws://localhost:5300`;
 
 export function useWebSocket(sessionId: string | null) {
@@ -15,7 +17,7 @@ export function useWebSocket(sessionId: string | null) {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('[WS] Connected');
+      log.info(`Connected (session: ${sessionId})`);
       const msg: WSClientMessage = {
         type: 'start_session',
         sessionId,
@@ -35,12 +37,12 @@ export function useWebSocket(sessionId: string | null) {
     };
 
     ws.onclose = () => {
-      console.log('[WS] Disconnected');
+      log.info('Disconnected');
       wsRef.current = null;
     };
 
     ws.onerror = (err) => {
-      console.error('[WS] Error:', err);
+      log.error('Connection error', err);
     };
   }, [sessionId, handleEvent, addTerminalLine]);
 

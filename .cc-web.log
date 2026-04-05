@@ -1,0 +1,63 @@
+
+> cc-web-ui@1.0.0 dev
+> concurrently "npm run dev:server" "npm run dev:client"
+
+[0] 
+[0] > cc-web-ui@1.0.0 dev:server
+[0] > tsx watch server/index.ts
+[0] 
+[1] 
+[1] > cc-web-ui@1.0.0 dev:client
+[1] > vite
+[1] 
+[0] [CC Web Server] WebSocket server running on ws://localhost:3001
+[1] 
+[1]   VITE v6.4.1  ready in 314 ms
+[1] 
+[1]   ➜  Local:   http://localhost:5400/
+[1]   ➜  Network: use --host to expose
+[1] 4:57:28 PM [vite] (client) hmr update /src/components/ToolView/TerminalView.tsx
+[0] 4:58:18 PM [tsx] change in ./server/index.ts Restarting...
+[0] c
+[0] node:internal/modules/run_main:104
+[0]     triggerUncaughtException(
+[0]     ^
+[0] Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'pino' imported from /Users/ouguangji/2026/cc-web-ui/server/utils/logger.ts
+[0]     at Object.getPackageJSONURL (node:internal/modules/package_json_reader:267:9)
+[0]     at packageResolve (node:internal/modules/esm/resolve:768:81)
+[0]     at moduleResolve (node:internal/modules/esm/resolve:854:18)
+[0]     at defaultResolve (node:internal/modules/esm/resolve:984:11)
+[0]     at nextResolve (node:internal/modules/esm/hooks:748:28)
+[0]     at resolveBase (file:///Users/ouguangji/2026/cc-web-ui/node_modules/tsx/dist/esm/index.mjs?1775379498651:2:3744)
+[0]     at resolveDirectory (file:///Users/ouguangji/2026/cc-web-ui/node_modules/tsx/dist/esm/index.mjs?1775379498651:2:4243)
+[0]     at resolveTsPaths (file:///Users/ouguangji/2026/cc-web-ui/node_modules/tsx/dist/esm/index.mjs?1775379498651:2:4984)
+[0]     at resolve (file:///Users/ouguangji/2026/cc-web-ui/node_modules/tsx/dist/esm/index.mjs?1775379498651:2:5361)
+[0]     at nextResolve (node:internal/modules/esm/hooks:748:28) {
+[0]   code: 'ERR_MODULE_NOT_FOUND'
+[0] }
+[0] 
+[0] Node.js v23.11.0
+[1] 4:58:35 PM [vite] (client) hmr update /src/App.tsx
+[1] 4:58:35 PM [vite] Internal server error: Failed to resolve import "loglevel" from "src/utils/logger.ts". Does the file exist?
+[1]   Plugin: vite:import-analysis
+[1]   File: /Users/ouguangji/2026/cc-web-ui/src/utils/logger.ts:1:21
+[1]   1  |  import loglevel from "loglevel";
+[1]      |                        ^
+[1]   2  |  const isDev = import.meta.env.DEV;
+[1]   3  |  loglevel.setLevel(isDev ? "debug" : "warn");
+[1]       at TransformPluginContext._formatLog (file:///Users/ouguangji/2026/cc-web-ui/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:42528:41)
+[1]       at TransformPluginContext.error (file:///Users/ouguangji/2026/cc-web-ui/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:42525:16)
+[1]       at normalizeUrl (file:///Users/ouguangji/2026/cc-web-ui/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:40504:23)
+[1]       at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+[1]       at async file:///Users/ouguangji/2026/cc-web-ui/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:40623:37
+[1]       at async Promise.all (index 0)
+[1]       at async TransformPluginContext.transform (file:///Users/ouguangji/2026/cc-web-ui/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:40550:7)
+[1]       at async EnvironmentPluginContainer.transform (file:///Users/ouguangji/2026/cc-web-ui/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:42323:18)
+[1]       at async loadAndTransform (file:///Users/ouguangji/2026/cc-web-ui/node_modules/vite/dist/node/chunks/dep-D4NMHUTW.js:35739:27)
+[1] 4:58:35 PM [vite] (client) Pre-transform error: Failed to resolve import "loglevel" from "src/utils/logger.ts". Does the file exist?
+[1]   Plugin: vite:import-analysis
+[1]   File: /Users/ouguangji/2026/cc-web-ui/src/utils/logger.ts:1:21
+[1]   1  |  import loglevel from "loglevel";
+[1]      |                        ^
+[1]   2  |  const isDev = import.meta.env.DEV;
+[1]   3  |  loglevel.setLevel(isDev ? "debug" : "warn");
