@@ -1,0 +1,62 @@
+<h2>DAG 可视化渲染引擎</h2>
+<p class="subtitle">多 Agent 并行任务 DAG 的实时渲染方案</p>
+
+<div class="options">
+  <div class="option" data-choice="reactflow" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>React Flow</h3>
+      <p>成熟的 React 专用 DAG/流程图库，内置节点拖拽、自动布局、补间动画，支持自定义节点组件</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ React 原生，集成最顺滑</li>
+        <li>✅ 内置 pan/zoom/拖拽，开箱即用</li>
+        <li>✅ 社区活跃，文档完善</li>
+        <li>⚠️ 包体积较大（~200KB）</li>
+        <li>⚠️ 高度自定义时学习成本上升</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="elkjs" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>ELK.js + 自定义 React 渲染</h3>
+      <p>用 ELK.js 做自动布局算法，节点和边完全用 SVG/Canvas 自定义渲染，零依赖框架</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ 完全控制渲染细节</li>
+        <li>✅ 包体积小（ELK 布局 + 自渲染）</li>
+        <li>✅ 适合高度定制化风格</li>
+        <li>⚠️ 需要自己实现交互（拖拽/缩放）</li>
+        <li>⚠️ 开发工作量最大</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="d3-elk" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>D3.js + ELK 混合方案</h3>
+      <p>D3 处理渲染和交互，ELK 做布局，各自做擅长的事</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ D3 灵活，DAG 渲染成熟</li>
+        <li>✅ ELK 自动布局省心</li>
+        <li>⚠️ D3 学习曲线较陡</li>
+        <li>⚠️ 两个库结合有一定复杂度</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="cytoscape" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>Cytoscape.js</h3>
+      <p>专业图可视化库，支持 DAG、网络图、流程图，布局算法丰富</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ 图算法最专业，布局算法最全</li>
+        <li>✅ 支持 WebGL 渲染大图</li>
+        <li>⚠️ 非 React 原生，需包装</li>
+        <li>⚠️ UI 定制需要 CSS 层叠覆盖</li>
+      </ul>
+    </div>
+  </div>
+</div>

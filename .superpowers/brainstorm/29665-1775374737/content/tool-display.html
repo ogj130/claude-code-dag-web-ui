@@ -1,0 +1,45 @@
+<h2>工具执行结果展示方案</h2>
+<p class="subtitle">Claude Code 工具调用后的输出怎么呈现给用户？</p>
+
+<div class="options">
+  <div class="option" data-choice="xterm" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>xterm.js 终端模拟器</h3>
+      <p>完全模拟 CLI 终端界面，复刻 Claude Code 命令行体验，工具输出原样打印</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ 零学习成本，完全复刻 CLI 体验</li>
+        <li>✅ Claude Code 输出格式无需适配</li>
+        <li>⚠️ 无法结构化解析工具结果</li>
+        <li>⚠️ 失去了"工具卡片"的结构化展示优势</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="cards" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>结构化工具卡片 + 富文本</h3>
+      <p>每个工具调用渲染为一张卡片：工具名、参数、执行状态、结果摘要，可展开查看详情</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ 信息结构化，一眼看清每个工具干了什么</li>
+        <li>✅ 可折叠/展开，支持大量工具调用</li>
+        <li>⚠️ 需要解析 Claude Code 输出格式</li>
+        <li>⚠️ 失去终端原生的"流式打字机"感</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>混合模式（推荐）</h3>
+      <p>左侧 DAG 实时进度视图 + 右侧可切换：终端视图 / 工具卡片视图，两种模式自由切换</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ 兼得两种体验，按需切换</li>
+        <li>✅ 概览用卡片，详细用终端</li>
+        <li>⚠️ UI 复杂度稍高</li>
+      </ul>
+    </div>
+  </div>
+</div>

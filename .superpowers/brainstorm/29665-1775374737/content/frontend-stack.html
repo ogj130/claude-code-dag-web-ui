@@ -1,0 +1,56 @@
+<h2>前端框架 & 实时通信选型</h2>
+<p class="subtitle">核心 UI 渲染栈与实时事件推送方案</p>
+
+<div class="options">
+  <div class="option" data-choice="next-sse" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Next.js + SSE (Server-Sent Events)</h3>
+      <p>前后端同构，全栈 TypeScript，后端 route handlers 通过 SSE 推送工具/agent 执行事件，前端用 React 状态管理</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ 全栈统一技术栈，部署简单</li>
+        <li>✅ SSE 实现简单，单向推送够用</li>
+        <li>⚠️ Next.js 额外复杂度，对轻量项目略重</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="react-websocket" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>React + WebSocket</h3>
+      <p>轻量 Node.js 后端 + React SPA，通过 WebSocket 全双工实时同步工具执行、任务状态、DAG 节点状态</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ 全双工通信，交互更灵活</li>
+        <li>✅ 前端可反向推送（如取消任务）</li>
+        <li>⚠️ WebSocket 需要心跳/重连处理</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="vue-sse" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Vue 3 + SSE</h3>
+      <p>Vue 3 Composition API 前端 + Node.js SSE 后端，更轻量的选择，适合快速原型</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ Vue 上手更快，模板语法简洁</li>
+        <li>✅ 适合快速 MVP</li>
+        <li>⚠️ 生态比 React 小，复杂场景可能受限</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="solid-sse" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>SolidJS + SSE</h3>
+      <p>极致性能的响应式前端 + Node.js SSE，细粒度更新，适合高实时性 DAG 渲染</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ 性能最强，响应式精准更新</li>
+        <li>✅ 对 DAG 节点频繁刷新有优势</li>
+        <li>⚠️ 生态较小，学习曲线</li>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,86 @@
+<h2>Token 消耗 & 会话切换 — 交互设计</h2>
+<p class="subtitle">两个新功能的展示位置和切换交互方式</p>
+
+<div class="mockup">
+  <div class="mockup-header">顶部工具栏 — 增强版</div>
+  <div class="mockup-body" style="padding:16px;background:#1a1a2e;min-height:80px;font-family:monospace;font-size:12px">
+    <div style="display:flex;align-items:center;gap:8px;padding-bottom:12px;border-bottom:1px solid #333">
+      <div style="background:#4a9eff;padding:4px 12px;border-radius:4px;color:#fff;font-size:11px">+ 新会话</div>
+      <div style="color:#888;font-size:11px">|</div>
+
+      <!-- 会话切换下拉 -->
+      <div style="position:relative">
+        <div style="background:#2a2a3e;padding:4px 10px;border-radius:4px;color:#ccc;font-size:11px;cursor:pointer;border:1px solid #444">
+          💬 会话 1 ▾
+        </div>
+      </div>
+
+      <div style="color:#888;font-size:11px">|</div>
+
+      <!-- Token 消耗 -->
+      <div style="background:#0d2d1a;padding:4px 10px;border-radius:4px;border:1px solid #2ecc71;font-size:11px;color:#2ecc71">
+        ◷ Input: 12.3K | Output: 4.7K | Total: 17.0K
+      </div>
+
+      <!-- Token 进度条 -->
+      <div style="width:80px;height:6px;background:#1a1a2a;border-radius:3px;overflow:hidden">
+        <div style="width:34%;height:100%;background:linear-gradient(90deg,#4a9eff,#2ecc71)"></div>
+      </div>
+      <div style="color:#666;font-size:10px">Budget: 50K</div>
+
+      <div style="margin-left:auto;color:#4a9eff;font-size:11px">● Connected</div>
+      <div style="color:#888;font-size:11px">|</div>
+      <div style="color:#888;font-size:11px">⚙ 设置</div>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:16px;font-size:14px;color:#ccc">Token 展示方式</h3>
+<div class="options" style="margin-top:8px">
+  <div class="option" data-choice="compact" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>紧凑统计条</h3>
+      <p>顶部工具栏内显示一行：Input / Output / Total，用小色块区分</p>
+    </div>
+  </div>
+  <div class="option" data-choice="panel" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>悬浮详情面板</h3>
+      <p>点击 Token 数字弹出面板，显示详细 token 分布、费用估算、预算进度</p>
+    </div>
+  </div>
+  <div class="option" data-choice="both" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>紧凑条 + 悬浮详情</h3>
+      <p>顶部显示一行数字，点击展开详细面板（本小姐推荐这个！）</p>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top:16px;font-size:14px;color:#ccc">会话切换交互</h3>
+<div class="options" style="margin-top:8px">
+  <div class="option" data-choice="dropdown" onclick="toggleSelect(this)">
+    <div class="letter">①</div>
+    <div class="content">
+      <h3>下拉菜单</h3>
+      <p>工具栏一个下拉框，列出所有会话，点击切换</p>
+    </div>
+  </div>
+  <div class="option" data-choice="sidebar" onclick="toggleSelect(this)">
+    <div class="letter">②</div>
+    <div class="content">
+      <h3>左侧会话面板</h3>
+      <p>左侧边栏永久展示会话列表，支持新建、重命名、删除、切换</p>
+    </div>
+  </div>
+  <div class="option" data-choice="tabs" onclick="toggleSelect(this)">
+    <div class="letter">③</div>
+    <div class="content">
+      <h3>Tab 标签页</h3>
+      <p>顶部横向 Tab，每个会话一个 Tab，当前会话在最前</p>
+    </div>
+  </div>
+</div>

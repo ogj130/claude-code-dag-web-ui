@@ -1,0 +1,46 @@
+<h2>Claude Code 输出解析方案</h2>
+<p class="subtitle">如何将 Claude Code CLI 的流式输出解析为结构化事件？</p>
+
+<div class="options">
+  <div class="option" data-choice="ansi-parser" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>ANSI/Terminal 输出解析</h3>
+      <p>直接解析 Claude Code 的 ANSI 彩色输出，通过特征字符串识别工具类型（[TOOL_CALL]、[AGENT] 等标记）</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ 无需修改 Claude Code 本身</li>
+        <li>✅ 兼容所有 Claude Code 版本</li>
+        <li>⚠️ 输出格式可能随版本变化，需要维护解析规则</li>
+        <li>⚠️ 解析不够精确，可能误识别</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="jsonl-logging" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Claude Code JSONL 日志模式</h3>
+      <p>如果 Claude Code 支持 JSONL 输出格式（类似 --json 或 --log-format），直接解析结构化日志</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ 解析精确，零歧义</li>
+        <li>✅ 未来版本兼容性好</li>
+        <li>⚠️ 依赖 Claude Code 内置支持</li>
+        <li>⚠️ 需调研 Claude Code 是否有此功能</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="hook-intercept" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>MCP 协议 Hook 拦截</h3>
+      <p>通过 MCP (Model Context Protocol) 协议的中间层拦截所有工具调用，获取完整的调用上下文</p>
+      <ul style="margin-top:8px;font-size:13px;color:#aaa">
+        <li>✅ 最精确，获取完整调用上下文</li>
+        <li>✅ 标准协议，不依赖 Claude Code 输出格式</li>
+        <li>⚠️ 架构最复杂，需要 MCP 适配层</li>
+        <li>⚠️ 与方案 A（本地直连）有架构冲突</li>
+      </ul>
+    </div>
+  </div>
+</div>
