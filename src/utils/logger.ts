@@ -1,74 +1,50 @@
-import loglevel from 'loglevel';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const LOG_DIR = path.resolve(__dirname, '../../logs');
-const MAX_FILES = 5;
+/**
+ * 前端日志模块
+ * 注意：浏览器无法直接写文件，日志写入由后端 server/utils/logger.ts 统一处理。
+ * 本模块仅负责前端 console 输出和日志级别控制。
+ */
 
 const isDev = import.meta.env.DEV;
 
-// 确保日志目录存在
-if (!fs.existsSync(LOG_DIR)) {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
+enum LogLevel {
+  TRACE = 0,
+  DEBUG = 1,
+  INFO = 2,
+  WARN = 3,
+  ERROR = 4,
+  SILENT = 5,
 }
 
-// 生成今天的日志文件名
-function getLogFile() {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-  return path.join(LOG_DIR, `cc-web-${today}.log`);
-}
-
-// 滚动清理：删除 5 天前的日志文件
-function cleanupOldLogs() {
-  try {
-    const files = fs.readdirSync(LOG_DIR).filter(f => f.startsWith('cc-web-') && f.endsWith('.log'));
-    const cutoff = Date.now() - MAX_FILES * 24 * 60 * 60 * 1000;
-    for (const file of files) {
-      const filePath = path.join(LOG_DIR, file);
-      const stat = fs.statSync(filePath);
-      if (stat.mtimeMs < cutoff) {
-        fs.unlinkSync(filePath);
-      }
-    }
-  } catch {
-    // ignore cleanup errors
-  }
-}
-
-cleanupOldLogs();
-
-// 设置日志级别
-loglevel.setLevel(isDev ? 'debug' : 'warn');
-
-// 时间戳前缀工厂
-const originalFactory = loglevel.methodFactory;
-loglevel.methodFactory = (methodName, level, loggerName) => {
-  const rawMethod = originalFactory(methodName, level, loggerName);
-  return (message: unknown, ...args: unknown[]) => {
-    const ts = new Date().toISOString();
-    const prefix = `[${ts}] [${methodName.toUpperCase()}]`;
-    const logLine = [prefix, message, ...args].map(s => String(s)).join(' ');
-
-    // 写入文件
-    try {
-      fs.appendFileSync(getLogFile(), logLine + '\n');
-    } catch {
-      // ignore write errors
-    }
-
-    // 开发环境同时输出到控制台（彩色）
-    if (isDev) {
-      rawMethod(`[${ts.slice(11, 23)}] [${methodName.toUpperCase()}]`, message, ...args);
-    }
-  };
+const LEVEL_NAME: Record<number, string> = {
+  [LogLevel.TRACE]: 'TRACE',
+  [LogLevel.DEBUG]: 'DEBUG',
+  [LogLevel.INFO]: 'INFO',
+  [LogLevel.WARN]: 'WARN',
+  [LogLevel.ERROR]: 'ERROR',
 };
 
-export const logger = loglevel;
+const currentLevel = isDev ? LogLevel.DEBUG : LogLevel.WARN;
 
-export const createLogger = (name: string) => {
-  const log = loglevel.getLogger(name);
-  log.setLevel(isDev ? 'debug' : 'warn');
-  return log;
+function log(level: LogLevel, namespace: string, message: string, ...args: unknown[]) {
+  if (level < currentLevel) return;
+  const ts = new Date().toISOString().slice(11, 23);
+  const prefix = `[${ts}] [${LEVEL_NAME[level]}] [${namespace}]`;
+  const fn = level >= LogLevel.WARN ? console.error : console.log;
+  fn(prefix, message, ...args);
+}
+
+export const logger = {
+  trace: (msg: string, ...args: unknown[]) => log(LogLevel.TRACE, 'app', msg, ...args),
+  debug: (msg: string, ...args: unknown[]) => log(LogLevel.DEBUG, 'app', msg, ...args),
+  info:  (msg: string, ...args: unknown[]) => log(LogLevel.INFO,  'app', msg, ...args),
+  warn:  (msg: string, ...args: unknown[]) => log(LogLevel.WARN,  'app', msg, ...args),
+  error: (msg: string, ...args: unknown[]) => log(LogLevel.ERROR, 'app', msg, ...args),
 };
+
+export const createLogger = (name: string) => ({
+  trace: (msg: string, ...args: unknown[]) => log(LogLevel.TRACE, name, msg, ...args),
+  debug: (msg: string, ...args: unknown[]) => log(LogLevel.DEBUG, name, msg, ...args),
+  info:  (msg: string, ...args: unknown[]) => log(LogLevel.INFO,  name, msg, ...args),
+  warn:  (msg: string, ...args: unknown[]) => log(LogLevel.WARN,  name, msg, ...args),
+  error: (msg: string, ...args: unknown[]) => log(LogLevel.ERROR, name, msg, ...args),
+});
