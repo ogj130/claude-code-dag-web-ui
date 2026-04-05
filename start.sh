@@ -23,7 +23,7 @@ start() {
   fi
 
   echo "正在启动 CC Web..."
-  npm run dev > "$LOG_FILE" 2>&1 &
+  NODE_ENV=production npm run dev > "$LOG_FILE" 2>&1 &
   PID=$!
   echo $PID > "$PID_FILE"
   echo "CC Web 已启动 (PID: $PID)"
