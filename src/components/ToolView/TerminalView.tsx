@@ -3,20 +3,27 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { useTaskStore } from '../../stores/useTaskStore';
 
+interface Props {
+  theme: 'dark' | 'light';
+}
+
 function getXtermTheme(isDark: boolean) {
-  return isDark ? {
-    background: '#050508',
-    foreground: '#c0c0c0',
-    cursor: '#4a8eff',
-    black: '#000000',
-    red: '#e74c3c',
-    green: '#2ecc71',
-    yellow: '#f1c40f',
-    blue: '#4a8eff',
-    magenta: '#c56cff',
-    cyan: '#6cf',
-    white: '#e0e0e0',
-  } : {
+  if (isDark) {
+    return {
+      background: '#050508',
+      foreground: '#c0c0c0',
+      cursor: '#4a8eff',
+      black: '#000000',
+      red: '#e74c3c',
+      green: '#2ecc71',
+      yellow: '#f1c40f',
+      blue: '#4a8eff',
+      magenta: '#c56cff',
+      cyan: '#6cf',
+      white: '#e0e0e0',
+    };
+  }
+  return {
     background: '#ffffff',
     foreground: '#1a1a2e',
     cursor: '#3a6fd8',
@@ -31,19 +38,17 @@ function getXtermTheme(isDark: boolean) {
   };
 }
 
-export function TerminalView() {
+export function TerminalView({ theme }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const { terminalLines } = useTaskStore();
 
-  const isDarkTheme = () =>
-    !document.documentElement.classList.contains('theme-light');
-
+  // 初始化 terminal
   useEffect(() => {
     if (!containerRef.current) return;
 
     const term = new Terminal({
-      theme: getXtermTheme(isDarkTheme()),
+      theme: getXtermTheme(theme === 'dark'),
       fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
       fontSize: 12,
       lineHeight: 1.6,
@@ -57,24 +62,21 @@ export function TerminalView() {
     term.writeln('\x1b[2m$ claude "分析代码库"\x1b[0m');
     term.writeln('\x1b[90m正在启动 Claude Agent...\x1b[0m');
 
-    // 监听主题变化，动态更新 xterm 主题
-    const observer = new MutationObserver(() => {
-      if (terminalRef.current) {
-        terminalRef.current.setOption('theme', getXtermTheme(isDarkTheme()));
-      }
-    });
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-
     return () => {
-      observer.disconnect();
       term.dispose();
       terminalRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 主题切换时更新 xterm 配色
+  useEffect(() => {
+    if (terminalRef.current) {
+      terminalRef.current.setOption('theme', getXtermTheme(theme === 'dark'));
+    }
+  }, [theme]);
+
+  // 追加新行
   useEffect(() => {
     const term = terminalRef.current;
     if (!term || terminalLines.length === 0) return;

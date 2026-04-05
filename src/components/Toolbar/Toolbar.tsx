@@ -6,9 +6,10 @@ import { useSessionStore } from '../../stores/useSessionStore';
 interface Props {
   theme: 'dark' | 'light';
   onThemeChange: (t: 'dark' | 'light') => void;
+  onNewSession: () => void;
 }
 
-export function Toolbar({ theme, onThemeChange }: Props) {
+export function Toolbar({ theme, onThemeChange, onNewSession }: Props) {
   const { addSession } = useSessionStore();
 
   const handleNewSession = () => {
@@ -20,6 +21,7 @@ export function Toolbar({ theme, onThemeChange }: Props) {
       createdAt: Date.now(),
       isActive: true,
     });
+    onNewSession();
   };
 
   return (

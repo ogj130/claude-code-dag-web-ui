@@ -5,10 +5,11 @@ import { ToolCards } from './ToolCards';
 interface Props {
   viewMode: 'terminal' | 'cards';
   onViewModeChange: (m: 'terminal' | 'cards') => void;
+  theme: 'dark' | 'light';
   style?: React.CSSProperties;
 }
 
-export function ToolViewPanel({ viewMode, onViewModeChange, style }: Props) {
+export function ToolViewPanel({ viewMode, onViewModeChange, theme, style }: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', background: 'var(--bg-root)', ...style }}>
       <div style={{
@@ -33,7 +34,7 @@ export function ToolViewPanel({ viewMode, onViewModeChange, style }: Props) {
         ))}
       </div>
       <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
-        {viewMode === 'terminal' ? <TerminalView /> : <ToolCards />}
+        {viewMode === 'terminal' ? <TerminalView theme={theme} /> : <ToolCards />}
       </div>
     </div>
   );

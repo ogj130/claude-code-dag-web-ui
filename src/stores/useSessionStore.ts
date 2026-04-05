@@ -8,9 +8,12 @@ export interface Session {
   isActive: boolean;
 }
 
+// store 初始化时就创建默认会话，避免 WebSocket 时序问题
+const DEFAULT_SESSION_ID = `session_${Date.now()}`;
+
 interface SessionState {
   sessions: Session[];
-  activeSessionId: string | null;
+  activeSessionId: string;
 
   addSession: (session: Session) => void;
   removeSession: (id: string) => void;
@@ -19,8 +22,17 @@ interface SessionState {
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
-  sessions: [],
-  activeSessionId: null,
+  // 初始化时就创建默认会话，activeSessionId 从第一天就有值
+  sessions: [
+    {
+      id: DEFAULT_SESSION_ID,
+      name: '会话 1',
+      projectPath: '/Users/ouguangji/2026/cc-web-ui',
+      createdAt: Date.now(),
+      isActive: true,
+    },
+  ],
+  activeSessionId: DEFAULT_SESSION_ID,
 
   addSession: (session) => {
     set(state => ({
@@ -32,9 +44,10 @@ export const useSessionStore = create<SessionState>((set) => ({
   removeSession: (id) => {
     set(state => {
       const sessions = state.sessions.filter(s => s.id !== id);
-      const activeSessionId = state.activeSessionId === id
-        ? (sessions[0]?.id ?? null)
-        : state.activeSessionId;
+      const activeSessionId =
+        state.activeSessionId === id
+          ? (sessions[0]?.id ?? DEFAULT_SESSION_ID)
+          : state.activeSessionId;
       return { sessions, activeSessionId };
     });
   },
