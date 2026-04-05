@@ -3,28 +3,47 @@ import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { useTaskStore } from '../../stores/useTaskStore';
 
+function getXtermTheme(isDark: boolean) {
+  return isDark ? {
+    background: '#050508',
+    foreground: '#c0c0c0',
+    cursor: '#4a8eff',
+    black: '#000000',
+    red: '#e74c3c',
+    green: '#2ecc71',
+    yellow: '#f1c40f',
+    blue: '#4a8eff',
+    magenta: '#c56cff',
+    cyan: '#6cf',
+    white: '#e0e0e0',
+  } : {
+    background: '#ffffff',
+    foreground: '#1a1a2e',
+    cursor: '#3a6fd8',
+    black: '#000000',
+    red: '#d03030',
+    green: '#1a9e50',
+    yellow: '#c07800',
+    blue: '#3a6fd8',
+    magenta: '#9055db',
+    cyan: '#3498db',
+    white: '#e0e0e0',
+  };
+}
+
 export function TerminalView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const { terminalLines } = useTaskStore();
 
+  const isDarkTheme = () =>
+    !document.documentElement.classList.contains('theme-light');
+
   useEffect(() => {
-    if (!containerRef.current || terminalRef.current) return;
+    if (!containerRef.current) return;
 
     const term = new Terminal({
-      theme: {
-        background: '#050508',
-        foreground: '#c0c0c0',
-        cursor: '#4a8eff',
-        black: '#000000',
-        red: '#e74c3c',
-        green: '#2ecc71',
-        yellow: '#f1c40f',
-        blue: '#4a8eff',
-        magenta: '#c56cff',
-        cyan: '#6cf',
-        white: '#e0e0e0',
-      },
+      theme: getXtermTheme(isDarkTheme()),
       fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
       fontSize: 12,
       lineHeight: 1.6,
@@ -38,7 +57,19 @@ export function TerminalView() {
     term.writeln('\x1b[2m$ claude "分析代码库"\x1b[0m');
     term.writeln('\x1b[90m正在启动 Claude Agent...\x1b[0m');
 
+    // 监听主题变化，动态更新 xterm 主题
+    const observer = new MutationObserver(() => {
+      if (terminalRef.current) {
+        terminalRef.current.setOption('theme', getXtermTheme(isDarkTheme()));
+      }
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
     return () => {
+      observer.disconnect();
       term.dispose();
       terminalRef.current = null;
     };
