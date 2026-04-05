@@ -47,8 +47,10 @@ export function useWebSocket(sessionId: string | null) {
   }, [sessionId, handleEvent, addTerminalLine]);
 
   const disconnect = useCallback(() => {
-    if (wsRef.current && sessionId) {
-      wsRef.current.send(JSON.stringify({ type: 'kill_session', sessionId } as WSClientMessage));
+    if (wsRef.current) {
+      if (wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ type: 'kill_session', sessionId } as WSClientMessage));
+      }
       wsRef.current.close();
       wsRef.current = null;
     }
