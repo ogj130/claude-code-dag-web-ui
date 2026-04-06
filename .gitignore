@@ -1,2 +1,4 @@
 node_modules/.vite/deps/
 .worktrees/
+.playwright-mcp/
+logs/
