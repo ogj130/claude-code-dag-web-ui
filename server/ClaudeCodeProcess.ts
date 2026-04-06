@@ -49,6 +49,10 @@ export class ClaudeCodeProcess extends EventEmitter {
       this.emit('terminalLine', { text, sessionId, timestamp: Date.now() });
     });
 
+    parser.on('terminalChunk', (text: string) => {
+      this.emit('terminalChunk', { text, sessionId, timestamp: Date.now() });
+    });
+
     proc.stdout?.on('data', (data: Buffer) => {
       parser.feed(data.toString());
     });

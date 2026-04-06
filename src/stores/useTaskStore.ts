@@ -6,12 +6,14 @@ interface TaskState {
   toolCalls: ToolCall[];
   tokenUsage: TokenUsage;
   terminalLines: string[];
+  terminalChunks: string[];
   isRunning: boolean;
   isStarting: boolean;
   error: string | null;
 
   handleEvent: (event: ClaudeEvent) => void;
   addTerminalLine: (line: string) => void;
+  addTerminalChunk: (fragment: string) => void;
   reset: () => void;
 }
 
@@ -20,6 +22,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   toolCalls: [],
   tokenUsage: { input: 0, output: 0 },
   terminalLines: [],
+  terminalChunks: [],
   isRunning: false,
   isStarting: false,
   error: null,
@@ -127,12 +130,17 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     }));
   },
 
+  addTerminalChunk: (fragment: string) => {
+    set(state => ({ terminalChunks: [...state.terminalChunks, fragment] }));
+  },
+
   reset: () => {
     set({
       nodes: new Map(),
       toolCalls: [],
       tokenUsage: { input: 0, output: 0 },
       terminalLines: [],
+      terminalChunks: [],
       isRunning: false,
       isStarting: false,
       error: null,

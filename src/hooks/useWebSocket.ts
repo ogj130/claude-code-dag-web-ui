@@ -1,14 +1,14 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useTaskStore } from '../stores/useTaskStore';
 import { createLogger } from '../utils/logger';
-import type { WSMessage, WSClientMessage, WSTerminalMessage } from '../types/events';
+import type { WSMessage, WSClientMessage, WSTerminalMessage, WSTerminalChunkMessage } from '../types/events';
 
 const log = createLogger('WebSocket');
 const WS_URL = `ws://localhost:5300`;
 
 export function useWebSocket(sessionId: string | null) {
   const wsRef = useRef<WebSocket | null>(null);
-  const { handleEvent, addTerminalLine, reset } = useTaskStore();
+  const { handleEvent, addTerminalLine, addTerminalChunk, reset } = useTaskStore();
 
   const connect = useCallback(() => {
     if (!sessionId) return;
@@ -30,14 +30,19 @@ export function useWebSocket(sessionId: string | null) {
 
     ws.onmessage = (event) => {
       try {
-        const msg = JSON.parse(event.data) as WSMessage | WSTerminalMessage;
-        if ('type' in msg && msg.type === 'terminal') {
-          // 终端原始文本：直接追加显示
-          addTerminalLine((msg as WSTerminalMessage).text);
-        } else {
-          // 结构化事件：发给 store 处理
-          handleEvent((msg as WSMessage).event!);
+        const msg = event.data;
+        const parsed = JSON.parse(msg);
+        if ('type' in parsed) {
+          if (parsed.type === 'terminalChunk') {
+            addTerminalChunk((parsed as WSTerminalChunkMessage).text);
+            return;
+          }
+          if (parsed.type === 'terminal') {
+            addTerminalLine((parsed as WSTerminalMessage).text);
+            return;
+          }
         }
+        handleEvent((parsed as WSMessage).event!);
       } catch {
         addTerminalLine(event.data);
       }
@@ -51,7 +56,7 @@ export function useWebSocket(sessionId: string | null) {
     ws.onerror = (err) => {
       log.error('Connection error', err);
     };
-  }, [sessionId, handleEvent, addTerminalLine]);
+  }, [sessionId, handleEvent, addTerminalLine, addTerminalChunk]);
 
   const disconnect = useCallback(() => {
     if (wsRef.current) {
