@@ -120,7 +120,6 @@ export function TerminalView({ theme, onInput }: Props) {
   const terminalRef = useRef<Terminal | null>(null);
   const shownLinesRef = useRef(0);
   const shownFragmentsRef = useRef(0);
-  const lastStreamEndRef = useRef<number>(0); // 上次流式回答结束时间戳
   const [inputValue, setInputValue] = useState('');
   const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
 
@@ -222,10 +221,9 @@ export function TerminalView({ theme, onInput }: Props) {
     }
   }, [terminalChunks]);
 
-  // 流式回答结束：记录时间戳，下次输入时决定是否写分隔线
+  // 流式回答结束：清空标志
   useEffect(() => {
     if (!streamEndPending) return;
-    lastStreamEndRef.current = Date.now();
     clearStreamEnd();
   }, [streamEndPending, clearStreamEnd]);
 
@@ -252,8 +250,8 @@ export function TerminalView({ theme, onInput }: Props) {
       const term = terminalRef.current;
       if (!term) return;
 
-      // 如果是第二轮对话（距上次回答超过 2 秒），先写分隔线
-      if (lastStreamEndRef.current > 0 && Date.now() - lastStreamEndRef.current > 2000) {
+      // 首次问题回答完毕后，第二次输入前显示分隔线
+      if (terminalChunks.length > 0 && isRunning) {
         writeSeparator(term, theme === 'dark');
       }
 
