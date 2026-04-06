@@ -43,8 +43,9 @@ export function TerminalView({ theme, onInput }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const shownLinesRef = useRef(0);
+  const shownFragmentsRef = useRef(0);
   const [inputValue, setInputValue] = useState('');
-  const { terminalLines, isStarting, isRunning, error } = useTaskStore();
+  const { terminalLines, terminalChunks, isStarting, isRunning, error } = useTaskStore();
 
   // 初始化 terminal（仅一次）
   useEffect(() => {
@@ -79,6 +80,7 @@ export function TerminalView({ theme, onInput }: Props) {
       term.dispose();
       terminalRef.current = null;
       shownLinesRef.current = 0;
+      shownFragmentsRef.current = 0;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -103,6 +105,19 @@ export function TerminalView({ theme, onInput }: Props) {
       term.writeln(line);
     }
   }, [terminalLines]);
+
+  // 追加新片段（逐块流式输出，不换行）
+  useEffect(() => {
+    const term = terminalRef.current;
+    if (!term || terminalChunks.length <= shownFragmentsRef.current) return;
+
+    const newFragments = terminalChunks.slice(shownFragmentsRef.current);
+    shownFragmentsRef.current = terminalChunks.length;
+
+    for (const fragment of newFragments) {
+      term.write(fragment); // 不换行
+    }
+  }, [terminalChunks]);
 
   // 启动成功：更新状态行
   useEffect(() => {
