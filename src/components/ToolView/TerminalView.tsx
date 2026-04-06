@@ -111,6 +111,23 @@ export function TerminalView({ theme, onInput }: Props) {
       }
     });
 
+    // 选中文字自动复制到剪贴板
+    term.onSelectionChange(() => {
+      const sel = term.getSelection();
+      if (sel) {
+        navigator.clipboard.writeText(sel).catch(() => {/* ignore */});
+      }
+    });
+
+    // 右键菜单：复制选中文字
+    containerRef.current.addEventListener('contextmenu', (e: MouseEvent) => {
+      const sel = term.getSelection();
+      if (sel) {
+        e.preventDefault();
+        navigator.clipboard.writeText(sel).catch(() => {/* ignore */});
+      }
+    });
+
     term.writeln('\x1b[2m$ claude "分析代码库"\x1b[0m');
     term.writeln('\x1b[90m正在启动 Claude Agent...\x1b[0m');
 
