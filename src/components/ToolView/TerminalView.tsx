@@ -74,6 +74,16 @@ function writeChunk(term: Terminal, raw: string): void {
   }
 }
 
+/** 写入视觉分隔线（AI 回答结束后，下次输入前的分隔） */
+function writeSeparator(term: Terminal, isDark: boolean): void {
+  const dim = isDark ? '\x1b[90m' : '\x1b[2m';
+  const accent = '\x1b[36m'; // 青色
+  term.write('\n');
+  term.writeln(`${dim}┌${'─'.repeat(50)}┐${isDark ? '' : '\x1b[0m'}`);
+  term.writeln(`${dim}│${accent} Claude Code  •  /Users/ouguangji/2026/cc-web-ui${' '.repeat(Math.max(0, 50 - 54))}${dim}│${isDark ? '' : '\x1b[0m'}`);
+  term.writeln(`${dim}└${'─'.repeat(50)}┘${isDark ? '' : '\x1b[0m'}`);
+}
+
 function getXtermTheme(isDark: boolean) {
   if (isDark) {
     return {
@@ -110,8 +120,9 @@ export function TerminalView({ theme, onInput }: Props) {
   const terminalRef = useRef<Terminal | null>(null);
   const shownLinesRef = useRef(0);
   const shownFragmentsRef = useRef(0);
+  const lastStreamEndRef = useRef<number>(0); // 上次流式回答结束时间戳
   const [inputValue, setInputValue] = useState('');
-  const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error } = useTaskStore();
+  const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
 
   // 初始化 terminal（仅一次）
   useEffect(() => {
@@ -156,8 +167,17 @@ export function TerminalView({ theme, onInput }: Props) {
       }
     });
 
-    term.writeln('\x1b[2m$ claude "分析代码库"\x1b[0m');
-    term.writeln('\x1b[90m正在启动 Claude Agent...\x1b[0m');
+    // 优雅的启动横幅
+    const accent = '\x1b[36m'; // 青色
+    const dim = '\x1b[90m';
+    const bold = '\x1b[1m';
+    const reset = '\x1b[0m';
+    term.writeln('');
+    term.writeln(`${dim}╭${'─'.repeat(54)}╮${reset}`);
+    term.writeln(`${dim}│ ${bold}${accent}Claude Code${reset}  ${dim}Interactive Session${reset}${' '.repeat(16)}${dim}│${reset}`);
+    term.writeln(`${dim}│ ${dim}/Users/ouguangji/2026/cc-web-ui${' '.repeat(25)}${dim}│${reset}`);
+    term.writeln(`${dim}╰${'─'.repeat(54)}╯${reset}`);
+    term.writeln('');
 
     return () => {
       term.dispose();
@@ -202,11 +222,10 @@ export function TerminalView({ theme, onInput }: Props) {
     }
   }, [terminalChunks]);
 
-  // 流式回答结束：追加换行，让光标移到新行
+  // 流式回答结束：记录时间戳，下次输入时决定是否写分隔线
   useEffect(() => {
-    const term = terminalRef.current;
-    if (!term || !streamEndPending) return;
-    term.write('\n');
+    if (!streamEndPending) return;
+    lastStreamEndRef.current = Date.now();
     clearStreamEnd();
   }, [streamEndPending, clearStreamEnd]);
 
@@ -229,50 +248,121 @@ export function TerminalView({ theme, onInput }: Props) {
     if (e.key === 'Enter' && inputValue.trim()) {
       const text = inputValue.trim();
       setInputValue('');
-      // 回显到终端（换行 + 提示符）
-      terminalRef.current?.writeln(`\n\x1b[90m> ${text}\x1b[0m`);
+
+      const term = terminalRef.current;
+      if (!term) return;
+
+      // 如果是第二轮对话（距上次回答超过 2 秒），先写分隔线
+      if (lastStreamEndRef.current > 0 && Date.now() - lastStreamEndRef.current > 2000) {
+        writeSeparator(term, theme === 'dark');
+      }
+
+      // 回显用户输入（换行 + 提示符）
+      term.writeln(`\n\x1b[36m›\x1b[0m \x1b[90m${text}\x1b[0m`);
       onInput?.(text);
     }
   };
 
+  const totalTokens = tokenUsage.input + tokenUsage.output;
+  const statusColor = error ? 'var(--error)' : isRunning ? 'var(--success)' : 'var(--text-muted)';
+  const statusLabel = error ? '错误' : isRunning ? '运行中' : '空闲';
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {/* 顶部状态栏 */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '6px 14px',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderRadius: '8px 8px 0 0',
+        borderBottom: 'none',
+        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+        fontSize: 11,
+      }}>
+        {/* 连接状态 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{
+            width: 7, height: 7, borderRadius: '50%',
+            background: statusColor,
+            display: 'inline-block',
+            boxShadow: `0 0 5px ${statusColor}`,
+          }} />
+          <span style={{ color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.05em' }}>Claude Code</span>
+          <span style={{ color: 'var(--border)', fontSize: 10 }}>·</span>
+          <span style={{ color: 'var(--text-muted)' }}>{statusLabel}</span>
+        </div>
+        {/* Token 计数 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-muted)' }}>
+          {tokenUsage.input > 0 && (
+            <span>In <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{tokenUsage.input.toLocaleString()}</span></span>
+          )}
+          {tokenUsage.output > 0 && (
+            <span>Out <span style={{ color: 'var(--success)', fontWeight: 600 }}>{tokenUsage.output.toLocaleString()}</span></span>
+          )}
+          {totalTokens > 0 && (
+            <span style={{ color: 'var(--text-secondary)', fontSize: 10 }}>{totalTokens.toLocaleString()} tok</span>
+          )}
+        </div>
+      </div>
+
       {/* xterm 终端区域 */}
       <div
         ref={containerRef}
         style={{
           background: 'var(--term-bg)',
           border: '1px solid var(--term-border)',
-          borderRadius: 8,
+          borderTop: 'none',
           padding: 12,
-          minHeight: 300,
+          minHeight: 320,
           transition: 'background 0.3s, border-color 0.3s',
         }}
       />
 
-      {/* 外部输入框（供用户打字提交） */}
-      <input
-        type="text"
-        value={inputValue}
-        onChange={e => setInputValue(e.target.value)}
-        onKeyDown={handleInputKeyDown}
-        placeholder="输入命令后按 Enter..."
-        style={{
-          width: '100%',
-          boxSizing: 'border-box',
-          padding: '8px 12px',
-          fontSize: 12,
-          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-          background: 'var(--bg-card)',
-          color: 'var(--text-primary)',
-          border: '1px solid var(--border)',
-          borderRadius: 6,
-          outline: 'none',
-          transition: 'border-color 0.2s',
-        }}
-        onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-        onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-      />
+      {/* 输入框 */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderTop: 'none',
+        borderRadius: '0 0 8px 8px',
+        padding: '0 12px',
+        transition: 'border-color 0.2s',
+      }}
+        onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
+        onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+      >
+        <span style={{
+          color: 'var(--accent)',
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 13,
+          fontWeight: 700,
+          lineHeight: 1,
+          userSelect: 'none',
+        }}>›</span>
+        <input
+          type="text"
+          value={inputValue}
+          onChange={e => setInputValue(e.target.value)}
+          onKeyDown={handleInputKeyDown}
+          placeholder={isRunning ? '输入命令后按 Enter...' : '等待 Claude Code 启动...'}
+          disabled={!isRunning && !isStarting}
+          style={{
+            flex: 1,
+            padding: '10px 8px',
+            fontSize: 12,
+            fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+            background: 'transparent',
+            color: isRunning ? 'var(--text-primary)' : 'var(--text-muted)',
+            border: 'none',
+            outline: 'none',
+            cursor: isRunning ? 'text' : 'not-allowed',
+          }}
+        />
+      </div>
     </div>
   );
 }

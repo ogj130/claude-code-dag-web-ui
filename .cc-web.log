@@ -20,3 +20,476 @@
 [1] 1:55:11 PM [vite] (client) hmr update /src/styles/theme.css
 [1] 1:55:28 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
 [1] 2:00:24 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
+[1] 2:02:44 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
+[0] (node:28978) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 event listeners added to [ClaudeCodeProcess]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+[0] (Use `node --trace-warnings ...` to show where the warning was created)
+[0] (node:28978) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 terminalLine listeners added to [ClaudeCodeProcess]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+[0] (node:28978) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 terminalChunk listeners added to [ClaudeCodeProcess]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+[0] (node:28978) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [ClaudeCodeProcess]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+[1] 2:02:51 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
+[1] 2:02:55 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
+[1] 2:03:01 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
+[1] 2:03:16 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
+[1] 2:03:59 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
+[1] 2:03:59 PM [vite] (client) Pre-transform error: Transform failed with 7 errors:
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:10: ERROR: The symbol "terminalLines" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:25: ERROR: The symbol "terminalChunks" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:41: ERROR: The symbol "streamEndPending" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:59: ERROR: The symbol "clearStreamEnd" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:75: ERROR: The symbol "isStarting" has already been declared
+[1] ...
+[1]   Plugin: vite:esbuild
+[1]   File: /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:10
+[1]   
+[1]   The symbol "terminalLines" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |            ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "terminalChunks" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "streamEndPending" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "clearStreamEnd" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                             ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "isStarting" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                             ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "isRunning" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                         ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "error" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                                    ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1] 2:03:59 PM [vite] Internal server error: Transform failed with 7 errors:
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:10: ERROR: The symbol "terminalLines" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:25: ERROR: The symbol "terminalChunks" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:41: ERROR: The symbol "streamEndPending" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:59: ERROR: The symbol "clearStreamEnd" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:75: ERROR: The symbol "isStarting" has already been declared
+[1] ...
+[1]   Plugin: vite:esbuild
+[1]   File: /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:10
+[1]   
+[1]   The symbol "terminalLines" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |            ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "terminalChunks" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "streamEndPending" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "clearStreamEnd" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                             ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "isStarting" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                             ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "isRunning" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                         ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "error" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                                    ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]       at failureErrorWithLog (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:1467:15)
+[1]       at /Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:736:50
+[1]       at responseCallbacks.<computed> (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:603:9)
+[1]       at handleIncomingPacket (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:658:12)
+[1]       at Socket.readFromStdout (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:581:7)
+[1]       at Socket.emit (node:events:507:28)
+[1]       at addChunk (node:internal/streams/readable:559:12)
+[1]       at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+[1]       at Readable.push (node:internal/streams/readable:390:5)
+[1]       at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[1] 2:04:00 PM [vite] Internal server error: Transform failed with 7 errors:
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:10: ERROR: The symbol "terminalLines" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:25: ERROR: The symbol "terminalChunks" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:41: ERROR: The symbol "streamEndPending" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:59: ERROR: The symbol "clearStreamEnd" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:75: ERROR: The symbol "isStarting" has already been declared
+[1] ...
+[1]   Plugin: vite:esbuild
+[1]   File: /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:10
+[1]   
+[1]   The symbol "terminalLines" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |            ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "terminalChunks" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "streamEndPending" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "clearStreamEnd" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                             ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "isStarting" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                             ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "isRunning" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                         ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "error" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                                    ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]       at failureErrorWithLog (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:1467:15)
+[1]       at /Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:736:50
+[1]       at responseCallbacks.<computed> (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:603:9)
+[1]       at handleIncomingPacket (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:658:12)
+[1]       at Socket.readFromStdout (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:581:7)
+[1]       at Socket.emit (node:events:507:28)
+[1]       at addChunk (node:internal/streams/readable:559:12)
+[1]       at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+[1]       at Readable.push (node:internal/streams/readable:390:5)
+[1]       at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[1] 2:04:23 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
+[1] 2:04:23 PM [vite] (client) Pre-transform error: Transform failed with 8 errors:
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:10: ERROR: The symbol "terminalLines" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:25: ERROR: The symbol "terminalChunks" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:41: ERROR: The symbol "streamEndPending" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:59: ERROR: The symbol "clearStreamEnd" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:75: ERROR: The symbol "isStarting" has already been declared
+[1] ...
+[1]   Plugin: vite:esbuild
+[1]   File: /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:10
+[1]   
+[1]   The symbol "terminalLines" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |            ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "terminalChunks" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "streamEndPending" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "clearStreamEnd" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                             ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "isStarting" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                             ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "isRunning" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                         ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "error" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                                    ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "tokenUsage" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1] 2:04:23 PM [vite] Internal server error: Transform failed with 8 errors:
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:10: ERROR: The symbol "terminalLines" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:25: ERROR: The symbol "terminalChunks" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:41: ERROR: The symbol "streamEndPending" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:59: ERROR: The symbol "clearStreamEnd" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:75: ERROR: The symbol "isStarting" has already been declared
+[1] ...
+[1]   Plugin: vite:esbuild
+[1]   File: /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:10
+[1]   
+[1]   The symbol "terminalLines" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |            ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "terminalChunks" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "streamEndPending" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "clearStreamEnd" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                             ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "isStarting" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                             ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "isRunning" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                         ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "error" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                                    ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "tokenUsage" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]       at failureErrorWithLog (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:1467:15)
+[1]       at /Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:736:50
+[1]       at responseCallbacks.<computed> (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:603:9)
+[1]       at handleIncomingPacket (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:658:12)
+[1]       at Socket.readFromStdout (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:581:7)
+[1]       at Socket.emit (node:events:507:28)
+[1]       at addChunk (node:internal/streams/readable:559:12)
+[1]       at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+[1]       at Readable.push (node:internal/streams/readable:390:5)
+[1]       at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[1] 2:04:24 PM [vite] Internal server error: Transform failed with 8 errors:
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:10: ERROR: The symbol "terminalLines" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:25: ERROR: The symbol "terminalChunks" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:41: ERROR: The symbol "streamEndPending" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:59: ERROR: The symbol "clearStreamEnd" has already been declared
+[1] /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:75: ERROR: The symbol "isStarting" has already been declared
+[1] ...
+[1]   Plugin: vite:esbuild
+[1]   File: /Users/ouguangji/2026/cc-web-ui/src/components/ToolView/TerminalView.tsx:266:10
+[1]   
+[1]   The symbol "terminalLines" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |            ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "terminalChunks" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "streamEndPending" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "clearStreamEnd" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                             ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "isStarting" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                             ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "isRunning" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                         ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "error" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                                    ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]   The symbol "tokenUsage" has already been declared
+[1]   264|    };
+[1]   265|  
+[1]   266|    const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+[1]      |                                                                                                           ^
+[1]   267|  
+[1]   268|    const totalTokens = tokenUsage.input + tokenUsage.output;
+[1]   
+[1]       at failureErrorWithLog (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:1467:15)
+[1]       at /Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:736:50
+[1]       at responseCallbacks.<computed> (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:603:9)
+[1]       at handleIncomingPacket (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:658:12)
+[1]       at Socket.readFromStdout (/Users/ouguangji/2026/cc-web-ui/node_modules/vite/node_modules/esbuild/lib/main.js:581:7)
+[1]       at Socket.emit (node:events:507:28)
+[1]       at addChunk (node:internal/streams/readable:559:12)
+[1]       at readableAddChunkPushByteMode (node:internal/streams/readable:510:3)
+[1]       at Readable.push (node:internal/streams/readable:390:5)
+[1]       at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[1] 2:04:26 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
