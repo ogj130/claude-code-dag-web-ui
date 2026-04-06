@@ -34,10 +34,10 @@ export class AnsiParser extends EventEmitter {
         for (const event of events) {
           this.emit('event', event);
         }
-        // 终端显示文本
-        const text = this.jsonToTerminalText(obj);
-        if (text) {
-          this.emit('terminalLine', text);
+        // 流式文本：assistant text 块逐块发出 terminalChunk
+        const chunks = this.jsonToTerminalChunks(obj);
+        for (const chunk of chunks) {
+          this.emit('terminalChunk', chunk);
         }
         return;
       } catch {
@@ -53,31 +53,26 @@ export class AnsiParser extends EventEmitter {
     this.emit('terminalLine', clean);
   }
 
-  /** 从 stream-json 对象提取终端显示文本 */
-  private jsonToTerminalText(obj: Record<string, unknown>): string | null {
+  /** 从 stream-json 对象提取终端显示文本片段（逐块流式输出） */
+  private jsonToTerminalChunks(obj: Record<string, unknown>): string[] {
+    const chunks: string[] = [];
     const type = obj.type as string;
 
     if (type === 'assistant' && obj.message) {
-      // assistant 消息只取 tool_use 显示，不显示文本（文本由 result 事件统一显示）
       const msg = obj.message as Record<string, unknown>;
       const content = msg.content;
       if (Array.isArray(content)) {
-        const toolParts: string[] = [];
         for (const block of content) {
-          if (block.type === 'tool_use') {
-            toolParts.push(`\x1b[33m››› ${(block as { name: string }).name}\x1b[0m`);
+          if (block.type === 'text') {
+            const text = (block as { text: string }).text;
+            if (text) chunks.push(text);
           }
+          // tool_use 不在这里输出
         }
-        return toolParts.length ? toolParts.join(' ') : null;
       }
     }
-
-    if (type === 'result') {
-      if (obj.result) return String(obj.result);
-      if (obj.error) return `\x1b[31m✗ ${obj.error}\x1b[0m`;
-    }
-
-    return null;
+    // result 不发任何 terminalChunk（文本已在流式过程中输出完毕）
+    return chunks;
   }
 
   /**
