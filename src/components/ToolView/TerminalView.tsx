@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import '@xterm/xterm/css/xterm.css';
 import { useTaskStore } from '../../stores/useTaskStore';
@@ -43,7 +43,7 @@ export function TerminalView({ theme, onInput }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const shownLinesRef = useRef(0);
-  const lineBufferRef = useRef('');
+  const [inputValue, setInputValue] = useState('');
   const { terminalLines, isStarting, isRunning, error } = useTaskStore();
 
   // 初始化 terminal（仅一次）
@@ -62,21 +62,13 @@ export function TerminalView({ theme, onInput }: Props) {
     term.open(containerRef.current);
     terminalRef.current = term;
 
-    // 捕获键盘输入，按 Enter 时通过 onInput 发送
+    // xterm 键盘输入（供外部程序化调用）
     term.onData((data: string) => {
       if (data === '\r') {
-        // 回车：提交当前行缓冲
-        if (lineBufferRef.current.trim()) {
-          onInput?.(lineBufferRef.current.trim());
-          lineBufferRef.current = '';
+        if (inputValue.trim()) {
+          onInput?.(inputValue.trim());
+          setInputValue('');
         }
-      } else if (data === '\x7f') {
-        // 退格
-        lineBufferRef.current = lineBufferRef.current.slice(0, -1);
-      } else if (data.length === 1 && data >= ' ' && data <= '~') {
-        // 可打印字符
-        lineBufferRef.current += data;
-        term.write(data);
       }
     });
 
@@ -107,13 +99,8 @@ export function TerminalView({ theme, onInput }: Props) {
     shownLinesRef.current = terminalLines.length;
 
     for (const line of newLines) {
-      try {
-        const parsed = JSON.parse(line);
-        term.writeln(`\x1b[36m››› ${parsed.event?.type ?? 'unknown'}\x1b[0m`);
-      } catch {
-        // 原始文本（echo 输入等），去掉 ANSI 转义码后显示
-        term.writeln(line.replace(/\x1b\[[0-9;]*m/g, ''));
-      }
+      // 直接写入终端（已是原始文本，含 ANSI 颜色码）
+      term.writeln(line);
     }
   }, [terminalLines]);
 
@@ -131,17 +118,55 @@ export function TerminalView({ theme, onInput }: Props) {
     term.writeln(`\x1b[31m✗ 错误: ${error}\x1b[0m`);
   }, [error]);
 
+  // 外部文本框按 Enter 时发送
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && inputValue.trim()) {
+      const text = inputValue.trim();
+      setInputValue('');
+      // 回显到终端
+      terminalRef.current?.writeln(`\x1b[90m> ${text}\x1b[0m`);
+      onInput?.(text);
+    }
+  };
+
   return (
-    <div
-      ref={containerRef}
-      style={{
-        background: 'var(--term-bg)',
-        border: '1px solid var(--term-border)',
-        borderRadius: 8,
-        padding: 12,
-        minHeight: 300,
-        transition: 'background 0.3s, border-color 0.3s',
-      }}
-    />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* xterm 终端区域 */}
+      <div
+        ref={containerRef}
+        style={{
+          background: 'var(--term-bg)',
+          border: '1px solid var(--term-border)',
+          borderRadius: 8,
+          padding: 12,
+          minHeight: 300,
+          transition: 'background 0.3s, border-color 0.3s',
+        }}
+      />
+
+      {/* 外部输入框（供用户打字提交） */}
+      <input
+        type="text"
+        value={inputValue}
+        onChange={e => setInputValue(e.target.value)}
+        onKeyDown={handleInputKeyDown}
+        placeholder="输入命令后按 Enter..."
+        style={{
+          width: '100%',
+          boxSizing: 'border-box',
+          padding: '8px 12px',
+          fontSize: 12,
+          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+          background: 'var(--bg-card)',
+          color: 'var(--text-primary)',
+          border: '1px solid var(--border)',
+          borderRadius: 6,
+          outline: 'none',
+          transition: 'border-color 0.2s',
+        }}
+        onFocus={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+        onBlur={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+      />
+    </div>
   );
 }

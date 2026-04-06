@@ -58,22 +58,18 @@ export class AnsiParser extends EventEmitter {
     const type = obj.type as string;
 
     if (type === 'assistant' && obj.message) {
+      // assistant 消息只取 tool_use 显示，不显示文本（文本由 result 事件统一显示）
       const msg = obj.message as Record<string, unknown>;
       const content = msg.content;
       if (Array.isArray(content)) {
-        const parts: string[] = [];
+        const toolParts: string[] = [];
         for (const block of content) {
-          if (block.type === 'text') {
-            const text = String(block.text ?? '').trim();
-            if (text) parts.push(text);
-          }
           if (block.type === 'tool_use') {
-            parts.push(`\x1b[33m››› ${(block as { name: string }).name}\x1b[0m`);
+            toolParts.push(`\x1b[33m››› ${(block as { name: string }).name}\x1b[0m`);
           }
         }
-        return parts.length ? parts.join(' ') : null;
+        return toolParts.length ? toolParts.join(' ') : null;
       }
-      if (typeof content === 'string') return content.trim() || null;
     }
 
     if (type === 'result') {

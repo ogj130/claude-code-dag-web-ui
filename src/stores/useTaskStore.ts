@@ -29,7 +29,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
     switch (event.type) {
       case 'session_start': {
-        set({ isStarting: false, isRunning: true, error: null });
+        const newNodes = new Map(nodes);
+        const mainNode: DAGNode = {
+          id: 'main-agent',
+          label: 'Claude Agent',
+          status: 'running',
+          type: 'agent',
+          startTime: Date.now(),
+        };
+        newNodes.set('main-agent', mainNode);
+        set({ isStarting: false, isRunning: true, error: null, nodes: newNodes });
         break;
       }
       case 'error': {
@@ -67,7 +76,18 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           status: 'running',
           startTime: Date.now(),
         };
-        set({ toolCalls: [...toolCalls, toolCall] });
+        // 同时创建 DAG node（parentId 关联主 agent node）
+        const newNodes = new Map(nodes);
+        const toolNode: DAGNode = {
+          id: event.toolId,
+          label: event.tool,
+          status: 'running',
+          type: 'tool',
+          parentId: 'main-agent',
+          startTime: Date.now(),
+        };
+        newNodes.set(event.toolId, toolNode);
+        set({ toolCalls: [...toolCalls, toolCall], nodes: newNodes });
         break;
       }
       case 'tool_result': {
@@ -80,7 +100,13 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             result: String(event.result),
             endTime: Date.now(),
           };
-          set({ toolCalls: updated });
+          // 同时更新 DAG node 状态
+          const newNodes = new Map(nodes);
+          const node = newNodes.get(event.toolId);
+          if (node) {
+            newNodes.set(event.toolId, { ...node, status: 'failed' as const, endTime: Date.now() });
+          }
+          set({ toolCalls: updated, nodes: newNodes });
         }
         break;
       }
