@@ -7,6 +7,8 @@ interface TaskState {
   tokenUsage: TokenUsage;
   terminalLines: string[];
   isRunning: boolean;
+  isStarting: boolean;
+  error: string | null;
 
   handleEvent: (event: ClaudeEvent) => void;
   addTerminalLine: (line: string) => void;
@@ -19,11 +21,21 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   tokenUsage: { input: 0, output: 0 },
   terminalLines: [],
   isRunning: false,
+  isStarting: false,
+  error: null,
 
   handleEvent: (event: ClaudeEvent) => {
     const { nodes, toolCalls } = get();
 
     switch (event.type) {
+      case 'session_start': {
+        set({ isStarting: false, isRunning: true, error: null });
+        break;
+      }
+      case 'error': {
+        set({ isStarting: false, isRunning: false, error: event.message });
+        break;
+      }
       case 'agent_start': {
         const newNodes = new Map(nodes);
         const newNode: DAGNode = {
@@ -96,6 +108,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       tokenUsage: { input: 0, output: 0 },
       terminalLines: [],
       isRunning: false,
+      isStarting: false,
+      error: null,
     });
   },
 }));

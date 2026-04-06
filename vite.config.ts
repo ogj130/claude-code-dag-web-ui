@@ -7,6 +7,13 @@ export default defineConfig({
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },
   server: {
     port: 5400,
-    proxy: { '/ws': { target: 'ws://localhost:5300', ws: true } }
+    proxy: {
+      '/ws': {
+        target: 'ws://localhost:5300',
+        ws: true,
+        // 长连接超时 5 分钟，避免代理提前断开
+        timeout: 300_000,
+      }
+    }
   }
 })

@@ -13,6 +13,8 @@ export function useWebSocket(sessionId: string | null) {
   const connect = useCallback(() => {
     if (!sessionId) return;
 
+    useTaskStore.setState({ isStarting: true, error: null });
+
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
 
