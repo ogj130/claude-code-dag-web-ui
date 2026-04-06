@@ -251,7 +251,7 @@ export function TerminalView({ theme, onInput }: Props) {
       if (!term) return;
 
       // 首次问题回答完毕后，第二次输入前显示分隔线
-      if (terminalChunks.length > 0 && isRunning) {
+      if (terminalChunks.length > 0) {
         writeSeparator(term, theme === 'dark');
       }
 
