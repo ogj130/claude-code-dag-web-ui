@@ -12,7 +12,7 @@ export function App() {
 
   // store 初始化时就有了默认会话，activeSessionId 从第一帧就不是 null
   const { activeSessionId } = useSessionStore();
-  useWebSocket(activeSessionId);
+  const { sendInput } = useWebSocket(activeSessionId);
 
   const applyTheme = (t: 'dark' | 'light') => {
     setTheme(t);
@@ -36,6 +36,7 @@ export function App() {
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           theme={theme}
+          onInput={sendInput}
           style={{ width: 420 }}
         />
       </div>

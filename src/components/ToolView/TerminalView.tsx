@@ -5,6 +5,7 @@ import { useTaskStore } from '../../stores/useTaskStore';
 
 interface Props {
   theme: 'dark' | 'light';
+  onInput?: (input: string) => void;
 }
 
 function getXtermTheme(isDark: boolean) {
@@ -38,10 +39,11 @@ function getXtermTheme(isDark: boolean) {
   };
 }
 
-export function TerminalView({ theme }: Props) {
+export function TerminalView({ theme, onInput }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const shownLinesRef = useRef(0);
+  const lineBufferRef = useRef('');
   const { terminalLines, isStarting, isRunning, error } = useTaskStore();
 
   // 初始化 terminal（仅一次）
@@ -59,6 +61,24 @@ export function TerminalView({ theme }: Props) {
 
     term.open(containerRef.current);
     terminalRef.current = term;
+
+    // 捕获键盘输入，按 Enter 时通过 onInput 发送
+    term.onData((data: string) => {
+      if (data === '\r') {
+        // 回车：提交当前行缓冲
+        if (lineBufferRef.current.trim()) {
+          onInput?.(lineBufferRef.current.trim());
+          lineBufferRef.current = '';
+        }
+      } else if (data === '\x7f') {
+        // 退格
+        lineBufferRef.current = lineBufferRef.current.slice(0, -1);
+      } else if (data.length === 1 && data >= ' ' && data <= '~') {
+        // 可打印字符
+        lineBufferRef.current += data;
+        term.write(data);
+      }
+    });
 
     term.writeln('\x1b[2m$ claude "分析代码库"\x1b[0m');
     term.writeln('\x1b[90m正在启动 Claude Agent...\x1b[0m');
@@ -91,7 +111,8 @@ export function TerminalView({ theme }: Props) {
         const parsed = JSON.parse(line);
         term.writeln(`\x1b[36m››› ${parsed.event?.type ?? 'unknown'}\x1b[0m`);
       } catch {
-        term.writeln(line);
+        // 原始文本（echo 输入等），去掉 ANSI 转义码后显示
+        term.writeln(line.replace(/\x1b\[[0-9;]*m/g, ''));
       }
     }
   }, [terminalLines]);

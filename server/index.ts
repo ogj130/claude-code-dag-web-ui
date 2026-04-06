@@ -85,6 +85,7 @@ wss.on('connection', (ws: WebSocket) => {
           break;
         }
         case 'send_input': {
+          logger.info({ sessionId: msg.sessionId, input: msg.input }, 'send_input');
           processManager.sendInput(msg.sessionId, msg.input);
           break;
         }

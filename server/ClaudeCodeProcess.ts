@@ -15,13 +15,16 @@ export class ClaudeCodeProcess extends EventEmitter {
       this.kill(sessionId);
     }
 
-    // --bare: 跳过 hooks/LSP/插件同步等，加速冷启动
-    // -p: 非交互式，--output-format stream-json: 流式结构化输出
+    // --bare: 跳过插件/LSP/hooks 加速冷启动
+    // --input-format stream-json + --output-format stream-json: 双向流式 JSON 交互
+    // --permission-mode bypassPermissions: 跳过信任目录确认
     const args = [
       '--bare',
       '-p',
+      '--input-format', 'stream-json',
       '--output-format', 'stream-json',
       '--permission-mode', 'bypassPermissions',
+      // 初始 prompt 作为第一个 stdin 消息发出
       ...(prompt ? [prompt] : [])
     ];
 
@@ -73,7 +76,9 @@ export class ClaudeCodeProcess extends EventEmitter {
   sendInput(sessionId: string, input: string): void {
     const proc = this.processes.get(sessionId);
     if (proc?.stdin) {
-      proc.stdin.write(input + '\n');
+      // --input-format stream-json: stdin 必须是 JSON 格式
+      const msg = JSON.stringify({ type: 'user', message: { content: input } });
+      proc.stdin.write(msg + '\n');
     }
   }
 
