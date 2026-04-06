@@ -75,6 +75,17 @@ wss.on('connection', (ws: WebSocket) => {
               }
             });
 
+            processManager.on('terminalChunk', (payload: { text: string; sessionId: string; timestamp: number }) => {
+              if (payload.sessionId === sessionId) {
+                broadcast(sessionId, JSON.stringify({
+                  type: 'terminalChunk',
+                  text: payload.text,
+                  sessionId: payload.sessionId,
+                  timestamp: payload.timestamp,
+                }));
+              }
+            });
+
             processManager.on('close', ({ sessionId: closedId, code }) => {
               logger.info({ sessionId: closedId, code }, 'Session closed');
               registeredSessions.delete(closedId);
