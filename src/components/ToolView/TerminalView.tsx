@@ -8,6 +8,46 @@ interface Props {
   onInput?: (input: string) => void;
 }
 
+/** 清理 Markdown 语法，保留纯文本和换行 */
+function stripMarkdown(text: string): string {
+  return text
+    // 代码块（优先，防止内层规则干扰）
+    .replace(/```[\w]*\n([\s\S]*?)```/g, '$1')
+    // 行内代码
+    .replace(/`([^`]+)`/g, '$1')
+    // 粗体 **text** 或 __text__
+    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
+    .replace(/__([^_\n]+)__/g, '$1')
+    // 斜体 *text* 或 _text_（但跳过列表标记）
+    .replace(/\*(?!\s)([^*\n]+)\*/g, '$1')
+    .replace(/_(?![\s-])([^_\n]+)_/g, '$1')
+    // 删除线 ~~text~~
+    .replace(/~~([^~\n]+)~~/g, '$1')
+    // 标题 ### text → » text
+    .replace(/^#{1,3}\s+/gm, '» ')
+    // 水平线
+    .replace(/^[-*_]{3,}$/gm, '')
+    // > 引用 → | 引用
+    .replace(/^>\s?/gm, '| ')
+    // 列表标记规范化
+    .replace(/^(\s*)[-*+]\s+/gm, '$1• ')
+    .replace(/^(\s*)\d+\.\s+/gm, '$1')
+    // 链接 [text](url) → text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+}
+
+/** 写入一个文本片段：处理内嵌换行 + Markdown 清理 */
+function writeChunk(term: Terminal, raw: string): void {
+  const text = stripMarkdown(raw);
+  const parts = text.split('\n');
+  for (let i = 0; i < parts.length; i++) {
+    term.write(parts[i]);
+    if (i < parts.length - 1) {
+      term.write('\n'); // 每个换行符拆成独立的 write
+    }
+  }
+}
+
 function getXtermTheme(isDark: boolean) {
   if (isDark) {
     return {
@@ -45,7 +85,7 @@ export function TerminalView({ theme, onInput }: Props) {
   const shownLinesRef = useRef(0);
   const shownFragmentsRef = useRef(0);
   const [inputValue, setInputValue] = useState('');
-  const { terminalLines, terminalChunks, isStarting, isRunning, error } = useTaskStore();
+  const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error } = useTaskStore();
 
   // 初始化 terminal（仅一次）
   useEffect(() => {
@@ -115,9 +155,17 @@ export function TerminalView({ theme, onInput }: Props) {
     shownFragmentsRef.current = terminalChunks.length;
 
     for (const fragment of newFragments) {
-      term.write(fragment); // 不换行
+      writeChunk(term, fragment); // 清理 Markdown，处理内嵌换行
     }
   }, [terminalChunks]);
+
+  // 流式回答结束：追加换行，让光标移到新行
+  useEffect(() => {
+    const term = terminalRef.current;
+    if (!term || !streamEndPending) return;
+    term.write('\n');
+    clearStreamEnd();
+  }, [streamEndPending, clearStreamEnd]);
 
   // 启动成功：更新状态行
   useEffect(() => {
@@ -138,8 +186,8 @@ export function TerminalView({ theme, onInput }: Props) {
     if (e.key === 'Enter' && inputValue.trim()) {
       const text = inputValue.trim();
       setInputValue('');
-      // 回显到终端
-      terminalRef.current?.writeln(`\x1b[90m> ${text}\x1b[0m`);
+      // 回显到终端（换行 + 提示符）
+      terminalRef.current?.writeln(`\n\x1b[90m> ${text}\x1b[0m`);
       onInput?.(text);
     }
   };

@@ -114,6 +114,7 @@ export class AnsiParser extends EventEmitter {
         events.push({ type: 'error', message: resultStr });
       } else {
         events.push({ type: 'tool_result', toolId: 'last', result: resultStr, status: 'success' });
+        events.push({ type: 'streamEnd' });
         events.push({ type: 'session_end', sessionId: '', reason: 'completed' });
       }
       const usage = obj.usage as Record<string, number> | undefined;

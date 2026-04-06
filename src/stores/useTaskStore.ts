@@ -7,6 +7,7 @@ interface TaskState {
   tokenUsage: TokenUsage;
   terminalLines: string[];
   terminalChunks: string[];
+  streamEndPending: boolean;
   isRunning: boolean;
   isStarting: boolean;
   error: string | null;
@@ -14,6 +15,7 @@ interface TaskState {
   handleEvent: (event: ClaudeEvent) => void;
   addTerminalLine: (line: string) => void;
   addTerminalChunk: (fragment: string) => void;
+  clearStreamEnd: () => void;
   reset: () => void;
 }
 
@@ -23,6 +25,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   tokenUsage: { input: 0, output: 0 },
   terminalLines: [],
   terminalChunks: [],
+  streamEndPending: false,
   isRunning: false,
   isStarting: false,
   error: null,
@@ -31,6 +34,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     const { nodes, toolCalls } = get();
 
     switch (event.type) {
+      case 'streamEnd': {
+        set({ streamEndPending: true });
+        break;
+      }
       case 'session_start': {
         const newNodes = new Map(nodes);
         const mainNode: DAGNode = {
@@ -134,6 +141,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set(state => ({ terminalChunks: [...state.terminalChunks, fragment] }));
   },
 
+  clearStreamEnd: () => {
+    set({ streamEndPending: false });
+  },
+
   reset: () => {
     set({
       nodes: new Map(),
@@ -141,6 +152,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       tokenUsage: { input: 0, output: 0 },
       terminalLines: [],
       terminalChunks: [],
+      streamEndPending: false,
       isRunning: false,
       isStarting: false,
       error: null,

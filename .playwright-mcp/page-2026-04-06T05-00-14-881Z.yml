@@ -1,0 +1,70 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - button "+ 新会话" [ref=e5] [cursor=pointer]
+    - generic [ref=e6]: "|"
+    - button "● 会话 1 ▾" [ref=e8] [cursor=pointer]:
+      - generic [ref=e9]: ●
+      - generic [ref=e10]: 会话 1
+      - generic [ref=e11]: ▾
+    - generic [ref=e12]: "|"
+    - generic [ref=e13]:
+      - generic [ref=e14]: "Input:"
+      - generic [ref=e15]: "0"
+      - generic [ref=e16]: "|"
+      - generic [ref=e17]: "Output:"
+      - generic [ref=e18]: "0"
+      - generic [ref=e19]: "|"
+      - generic [ref=e20]: "Total:"
+      - generic [ref=e21]: "0"
+    - generic [ref=e22]:
+      - generic [ref=e24]: Connected
+      - generic [ref=e25]: "|"
+      - generic [ref=e26]:
+        - button "🌙" [ref=e27] [cursor=pointer]
+        - button "☀️" [ref=e28] [cursor=pointer]
+      - button "⚙ 设置" [ref=e29] [cursor=pointer]
+  - generic [ref=e30]:
+    - generic [ref=e31]:
+      - generic [ref=e33]: DAG 执行图
+      - application [ref=e35]:
+        - img
+        - generic "Control Panel" [ref=e38]:
+          - button "Zoom In" [ref=e39] [cursor=pointer]:
+            - img [ref=e40]
+          - button "Zoom Out" [ref=e42] [cursor=pointer]:
+            - img [ref=e43]
+          - button "Fit View" [ref=e45] [cursor=pointer]:
+            - img [ref=e46]
+          - button "Toggle Interactivity" [ref=e48] [cursor=pointer]:
+            - img [ref=e49]
+        - link "React Flow attribution" [ref=e52] [cursor=pointer]:
+          - /url: https://reactflow.dev
+          - text: React Flow
+    - generic [ref=e54]:
+      - generic [ref=e55]:
+        - button "终端" [ref=e56] [cursor=pointer]
+        - button "卡片" [ref=e57] [cursor=pointer]
+      - generic [ref=e62]:
+        - textbox "Terminal input" [active] [ref=e63]
+        - generic [ref=e64]:
+          - generic [ref=e65]:
+            - generic [ref=e116]: $ claude "
+            - generic [ref=e117]: 分析代码库
+            - generic [ref=e118]: "\""
+          - generic [ref=e69]:
+            - generic [ref=e119]: 正在启动
+            - generic [ref=e120]: Claude Agent...
+          - generic [ref=e121]: ››› unknown
+          - generic [ref=e74]:
+            - generic [ref=e122]: ✓ Claude Code
+            - generic [ref=e123]: 已连接
+            - generic [ref=e124]: ，
+            - generic [ref=e125]: 正在工作
+            - generic [ref=e126]: ...
+          - generic [ref=e80]:
+            - generic [ref=e136]: hello
+            - generic [ref=e137]: ››› unknown
+          - generic [ref=e138]: ››› unknown
+  - generic [ref=e101]:
+    - generic [ref=e102]: 最近工具
+    - generic [ref=e103]: 暂无工具调用

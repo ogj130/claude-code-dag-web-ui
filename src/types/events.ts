@@ -35,7 +35,8 @@ export type ClaudeEvent =
   | { type: 'token_usage'; usage: TokenUsage }
   | { type: 'error'; message: string }
   | { type: 'session_start'; sessionId: string }
-  | { type: 'session_end'; sessionId: string; reason?: string };
+  | { type: 'session_end'; sessionId: string; reason?: string }
+  | { type: 'streamEnd' };
 
 // WebSocket 消息格式（服务端 → 客户端）
 export interface WSMessage {
