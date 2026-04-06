@@ -10,7 +10,7 @@ interface Props {
 
 /** 清理 Markdown 语法，保留纯文本和换行 */
 function stripMarkdown(text: string): string {
-  return text
+  return text.trim()
     // 代码块（优先，防止内层规则干扰）
     .replace(/```[\w]*\n([\s\S]*?)```/g, '$1')
     // 行内代码
@@ -36,15 +36,13 @@ function stripMarkdown(text: string): string {
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 }
 
-/** 写入一个文本片段：处理内嵌换行 + Markdown 清理 */
+/** 写入一个文本片段：处理内嵌换行 + Markdown 清理 + trim 每行 */
 function writeChunk(term: Terminal, raw: string): void {
   const text = stripMarkdown(raw);
-  const parts = text.split('\n');
-  for (let i = 0; i < parts.length; i++) {
-    term.write(parts[i]);
-    if (i < parts.length - 1) {
-      term.write('\n'); // 每个换行符拆成独立的 write
-    }
+  const lines = text.split('\n');
+  for (const line of lines) {
+    term.write(line.trim());
+    term.write('\n');
   }
 }
 

@@ -322,3 +322,12 @@
 [1]       at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
 [1] 1:47:20 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
 [1] 1:47:34 PM [vite] (client) page reload src/stores/useTaskStore.ts
+[1] 1:49:47 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
+[0] (node:13374) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 event listeners added to [ClaudeCodeProcess]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+[0] (Use `node --trace-warnings ...` to show where the warning was created)
+[0] (node:13374) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 terminalLine listeners added to [ClaudeCodeProcess]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+[0] (node:13374) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 terminalChunk listeners added to [ClaudeCodeProcess]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+[0] (node:13374) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added to [ClaudeCodeProcess]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+[1] 1:49:52 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
+[1] 1:49:57 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
+[1] 1:50:06 PM [vite] (client) page reload src/components/ToolView/TerminalView.tsx
