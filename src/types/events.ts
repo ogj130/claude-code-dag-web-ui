@@ -39,7 +39,15 @@ export type ClaudeEvent =
 
 // WebSocket 消息格式（服务端 → 客户端）
 export interface WSMessage {
-  event: ClaudeEvent;
+  event?: ClaudeEvent;
+  sessionId: string;
+  timestamp: number;
+}
+
+// 服务端 → 客户端：终端原始文本行（直接显示用）
+export interface WSTerminalMessage {
+  type: 'terminal';
+  text: string;
   sessionId: string;
   timestamp: number;
 }

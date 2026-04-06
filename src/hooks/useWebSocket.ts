@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useTaskStore } from '../stores/useTaskStore';
 import { createLogger } from '../utils/logger';
-import type { WSMessage, WSClientMessage } from '../types/events';
+import type { WSMessage, WSClientMessage, WSTerminalMessage } from '../types/events';
 
 const log = createLogger('WebSocket');
 const WS_URL = `ws://localhost:5300`;
@@ -30,9 +30,14 @@ export function useWebSocket(sessionId: string | null) {
 
     ws.onmessage = (event) => {
       try {
-        const payload: WSMessage = JSON.parse(event.data);
-        handleEvent(payload.event);
-        addTerminalLine(JSON.stringify(payload.event));
+        const msg = JSON.parse(event.data) as WSMessage | WSTerminalMessage;
+        if ('type' in msg && msg.type === 'terminal') {
+          // 终端原始文本：直接追加显示
+          addTerminalLine((msg as WSTerminalMessage).text);
+        } else {
+          // 结构化事件：发给 store 处理
+          handleEvent((msg as WSMessage).event!);
+        }
       } catch {
         addTerminalLine(event.data);
       }

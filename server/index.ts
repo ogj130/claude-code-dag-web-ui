@@ -69,6 +69,12 @@ wss.on('connection', (ws: WebSocket) => {
               }
             });
 
+            processManager.on('terminalLine', (payload: { text: string; sessionId: string; timestamp: number }) => {
+              if (payload.sessionId === sessionId) {
+                broadcast(sessionId, JSON.stringify({ type: 'terminal', text: payload.text, sessionId, timestamp: payload.timestamp }));
+              }
+            });
+
             processManager.on('close', ({ sessionId: closedId, code }) => {
               logger.info({ sessionId: closedId, code }, 'Session closed');
               registeredSessions.delete(closedId);

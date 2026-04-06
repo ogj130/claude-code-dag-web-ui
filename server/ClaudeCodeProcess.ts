@@ -45,6 +45,10 @@ export class ClaudeCodeProcess extends EventEmitter {
       this.emit('event', { event, sessionId, timestamp: Date.now() });
     });
 
+    parser.on('terminalLine', (text: string) => {
+      this.emit('terminalLine', { text, sessionId, timestamp: Date.now() });
+    });
+
     proc.stdout?.on('data', (data: Buffer) => {
       parser.feed(data.toString());
     });
@@ -77,7 +81,7 @@ export class ClaudeCodeProcess extends EventEmitter {
     const proc = this.processes.get(sessionId);
     if (proc?.stdin) {
       // --input-format stream-json: stdin 必须是 JSON 格式
-      const msg = JSON.stringify({ type: 'user', message: { content: input } });
+      const msg = JSON.stringify({ type: 'user', message: { role: 'user', content: input } });
       proc.stdin.write(msg + '\n');
     }
   }

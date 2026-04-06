@@ -10,72 +10,99 @@ export class AnsiParser extends EventEmitter {
     this.buffer = lines.pop() ?? '';
 
     for (const line of lines) {
-      const events = this.parseLine(line);
-      for (const event of events) {
-        this.emit('event', event);
-      }
+      this.parseLine(line);
     }
   }
 
   flush(): void {
     if (this.buffer) {
-      const events = this.parseLine(this.buffer);
-      for (const event of events) {
-        this.emit('event', event);
-      }
+      this.parseLine(this.buffer);
       this.buffer = '';
     }
   }
 
-  /** 解析单行：先尝试 JSON（stream-json 格式），否则按 ANSI 文本解析 */
-  private parseLine(line: string): ClaudeEvent[] {
+  /** 解析单行：尝试 JSON（stream-json），否则 ANSI 文本 */
+  private parseLine(line: string): void {
     const clean = line.replace(/\x1b\[[0-9;]*m/g, '').trim();
-    if (!clean) return [];
+    if (!clean) return;
 
-    // stream-json 格式：以 { 开头
     if (clean.startsWith('{')) {
       try {
-        const obj = JSON.parse(clean);
-        return this.jsonToEvents(obj);
+        const obj = JSON.parse(clean) as Record<string, unknown>;
+        // 结构化事件
+        const events = this.jsonToEvents(obj);
+        for (const event of events) {
+          this.emit('event', event);
+        }
+        // 终端显示文本
+        const text = this.jsonToTerminalText(obj);
+        if (text) {
+          this.emit('terminalLine', text);
+        }
+        return;
       } catch {
-        // 不是有效 JSON，继续 ANSI 解析
+        // 不是有效 JSON
       }
     }
 
-    // ANSI 彩色终端输出
-    return this.parseAnsiLine(clean);
+    // ANSI 终端输出：事件 + 原始文本
+    const events = this.parseAnsiLine(clean);
+    for (const event of events) {
+      this.emit('event', event);
+    }
+    this.emit('terminalLine', clean);
+  }
+
+  /** 从 stream-json 对象提取终端显示文本 */
+  private jsonToTerminalText(obj: Record<string, unknown>): string | null {
+    const type = obj.type as string;
+
+    if (type === 'assistant' && obj.message) {
+      const msg = obj.message as Record<string, unknown>;
+      const content = msg.content;
+      if (Array.isArray(content)) {
+        const parts: string[] = [];
+        for (const block of content) {
+          if (block.type === 'text') {
+            const text = String(block.text ?? '').trim();
+            if (text) parts.push(text);
+          }
+          if (block.type === 'tool_use') {
+            parts.push(`\x1b[33m››› ${(block as { name: string }).name}\x1b[0m`);
+          }
+        }
+        return parts.length ? parts.join(' ') : null;
+      }
+      if (typeof content === 'string') return content.trim() || null;
+    }
+
+    if (type === 'result') {
+      if (obj.result) return String(obj.result);
+      if (obj.error) return `\x1b[31m✗ ${obj.error}\x1b[0m`;
+    }
+
+    return null;
   }
 
   /**
-   * 将 claude -p --output-format stream-json 的 JSON 对象转换为 ClaudeEvent[]
+   * 将 stream-json JSON 对象转换为 ClaudeEvent[]
    *
    * stream-json 事件类型：
-   *   { "type": "system", "subtype": "init", ... }
-   *   { "type": "assistant", "message": { "content": [...] }, ... }
-   *   { "type": "result", "subtype": "success", "result": "...", ... }
-   *   { "type": "result", "subtype": "error", "error": "...", ... }
+   *   { "type": "system", "subtype": "init" }
+   *   { "type": "assistant", "message": { "content": [...] } }
+   *   { "type": "result", "result": "..." }
    */
   private jsonToEvents(obj: Record<string, unknown>): ClaudeEvent[] {
     const events: ClaudeEvent[] = [];
     const type = obj.type as string;
 
-    if (type === 'system' && obj.subtype === 'init') {
-      // 会话初始化完成
-      return [];
-    }
+    if (type === 'system') return []; // 忽略初始化消息
 
     if (type === 'assistant' && obj.message) {
       const msg = obj.message as Record<string, unknown>;
       const content = msg.content as Array<Record<string, unknown>> | undefined;
-
       if (Array.isArray(content)) {
         for (const block of content) {
-          if (block.type === 'text') {
-            // 文本块：忽略，stream-json 的 result 事件会给出完整输出
-          }
-          if (block.type === 'thinking') {
-            // 思考块：忽略
-          }
           if (block.type === 'tool_use') {
             const tool = block as { name: string; input: Record<string, unknown>; id: string };
             events.push({
@@ -90,26 +117,19 @@ export class AnsiParser extends EventEmitter {
     }
 
     if (type === 'result') {
-      const isError = obj.subtype === 'error' || (obj as Record<string, unknown>).is_error === true;
+      const isError = obj.subtype === 'error' || obj.is_error === true;
       const resultStr = String(obj.result ?? obj.error ?? '');
-
       if (isError) {
         events.push({ type: 'error', message: resultStr });
       } else {
-        // 成功结果
         events.push({ type: 'tool_result', toolId: 'last', result: resultStr, status: 'success' });
         events.push({ type: 'session_end', sessionId: '', reason: 'completed' });
       }
-
-      // Token 用量
-      const usage = (obj as Record<string, unknown>).usage as Record<string, unknown> | undefined;
+      const usage = obj.usage as Record<string, number> | undefined;
       if (usage) {
         events.push({
           type: 'token_usage',
-          usage: {
-            input: (usage.input_tokens as number) ?? 0,
-            output: (usage.output_tokens as number) ?? 0,
-          }
+          usage: { input: usage.input_tokens ?? 0, output: usage.output_tokens ?? 0 },
         });
       }
     }
@@ -120,34 +140,27 @@ export class AnsiParser extends EventEmitter {
   /** 解析 ANSI 彩色终端输出行（交互模式回退） */
   private parseAnsiLine(clean: string): ClaudeEvent[] {
     const agentStart = clean.match(/›››\s*Agent:\s*(.+?)\s*(启动|开始|start)/);
-    if (agentStart) {
-      return [{ type: 'agent_start', agentId: `agent_${Date.now()}`, label: agentStart[1] }];
-    }
+    if (agentStart) return [{ type: 'agent_start', agentId: `agent_${Date.now()}`, label: agentStart[1] }];
 
     const agentEnd = clean.match(/›››\s*Agent:\s*(.+?)\s*(✓|完成|end|done)/);
-    if (agentEnd) {
-      return [{ type: 'agent_end', agentId: `agent_${Date.now()}`, result: agentEnd[1] }];
-    }
+    if (agentEnd) return [{ type: 'agent_end', agentId: `agent_${Date.now()}`, result: agentEnd[1] }];
 
     const toolMatch = clean.match(/›››\s*([A-Za-z]+)\s*(.*)/);
     if (toolMatch && !clean.includes('Agent')) {
-      const toolId = `tool_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
       return [{
         type: 'tool_call',
-        toolId,
+        toolId: `tool_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         tool: toolMatch[1].toLowerCase(),
-        args: { raw: toolMatch[2] || '' }
+        args: { raw: toolMatch[2] || '' },
       }];
     }
 
     if (clean.startsWith('✓') || clean.includes('完成') || clean.includes('success')) {
       return [{ type: 'tool_result', toolId: 'last', result: clean, status: 'success' }];
     }
-
     if (clean.includes('error') || clean.includes('Error') || clean.includes('失败')) {
       return [{ type: 'tool_result', toolId: 'last', result: clean, status: 'error' }];
     }
-
     return [];
   }
 }
