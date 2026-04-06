@@ -10,39 +10,67 @@ interface Props {
 
 /** 清理 Markdown 语法，保留纯文本和换行 */
 function stripMarkdown(text: string): string {
-  return text.trim()
-    // 代码块（优先，防止内层规则干扰）
-    .replace(/```[\w]*\n([\s\S]*?)```/g, '$1')
+  return text
+    .trim()
+    // 代码块（优先）
+    .replace(/```[\w]*\n?([\s\S]*?)```/g, '$1')
     // 行内代码
     .replace(/`([^`]+)`/g, '$1')
-    // 粗体 **text** 或 __text__
+    // 粗体 / 斜体 / 删除线
     .replace(/\*\*([^*\n]+)\*\*/g, '$1')
     .replace(/__([^_\n]+)__/g, '$1')
-    // 斜体 *text* 或 _text_（但跳过列表标记）
     .replace(/\*(?!\s)([^*\n]+)\*/g, '$1')
     .replace(/_(?![\s-])([^_\n]+)_/g, '$1')
-    // 删除线 ~~text~~
     .replace(/~~([^~\n]+)~~/g, '$1')
-    // 标题 ### text → » text
+    // 标题
     .replace(/^#{1,3}\s+/gm, '» ')
     // 水平线
     .replace(/^[-*_]{3,}$/gm, '')
-    // > 引用 → | 引用
+    // 引用
     .replace(/^>\s?/gm, '| ')
-    // 列表标记规范化
+    // 无序列表
     .replace(/^(\s*)[-*+]\s+/gm, '$1• ')
+    // 有序列表
     .replace(/^(\s*)\d+\.\s+/gm, '$1')
-    // 链接 [text](url) → text
+    // 链接
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 }
 
-/** 写入一个文本片段：处理内嵌换行 + Markdown 清理 + trim 每行 */
+/**
+ * 智能断行：超过 maxCols 字符时在最后一个空格处截断，
+ * 防止 xterm.js 自由折行导致的"楼梯"效果。
+ */
+function wrapLine(line: string, maxCols: number): string[] {
+  if (line.length <= maxCols) return [line];
+  const parts: string[] = [];
+  while (line.length > maxCols) {
+    const breakIdx = line.lastIndexOf(' ', maxCols);
+    if (breakIdx <= 0) break; // 无空格，强截
+    parts.push(line.slice(0, breakIdx));
+    line = line.slice(breakIdx + 1);
+  }
+  parts.push(line);
+  return parts;
+}
+
+/** 写入一个片段：清理 Markdown + 每行从列 0 开始 + 智能断行 */
 function writeChunk(term: Terminal, raw: string): void {
-  const text = stripMarkdown(raw);
-  const lines = text.split('\n');
+  const clean = stripMarkdown(raw);
+  const lines = clean.split('\n');
   for (const line of lines) {
-    term.write(line.trim());
-    term.write('\n');
+    const trimmed = line.trim();
+    // 空行：只写换行
+    if (!trimmed) {
+      term.write('\n');
+      continue;
+    }
+    // 每行从列 0 开始，防止 xterm 自由折行导致楼梯效果
+    const wrapped = wrapLine(trimmed, 120);
+    for (const part of wrapped) {
+      term.write('\r');        // 光标移到行首
+      term.write(part);
+      term.write('\n');
+    }
   }
 }
 
