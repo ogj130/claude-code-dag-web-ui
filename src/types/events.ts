@@ -52,6 +52,14 @@ export interface WSTerminalMessage {
   timestamp: number;
 }
 
+// 服务端 → 客户端：终端流式片段（逐块追加，不换行）
+export interface WSTerminalChunkMessage {
+  type: 'terminalChunk';
+  text: string;
+  sessionId: string;
+  timestamp: number;
+}
+
 // WS 客户端 → 服务端消息
 export type WSClientMessage =
   | { type: 'start_session'; sessionId: string; projectPath: string; prompt?: string }
