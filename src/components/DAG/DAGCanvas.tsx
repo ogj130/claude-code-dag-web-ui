@@ -13,7 +13,7 @@ import type { Node, Edge } from '@xyflow/react';
 import type { DAGNode } from '../../types/events';
 
 // 模块级 ref：存储 ReactFlow 实例的 fitView，跨 render 稳定
-let fitViewInstance: ((options?: { padding: number; duration: number }) => void) | null = null;
+let fitViewInstance: ((options?: { padding: number; duration: number; nodes?: Node[] }) => void) | null = null;
 
 const nodeTypes = { dagNode: DAGNodeComponent };
 
@@ -22,7 +22,7 @@ interface Props {
 }
 
 export function DAGCanvas({ style }: Props) {
-  const { nodes: storeNodes, collapsedDagQueryIds } = useTaskStore();
+  const { nodes: storeNodes, collapsedDagQueryIds, currentQueryId } = useTaskStore();
 
   interface ModalState {
     open: boolean;
@@ -156,6 +156,27 @@ export function DAGCanvas({ style }: Props) {
       fitViewInstance({ padding: 0.15, duration: 300 });
     }
   }, [positionedNodes.length, collapsedQueryIds.size]);
+
+  // 聚焦当前问题 query 链（当 currentQueryId 变化时触发）
+  useEffect(() => {
+    if (!fitViewInstance || !currentQueryId) return;
+
+    // 收集当前 query 链的所有节点（query 本身 + 其 tools + summary）
+    const chainNodes = positionedNodes.filter(n =>
+      n.id === currentQueryId ||
+      n.id === `${currentQueryId}_summary` ||
+      ((n.data as DAGNode).parentId === currentQueryId)
+    );
+
+    if (chainNodes.length > 0) {
+      // fitView 到当前 query 链的节点区域
+      fitViewInstance({
+        nodes: chainNodes,
+        padding: 0.3,
+        duration: 400,
+      });
+    }
+  }, [currentQueryId, positionedNodes]);
 
   const edges: Edge[] = Array.from(storeNodes.values())
     .filter(n => {

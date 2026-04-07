@@ -333,10 +333,11 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             nodes: newNodesQS,
             pendingAnalysisByQueryId: newMap,
             lastSummaryNodeId: summaryNodeId,
+            lastCompletedQueryId: event.queryId,
             toolCalls: updatedToolCalls,
             collapsedCardIds: newCollapsedCardIds,
             currentCard: null,
-            previousCard: null, // 清除 previousCard（正常流程中 previousCard 应为 null）
+            previousCard: null,
             markdownCards: [
               ...markdownCards.slice(-50),
               {
@@ -357,6 +358,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             nodes: newNodesQS,
             pendingAnalysisByQueryId: newMap,
             lastSummaryNodeId: summaryNodeId,
+            lastCompletedQueryId: event.queryId,
             toolCalls: updatedToolCalls,
             collapsedCardIds: newCollapsedCardIds,
             previousCard: null,
@@ -379,6 +381,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             nodes: newNodesQS,
             pendingAnalysisByQueryId: newMap,
             lastSummaryNodeId: summaryNodeId,
+            lastCompletedQueryId: event.queryId,
             toolCalls: updatedToolCalls,
             collapsedCardIds: newCollapsedCardIds,
             markdownCards: [
