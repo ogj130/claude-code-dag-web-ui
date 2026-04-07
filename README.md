@@ -111,6 +111,76 @@ Frontend          Backend
  react-md    →    ANSI parser
 ```
 
+#### System Architecture
+
+```mermaid
+graph TB
+    subgraph Backend["⚙️ Backend (Node.js)"]
+        CC["🤖 Claude Code\nprocess"]
+        WS["⚡ WebSocket Server\n:5300"]
+        AP["📝 ANSI Parser"]
+        CC -->|stdout/ events| AP
+        AP -->|parsed events| WS
+    end
+
+    subgraph Frontend["🌐 Frontend (React)"]
+        WH["🔌 WebSocket Handler"]
+        Store["🗃️ Zustand Store"]
+        DAG["🔥 DAGCanvas\n(ReactFlow)"]
+        Terminal["💻 TerminalView\n(xterm.js)"]
+        Cards["📋 Card System\nLiveCard + MarkdownCard"]
+        WH -->|handleEvent| Store
+        Store -->|nodes/ edges| DAG
+        Store -->|toolCalls/ lines| Terminal
+        Store -->|currentCard/ markdownCards| Cards
+    end
+
+    WS -.->|"WebSocket"| WH
+    DAG -.->|onNodeClick| Cards
+    Cards -.->|selectNode| DAG
+```
+
+#### Event-Driven Data Flow
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 User
+    participant UI as 💻 Frontend
+    participant WS as ⚡ WebSocket
+    participant Backend as ⚙️ Claude Code
+    participant Store as 🗃️ Zustand Store
+
+    User->>UI: 发送问题
+    UI->>WS: user_input_sent
+    WS->>Backend: forward to Claude Code
+    Backend-->>WS: session_start
+    Backend-->>WS: query_start
+    Backend-->>WS: tool_call
+    Backend-->>WS: tool_result / tool_progress
+    Backend-->>WS: query_end
+    Backend-->>WS: query_summary
+    WS->>Store: handleEvent(event)
+    Store->>Store: update state
+    Store->>UI: re-render DAG / Terminal / Cards
+
+    rect rgba(0, 180, 120, 0.1)
+        Note over User,Store: 🔄 Auto-Collapse: 新问题开始时<br/>DAG 和 Terminal 自动折叠上一个问题
+    end
+```
+
+#### State Transition
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle: session_start
+    Idle --> Running: user_input_sent
+    Running --> Running: query_start (next query)
+    Running --> QueryEnd: query_end
+    QueryEnd --> Completed: query_summary
+    Completed --> Running: user_input_sent (next query)
+    Completed --> [*]: session_end
+```
+
 ---
 
 ## 中文
@@ -134,6 +204,7 @@ Frontend          Backend
 <details open>
 <summary><b>🗺️ DAG 执行图（暗黑模式）</b></summary>
 <img src="docs/screenshots/readme-dag-view.png" alt="DAG 视图" width="100%" />
+<img src="docs/screenshots/image.png" alt="DAG 视图" width="100%" />
 </details>
 
 <details>
@@ -144,6 +215,7 @@ Frontend          Backend
 <details>
 <summary><b>☀️ 明亮模式预览</b></summary>
 <img src="docs/screenshots/readme-light-mode.png" alt="明亮模式" width="100%" />
+<img src="docs/screenshots/image-2.png" alt="明亮模式" width="100%" />
 </details>
 
 ### 快速开始
@@ -203,6 +275,76 @@ UI 完全由 Claude Code 后端的事件驱动：
  ReactFlow   →    Claude Code
  xterm.js    →    ANSI parser
  react-md    →    process
+```
+
+#### 系统架构图
+
+```mermaid
+graph TB
+    subgraph Backend["⚙️ 后端 (Node.js)"]
+        CC["🤖 Claude Code\nprocess"]
+        WS["⚡ WebSocket Server\n:5300"]
+        AP["📝 ANSI Parser"]
+        CC -->|stdout/ events| AP
+        AP -->|parsed events| WS
+    end
+
+    subgraph Frontend["🌐 前端 (React)"]
+        WH["🔌 WebSocket Handler"]
+        Store["🗃️ Zustand Store"]
+        DAG["🔥 DAGCanvas\n(ReactFlow)"]
+        Terminal["💻 TerminalView\n(xterm.js)"]
+        Cards["📋 卡片系统\nLiveCard + MarkdownCard"]
+        WH -->|handleEvent| Store
+        Store -->|nodes/ edges| DAG
+        Store -->|toolCalls/ lines| Terminal
+        Store -->|currentCard/ markdownCards| Cards
+    end
+
+    WS -.->|"WebSocket"| WH
+    DAG -.->|onNodeClick| Cards
+    Cards -.->|selectNode| DAG
+```
+
+#### 事件驱动数据流
+
+```mermaid
+sequenceDiagram
+    participant User as 👤 用户
+    participant UI as 💻 前端
+    participant WS as ⚡ WebSocket
+    participant Backend as ⚙️ Claude Code
+    participant Store as 🗃️ Zustand Store
+
+    User->>UI: 发送问题
+    UI->>WS: user_input_sent
+    WS->>Backend: forward to Claude Code
+    Backend-->>WS: session_start
+    Backend-->>WS: query_start
+    Backend-->>WS: tool_call
+    Backend-->>WS: tool_result / tool_progress
+    Backend-->>WS: query_end
+    Backend-->>WS: query_summary
+    WS->>Store: handleEvent(event)
+    Store->>Store: update state
+    Store->>UI: re-render DAG / Terminal / Cards
+
+    rect rgba(0, 180, 120, 0.1)
+        Note over User,Store: 🔄 自动折叠：新问题开始时<br/>DAG 和 Terminal 自动折叠上一个问题
+    end
+```
+
+#### 状态转换图
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle: session_start
+    Idle --> Running: user_input_sent
+    Running --> Running: query_start (下一个问题)
+    Running --> QueryEnd: query_end
+    QueryEnd --> Completed: query_summary
+    Completed --> Running: user_input_sent (下一个问题)
+    Completed --> [*]: session_end
 ```
 
 ---
