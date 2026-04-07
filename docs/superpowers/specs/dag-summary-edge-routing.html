@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>DAG Summary Edge Routing</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #6e7681;
+    --accent: #58a6ff;
+    --warn: #d29922;
+    --success: #3fb950;
+    --tool-border: #30363d;
+  }
+  body { margin: 0; padding: 24px; background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  h1 { font-size: 14px; color: var(--accent); margin: 0 0 6px; }
+  p { color: var(--text-dim); margin: 0 0 20px; font-size: 11px; }
+
+  .section { margin-bottom: 48px; }
+  .section h2 { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.8px; margin: 0 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .section h2 span { color: var(--success); font-weight: bold; }
+
+  .dag-view {
+    background: var(--bg);
+    background-image: radial-gradient(circle, #30363d40 1px, transparent 1px);
+    background-size: 24px 24px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    min-height: 200px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .node {
+    position: absolute;
+    background: #161b22;
+    border: 1.5px solid var(--tool-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .node.agent { border-color: var(--warn); background: rgba(210,153,34,0.06); width: 110px; }
+  .node.query { border-color: var(--accent); background: rgba(88,166,255,0.06); min-width: 120px; }
+  .node.tool { border-color: var(--tool-border); min-width: 90px; }
+  .node.tool.last { border-color: var(--accent); background: rgba(88,166,255,0.08); }
+  .node.summary { border-color: var(--success); background: rgba(63,185,80,0.06); width: 160px; }
+  .node .icon { font-size: 14px; margin-bottom: 2px; }
+  .node .label { font-size: 10px; color: var(--text-dim); }
+  .node .type-tag { font-size: 9px; color: var(--accent); margin-top: 2px; }
+
+  .edges-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .edge { fill: none; }
+  .edge-query-tool { stroke: var(--accent); stroke-width: 1.5; }
+  .edge-tool-summary { stroke: var(--success); stroke-width: 1.5; }
+  .edge-tool-summary.dashed { stroke-dasharray: 5,3; }
+  .edge-query-summary { stroke: var(--success); stroke-width: 1.5; stroke-dasharray: 5,3; }
+  .edge-query-chain { stroke: var(--text-dim); stroke-width: 1; stroke-dasharray: 4,3; }
+
+  .desc { margin-top: 10px; font-size: 10px; color: var(--text-dim); line-height: 1.6; }
+  .desc strong { color: var(--text); }
+</style>
+</head>
+<body>
+
+<h1>DAG Summary Edge Routing — 方案对比</h1>
+<p>工具节点用蓝框标记，summary 用绿框，最后工具加粗边框</p>
+
+<!-- ── 方案 A：直接边 ── -->
+<div class="section">
+  <h2>方案 A：直接边 <span>✓ 推荐</span></h2>
+  <div class="dag-view" id="dag-a">
+    <svg class="edges-svg" id="svg-a"></svg>
+    <div class="node agent" style="top:20px;left:370px;text-align:center;">
+      <div class="icon">🤖</div>
+      <div>Claude Agent</div>
+    </div>
+    <div class="node query" style="top:80px;left:60px;">
+      <div class="icon">💬</div>
+      <div>Q1: 你好啊</div>
+      <div class="type-tag">query</div>
+    </div>
+    <div class="node tool" style="top:160px;left:20px;">
+      <div class="icon">🔍</div>
+      <div>Grep</div>
+    </div>
+    <div class="node tool" style="top:160px;left:145px;">
+      <div class="icon">📄</div>
+      <div>Read</div>
+    </div>
+    <div class="node tool last" style="top:160px;left:270px;border-color:var(--accent);border-width:2px;">
+      <div class="icon">⚡</div>
+      <div>Bash</div>
+      <div class="type-tag" style="color:var(--accent)">lastTool</div>
+    </div>
+    <div class="node summary" style="top:240px;left:220px;">
+      <div class="icon">📋</div>
+      <div>总结</div>
+    </div>
+  </div>
+  <div class="desc">
+    <strong>风格：</strong>多工具时前几条边水平直线，最后一条到 summary 的边走 L 型折线（水平→垂直→水平）。<br>
+    <strong>优点：</strong>DAG 语义最准确，sumary 严格从 lastTool 出发，无额外节点污染图。<br>
+    <strong>适用：</strong>标准 DAG 展示，专业感强。
+  </div>
+</div>
+
+<!-- ── 方案 B：汇聚骨架 ── -->
+<div class="section">
+  <h2>方案 B：汇聚骨架</h2>
+  <div class="dag-view" id="dag-b">
+    <svg class="edges-svg" id="svg-b"></svg>
+    <div class="node agent" style="top:20px;left:370px;text-align:center;">
+      <div class="icon">🤖</div>
+      <div>Claude Agent</div>
+    </div>
+    <div class="node query" style="top:80px;left:60px;">
+      <div class="icon">💬</div>
+      <div>Q1: 你好啊</div>
+      <div class="type-tag">query</div>
+    </div>
+    <div class="node tool" style="top:160px;left:20px;">
+      <div class="icon">🔍</div>
+      <div>Grep</div>
+    </div>
+    <div class="node tool" style="top:160px;left:145px;">
+      <div class="icon">📄</div>
+      <div>Read</div>
+    </div>
+    <div class="node tool last" style="top:160px;left:270px;border-color:var(--accent);border-width:2px;">
+      <div class="icon">⚡</div>
+      <div>Bash</div>
+      <div class="type-tag" style="color:var(--accent)">lastTool</div>
+    </div>
+    <div class="node summary" style="top:240px;left:220px;">
+      <div class="icon">📋</div>
+      <div>总结</div>
+    </div>
+    <!-- 汇聚点标注 -->
+    <div style="position:absolute;top:198px;left:330px;width:8px;height:8px;background:var(--success);border-radius:50%;border:2px solid var(--bg);" title="汇聚点"></div>
+  </div>
+  <div class="desc">
+    <strong>风格：</strong>工具行右侧设置一个隐式"汇聚点"，所有工具边先水平向右汇聚，再一起垂直向下到 summary。<br>
+    <strong>优点：</strong>视觉上呈现清晰的"扇出→汇聚"结构，特别适合并行工具多时。<br>
+    <strong>实现注意：</strong>需通过 ReactFlow 的 <code>addEdges</code> + <code>marker-end</code> 箭头，或 SVG 叠加层手动画汇聚折线。
+  </div>
+</div>
+
+<!-- ── 方案 C：工具层分离 ── -->
+<div class="section">
+  <h2>方案 C：层级分离</h2>
+  <div class="dag-view" id="dag-c">
+    <svg class="edges-svg" id="svg-c"></svg>
+    <div class="node agent" style="top:20px;left:370px;text-align:center;">
+      <div class="icon">🤖</div>
+      <div>Claude Agent</div>
+    </div>
+    <div class="node query" style="top:80px;left:60px;">
+      <div class="icon">💬</div>
+      <div>Q1: 你好啊</div>
+      <div class="type-tag">query</div>
+    </div>
+    <div class="node tool" style="top:160px;left:20px;">
+      <div class="icon">🔍</div>
+      <div>Grep</div>
+    </div>
+    <div class="node tool" style="top:160px;left:145px;">
+      <div class="icon">📄</div>
+      <div>Read</div>
+    </div>
+    <div class="node tool last" style="top:160px;left:270px;border-color:var(--accent);border-width:2px;">
+      <div class="icon">⚡</div>
+      <div>Bash</div>
+      <div class="type-tag" style="color:var(--accent)">lastTool</div>
+    </div>
+    <div class="node summary" style="top:260px;left:155px;">
+      <div class="icon">📋</div>
+      <div>总结</div>
+    </div>
+  </div>
+  <div class="desc">
+    <strong>风格：</strong>summary 放在工具层正下方居中，所有工具（包括 lastTool）通过 L 型折线各自独立连接到 summary，summary 严格处于最后一层。<br>
+    <strong>优点：</strong>层级关系最清晰，summary 始终在最低层，符合经典 DAG 四层模型（agent→query→tool→summary）。<br>
+    <strong>缺点：</strong>边较多（每工具一条），适合工具数量少（1-3个）时。
+  </div>
+</div>
+
+<script>
+  // ── 方案 A ──
+  // Grep: right=(20+121/2)=80, bottom=198 → L to summary
+  // Read: right=(145+121/2)=205, bottom=198 → L to summary
+  // Bash(lastTool): right=(270+121/2)=330, bottom=198 → straight to summary
+  // Summary: top=240, left=220, w=191, h=76 → left=220, top=240
+  const svgA = document.getElementById('svg-a');
+  svgA.innerHTML = [
+    // query → tools（水平）
+    '<path d="M180,98 L80,126" class="edge edge-query-tool"/>',
+    '<path d="M180,98 L205,126" class="edge edge-query-tool"/>',
+    '<path d="M180,98 L330,126" class="edge edge-query-tool"/>',
+    // tools → summary（L型折线，从各工具底边到 summary 左上）
+    // Grep: (80,198) → (80,220) → (220,220) → (220,240)
+    '<path d="M80,198 L80,220 L220,220 L220,240" class="edge edge-tool-summary" stroke-dasharray="5,3"/>',
+    // Read: (205,198) → (205,220) → (220,220) → (220,240)
+    '<path d="M205,198 L205,220 L220,220 L220,240" class="edge edge-tool-summary" stroke-dasharray="5,3"/>',
+    // Bash(lastTool): 直接水平到 summary
+    '<path d="M330,198 L220,240" class="edge edge-tool-summary"/>',
+  ].join('');
+
+  // ── 方案 B ──
+  const svgB = document.getElementById('svg-b');
+  svgB.innerHTML = [
+    // query → tools
+    '<path d="M180,98 L80,126" class="edge edge-query-tool"/>',
+    '<path d="M180,98 L205,126" class="edge edge-query-tool"/>',
+    '<path d="M180,98 L330,126" class="edge edge-query-tool"/>',
+    // tools → 汇聚点 (338, 198)
+    '<path d="M80,198 L338,198" class="edge edge-tool-summary" stroke-dasharray="5,3"/>',
+    '<path d="M205,198 L338,198" class="edge edge-tool-summary" stroke-dasharray="5,3"/>',
+    '<path d="M330,198 L338,198" class="edge edge-tool-summary"/>',
+    // 汇聚点 → summary
+    '<path d="M338,198 L338,240" class="edge edge-tool-summary"/>',
+  ].join('');
+
+  // ── 方案 C ──
+  const svgC = document.getElementById('svg-c');
+  svgC.innerHTML = [
+    // query → tools
+    '<path d="M180,98 L80,126" class="edge edge-query-tool"/>',
+    '<path d="M180,98 L205,126" class="edge edge-query-tool"/>',
+    '<path d="M180,98 L330,126" class="edge edge-query-tool"/>',
+    // tools → summary（各自 L 型）
+    '<path d="M80,198 L80,260" class="edge edge-tool-summary" stroke-dasharray="5,3"/>',
+    '<path d="M205,198 L205,260" class="edge edge-tool-summary" stroke-dasharray="5,3"/>',
+    '<path d="M330,198 L330,260" class="edge edge-tool-summary"/>',
+  ].join('');
+</script>
+</body>
+</html>

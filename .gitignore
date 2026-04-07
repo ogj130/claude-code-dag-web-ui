@@ -1,4 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Vite
+.vite/
 node_modules/.vite/deps/
-.worktrees/
+
+# Playwright
 .playwright-mcp/
+
+# Logs
 logs/
+*.log
+npm-debug.log*
+
+# Editor directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local env files
+.env
+.env.local
+.env.*.local
+
+# Worktrees
+.worktrees/
+
+# Misc
+*.local

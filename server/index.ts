@@ -13,6 +13,8 @@ const wss = new WebSocketServer({
 });
 
 const processManager = new ClaudeCodeProcess();
+// 放宽监听器上限：StrictMode 等场景会快速创建多个 session
+processManager.setMaxListeners(100);
 const clients = new Map<string, Set<WebSocket>>();
 
 // WebSocket 心跳：每 25 秒 ping 一次，防止代理超时断开
@@ -98,12 +100,39 @@ wss.on('connection', (ws: WebSocket) => {
             });
           }
 
+          // 如果该 session 已有运行中的进程，先杀掉（支持路径切换场景）
+          if (processManager.isRunning(sessionId)) {
+            logger.info({ sessionId }, 'Killing existing process before re-spawn');
+            processManager.kill(sessionId);
+          }
+
           processManager.spawn(sessionId, projectPath, prompt);
           break;
         }
         case 'send_input': {
           logger.info({ sessionId: msg.sessionId, input: msg.input }, 'send_input');
-          processManager.sendInput(msg.sessionId, msg.input);
+          const queryId = processManager.sendInput(msg.sessionId, msg.input);
+          if (queryId) {
+            // 立即把 queryId 广播给客户端，让它创建正确的 DAG 节点
+            broadcast(msg.sessionId, JSON.stringify({
+              event: {
+                type: 'user_input_sent',
+                queryId,
+                text: msg.input,
+              },
+              sessionId: msg.sessionId,
+              timestamp: Date.now(),
+            }));
+            broadcast(msg.sessionId, JSON.stringify({
+              event: {
+                type: 'query_start',
+                queryId,
+                label: msg.input.length > 30 ? msg.input.slice(0, 30) + '…' : msg.input,
+              },
+              sessionId: msg.sessionId,
+              timestamp: Date.now(),
+            }));
+          }
           break;
         }
         case 'kill_session': {

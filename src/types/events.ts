@@ -4,10 +4,13 @@ export interface DAGNode {
   id: string;
   label: string;
   status: NodeStatus;
-  type: 'agent' | 'tool';
+  type: 'agent' | 'tool' | 'query' | 'summary';
   parentId?: string;
   startTime?: number;
   endTime?: number;
+  /** 总结节点：Markdown 格式的总结内容 */
+  summaryContent?: string;
+  endToolIds?: string[];   // 该 summary 的所有 endTool ID（多边汇聚用）
   [key: string]: unknown;
 }
 
@@ -36,7 +39,11 @@ export type ClaudeEvent =
   | { type: 'error'; message: string }
   | { type: 'session_start'; sessionId: string }
   | { type: 'session_end'; sessionId: string; reason?: string }
-  | { type: 'streamEnd' };
+  | { type: 'streamEnd'; queryId?: string }
+  | { type: 'user_input_sent'; queryId: string; text: string }
+  | { type: 'query_start'; queryId: string; label: string }
+  | { type: 'query_end'; queryId: string }
+  | { type: 'query_summary'; queryId: string; summary: string; endToolIds?: string[] };
 
 // WebSocket 消息格式（服务端 → 客户端）
 export interface WSMessage {

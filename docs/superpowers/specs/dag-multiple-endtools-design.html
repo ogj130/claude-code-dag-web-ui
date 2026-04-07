@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>DAG 多 EndTools 汇聚方案</title>
+<style>
+  :root {
+    --bg: #0d1117; --border: #30363d; --text: #e6edf3;
+    --text-dim: #6e7681; --accent: #58a6ff; --warn: #d29922; --success: #3fb950;
+  }
+  body { margin: 0; padding: 24px; background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  h1 { font-size: 14px; color: var(--accent); margin: 0 0 4px; }
+  p { color: var(--text-dim); margin: 0 0 20px; font-size: 11px; }
+  .section { margin-bottom: 40px; }
+  .section h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.8px; margin: 0 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .section h2 span { color: var(--success); font-weight: bold; }
+  .dag-view { background: var(--bg); background-image: radial-gradient(circle, #30363d40 1px, transparent 1px); background-size: 24px 24px; border: 1px solid var(--border); border-radius: 10px; padding: 24px; min-height: 220px; position: relative; overflow: hidden; }
+  .node { position: absolute; background: #161b22; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 12px; text-align: center; font-size: 11px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .node.agent { border-color: var(--warn); background: rgba(210,153,34,0.06); width: 110px; }
+  .node.query { border-color: var(--accent); background: rgba(88,166,255,0.06); min-width: 120px; }
+  .node.tool { border-color: var(--border); min-width: 90px; }
+  .node.tool.endtool { border-color: var(--accent); background: rgba(88,166,255,0.08); border-width: 2px; }
+  .node.summary { border-color: var(--success); background: rgba(63,185,80,0.06); width: 160px; }
+  .node .icon { font-size: 14px; }
+  .node .type-tag { font-size: 9px; color: var(--accent); margin-top: 2px; }
+  .edges-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .edge { fill: none; }
+  .edge-query-tool { stroke: var(--accent); stroke-width: 1.5; }
+  .edge-endtool-summary { stroke: var(--success); stroke-width: 1.5; }
+  .edge-chain { stroke: var(--text-dim); stroke-width: 1; stroke-dasharray: 4,3; }
+  .desc { margin-top: 10px; font-size: 10px; color: var(--text-dim); line-height: 1.7; }
+  .desc strong { color: var(--text); }
+  .desc code { background: rgba(255,255,255,0.06); border-radius: 3px; padding: 1px 4px; color: var(--accent); font-size: 10px; }
+  .decision { background: rgba(63,185,80,0.06); border: 1px solid rgba(63,185,80,0.2); border-radius: 8px; padding: 12px 16px; margin-top: 20px; }
+  .decision h3 { margin: 0 0 6px; color: var(--success); font-size: 12px; }
+  .decision p { margin: 0; }
+</style>
+</head>
+<body>
+
+<h1>DAG Summary 多 EndTools 汇聚 — 设计方案</h1>
+<p>三个方案对比：summary 节点如何接收多条入边（多个 endTools 同时汇聚）</p>
+
+<!-- ── 方案 A：多 EndTools 独立汇聚 ── -->
+<div class="section">
+  <h2>方案 A：多 EndTools 独立汇聚 <span>✓ 推荐</span></h2>
+  <div class="dag-view" id="dag-a">
+    <svg class="edges-svg" id="svg-a"></svg>
+    <div class="node agent" style="top:15px;left:370px;text-align:center;">
+      <div class="icon">🤖</div><div>Claude Agent</div>
+    </div>
+    <div class="node query" style="top:75px;left:60px;">
+      <div class="icon">💬</div><div>Q1: 你好啊</div>
+      <div class="type-tag">query</div>
+    </div>
+    <div class="node tool" style="top:150px;left:20px;">
+      <div class="icon">🔍</div><div>Grep</div>
+    </div>
+    <div class="node tool endtool" style="top:150px;left:145px;border-color:var(--accent);border-width:2px;">
+      <div class="icon">📄</div><div>Read</div>
+      <div class="type-tag">endTool</div>
+    </div>
+    <div class="node tool endtool" style="top:150px;left:270px;border-color:var(--accent);border-width:2px;">
+      <div class="icon">⚡</div><div>Bash</div>
+      <div class="type-tag">endTool</div>
+    </div>
+    <div class="node summary" style="top:250px;left:155px;">
+      <div class="icon">📋</div><div>总结</div>
+    </div>
+  </div>
+  <div class="desc">
+    <strong>思路：</strong>summary 节点的 <code>parentId</code> 指向第一个 endTool；另外通过 <code>endToolIds</code> 字段记住所有 endTools。<code>DAGCanvas</code> 渲染边时，为每个 endTool 都画一条到 summary 的边（独立的 L 型折线）。<br>
+    <strong>优点：</strong>无需引入虚拟汇聚节点，ReactFlow 原生支持，布局灵活；summary 的 <code>parentId</code> 依然有意义（链条串联不依赖此字段）<br>
+    <strong>实现：</strong>DAGNode 类型新增 <code>endToolIds?: string[]</code>；边渲染时遍历 <code>endToolIds</code> 为每个 endTool 创建独立边
+  </div>
+</div>
+
+<!-- ── 方案 B：隐式汇聚折线 ── -->
+<div class="section">
+  <h2>方案 B：隐式汇聚折线</h2>
+  <div class="dag-view" id="dag-b">
+    <svg class="edges-svg" id="svg-b"></svg>
+    <div class="node agent" style="top:15px;left:370px;text-align:center;">
+      <div class="icon">🤖</div><div>Claude Agent</div>
+    </div>
+    <div class="node query" style="top:75px;left:60px;">
+      <div class="icon">💬</div><div>Q1: 你好啊</div>
+      <div class="type-tag">query</div>
+    </div>
+    <div class="node tool" style="top:150px;left:20px;">
+      <div class="icon">🔍</div><div>Grep</div>
+    </div>
+    <div class="node tool endtool" style="top:150px;left:145px;border-color:var(--accent);border-width:2px;">
+      <div class="icon">📄</div><div>Read</div>
+      <div class="type-tag">endTool</div>
+    </div>
+    <div class="node tool endtool" style="top:150px;left:270px;border-color:var(--accent);border-width:2px;">
+      <div class="icon">⚡</div><div>Bash</div>
+      <div class="type-tag">endTool</div>
+    </div>
+    <div class="node summary" style="top:250px;left:155px;">
+      <div class="icon">📋</div><div>总结</div>
+    </div>
+  </div>
+  <div class="desc">
+    <strong>思路：</strong>所有 endTool 水平边先向右延伸汇聚到同一 X 坐标（汇聚线），再垂直向下到 summary。<br>
+    <strong>优点：</strong>视觉上呈现清晰的"扇出→汇聚"结构，特别适合并行工具多时。<br>
+    <strong>实现注意：</strong>需通过 SVG 叠加层手动画汇聚折线，或 ReactFlow 的 <code>addEdges</code> + 虚拟边缘点；实现复杂度较高。
+  </div>
+</div>
+
+<!-- ── 方案 C：额外边字段 ── -->
+<div class="section">
+  <h2>方案 C：额外边字段（不修改 parentId）</h2>
+  <div class="dag-view" id="dag-c">
+    <svg class="edges-svg" id="svg-c"></svg>
+    <div class="node agent" style="top:15px;left:370px;text-align:center;">
+      <div class="icon">🤖</div><div>Claude Agent</div>
+    </div>
+    <div class="node query" style="top:75px;left:60px;">
+      <div class="icon">💬</div><div>Q1: 你好啊</div>
+      <div class="type-tag">query</div>
+    </div>
+    <div class="node tool" style="top:150px;left:20px;">
+      <div class="icon">🔍</div><div>Grep</div>
+    </div>
+    <div class="node tool endtool" style="top:150px;left:145px;border-color:var(--accent);border-width:2px;">
+      <div class="icon">📄</div><div>Read</div>
+      <div class="type-tag">endTool</div>
+    </div>
+    <div class="node tool endtool" style="top:150px;left:270px;border-color:var(--accent);border-width:2px;">
+      <div class="icon">⚡</div><div>Bash</div>
+      <div class="type-tag">endTool</div>
+    </div>
+    <div class="node summary" style="top:250px;left:155px;">
+      <div class="icon">📋</div><div>总结</div>
+    </div>
+  </div>
+  <div class="desc">
+    <strong>思路：</strong>DAGNode 新增 <code>additionalEdges?: { source: string; target: string }[]</code> 字段，summary 节点通过此字段额外声明额外的入边。<code>DAGCanvas</code> 渲染时将这些额外边合并到 edges 数组中。<br>
+    <strong>优点：</strong>原生节点结构不变，只需扩展边渲染逻辑。<br>
+    <strong>缺点：</strong>DAGNode 混入边的概念，职责不纯；边不应该属于节点，应该独立管理。
+  </div>
+</div>
+
+<div class="decision">
+  <h3>推荐方案 A：多 EndTools 独立汇聚</h3>
+  <p>summary 节点新增 <code>endToolIds: string[]</code> 字段记住所有 endTools；边渲染时，为每个 endTool 都画一条到 summary 的独立边。ReactFlow 原生支持，无需虚拟节点，修复 Bug 1（链条边误伤）也更自然。</p>
+</div>
+
+<script>
+  // ── 方案 A：各 endTool 独立 L 型折线到 summary ──
+  // Grep: (80,188) → (80,210) → (155,210) → (155,250)
+  // Read: (205,188) → (205,210) → (155,210) → (155,250)
+  // Bash: (330,188) → (330,210) → (155,210) → (155,250)
+  const svgA = document.getElementById('svg-a');
+  svgA.innerHTML = [
+    '<path d="M180,103 L80,126" class="edge edge-query-tool"/>',
+    '<path d="M180,103 L205,126" class="edge edge-query-tool"/>',
+    '<path d="M180,103 L330,126" class="edge edge-query-tool"/>',
+    // 三条 endTool → summary L型折线
+    '<path d="M80,188 L80,210 L155,210 L155,250" class="edge edge-endtool-summary"/>',
+    '<path d="M205,188 L205,210 L155,210 L155,250" class="edge edge-endtool-summary"/>',
+    '<path d="M330,188 L330,210 L155,250" class="edge edge-endtool-summary"/>',
+  ].join('');
+
+  // ── 方案 B：汇聚折线 ──
+  const svgB = document.getElementById('svg-b');
+  svgB.innerHTML = [
+    '<path d="M180,103 L80,126" class="edge edge-query-tool"/>',
+    '<path d="M180,103 L205,126" class="edge edge-query-tool"/>',
+    '<path d="M180,103 L330,126" class="edge edge-query-tool"/>',
+    // 水平汇聚线
+    '<path d="M80,188 L355,188" class="edge edge-endtool-summary" stroke-dasharray="5,3"/>',
+    '<path d="M205,188 L355,188" class="edge edge-endtool-summary" stroke-dasharray="5,3"/>',
+    '<path d="M330,188 L355,188" class="edge edge-endtool-summary"/>',
+    // 汇聚点垂直向下
+    '<path d="M355,188 L355,250" class="edge edge-endtool-summary"/>',
+    // 汇聚点到 summary
+    '<path d="M355,250 L315,250" class="edge edge-endtool-summary"/>',
+  ].join('');
+
+  // ── 方案 C：独立边（视觉同 A）──
+  const svgC = document.getElementById('svg-c');
+  svgC.innerHTML = [
+    '<path d="M180,103 L80,126" class="edge edge-query-tool"/>',
+    '<path d="M180,103 L205,126" class="edge edge-query-tool"/>',
+    '<path d="M180,103 L330,126" class="edge edge-query-tool"/>',
+    '<path d="M80,188 L80,210 L155,210 L155,250" class="edge edge-endtool-summary"/>',
+    '<path d="M205,188 L205,210 L155,210 L155,250" class="edge edge-endtool-summary"/>',
+    '<path d="M330,188 L330,210 L155,250" class="edge edge-endtool-summary"/>',
+  ].join('');
+</script>
+</body>
+</html>

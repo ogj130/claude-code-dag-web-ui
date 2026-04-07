@@ -31,6 +31,7 @@
   --dag-bg: #0a0a14;
   --dag-dot: #1a1a30;
   --dag-node-border: #2a2a50;
+  --dag-node: #13132a;
   --term-bg: #050508;
   --term-border: #1a1a2a;
 }
@@ -68,6 +69,7 @@
   --dag-bg: #fafbfe;
   --dag-dot: #e8eaf2;
   --dag-node-border: #d8d8ec;
+  --dag-node: #ffffff;
   --term-bg: #fafafa;
   --term-border: #e0e0e8;
 }
@@ -91,6 +93,10 @@ body {
 
 @keyframes pulse-green { 0%,100%{opacity:1} 50%{opacity:0.4} }
 @keyframes node-pulse { 0%,100%{box-shadow: 0 0 0 0 rgba(241,196,15,0.3)} 50%{box-shadow: 0 0 0 6px rgba(241,196,15,0)} }
+@keyframes pulse-dot { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.5; transform:scale(0.7)} }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes card-in { from{opacity:0; transform:translateY(8px) scale(0.98)} to{opacity:1; transform:translateY(0) scale(1)} }
+@keyframes fade-in { from{opacity:0} to{opacity:1} }
 
 /* 允许 xterm.js 终端内文本被选中复制 */
 .xterm {
@@ -100,4 +106,87 @@ body {
 .xterm-viewport {
   user-select: text !important;
   -webkit-user-select: text !important;
+}
+
+/* ── React Flow Controls 暗色主题 ─────────────────────────── */
+.react-flow__controls {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+  overflow: hidden;
+}
+.react-flow__controls-button {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--border) !important;
+  color: var(--text-secondary) !important;
+  width: 28px !important;
+  height: 28px !important;
+  transition: background 0.15s, color 0.15s;
+}
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+.react-flow__controls-button:hover {
+  background: var(--bg-card-hover) !important;
+  color: var(--accent) !important;
+}
+.react-flow__controls-button svg {
+  fill: currentColor !important;
+}
+.react-flow__controls-button:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.react-flow__controls-button.react-flow__controls-interactive {
+  background: var(--bg-input) !important;
+  color: var(--accent) !important;
+}
+.react-flow__attribution {
+  display: none !important;
+}
+
+/* ── React Flow Controls 亮色主题覆盖 ─────────────────────── */
+.theme-light .react-flow__controls {
+  background: var(--bg-card) !important;
+  border-color: var(--border) !important;
+}
+.theme-light .react-flow__controls-button {
+  color: var(--text-secondary) !important;
+}
+
+/* ================================================
+   MarkdownCard
+   ================================================ */
+.markdown-card {
+  border-left: 3px solid var(--success);
+  background: var(--bg-card);
+  border-radius: 8px;
+  margin: 8px 0;
+  overflow: hidden;
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.markdown-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 11px;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+/* ================================================
+   Process region (工具调用过程折叠区)
+   ================================================ */
+.process-region {
+  border: 1px solid var(--term-border);
+  border-top: none;
+  overflow: hidden;
+  transition: all 0.3s ease;
 }

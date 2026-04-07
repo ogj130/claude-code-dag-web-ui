@@ -1,77 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 import { useTaskStore } from '../../stores/useTaskStore';
+import { MarkdownCard } from './MarkdownCard';
+import { LiveCard } from './LiveCard';
 
 interface Props {
   theme: 'dark' | 'light';
   onInput?: (input: string) => void;
-}
-
-/** 清理 Markdown 语法，保留纯文本和换行 */
-function stripMarkdown(text: string): string {
-  return text
-    .trim()
-    // 代码块（优先）
-    .replace(/```[\w]*\n?([\s\S]*?)```/g, '$1')
-    // 行内代码
-    .replace(/`([^`]+)`/g, '$1')
-    // 粗体 / 斜体 / 删除线
-    .replace(/\*\*([^*\n]+)\*\*/g, '$1')
-    .replace(/__([^_\n]+)__/g, '$1')
-    .replace(/\*(?!\s)([^*\n]+)\*/g, '$1')
-    .replace(/_(?![\s-])([^_\n]+)_/g, '$1')
-    .replace(/~~([^~\n]+)~~/g, '$1')
-    // 标题
-    .replace(/^#{1,3}\s+/gm, '» ')
-    // 水平线
-    .replace(/^[-*_]{3,}$/gm, '')
-    // 引用
-    .replace(/^>\s?/gm, '| ')
-    // 无序列表
-    .replace(/^(\s*)[-*+]\s+/gm, '$1• ')
-    // 有序列表
-    .replace(/^(\s*)\d+\.\s+/gm, '$1')
-    // 链接
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-}
-
-/**
- * 智能断行：超过 maxCols 字符时在最后一个空格处截断，
- * 防止 xterm.js 自由折行导致的"楼梯"效果。
- */
-function wrapLine(line: string, maxCols: number): string[] {
-  if (line.length <= maxCols) return [line];
-  const parts: string[] = [];
-  while (line.length > maxCols) {
-    const breakIdx = line.lastIndexOf(' ', maxCols);
-    if (breakIdx <= 0) break; // 无空格，强截
-    parts.push(line.slice(0, breakIdx));
-    line = line.slice(breakIdx + 1);
-  }
-  parts.push(line);
-  return parts;
-}
-
-/** 写入一个片段：清理 Markdown + 每行从列 0 开始 + 智能断行 */
-function writeChunk(term: Terminal, raw: string): void {
-  const clean = stripMarkdown(raw);
-  const lines = clean.split('\n');
-  for (const line of lines) {
-    const trimmed = line.trim();
-    // 空行：只写换行
-    if (!trimmed) {
-      term.write('\n');
-      continue;
-    }
-    // 每行从列 0 开始，防止 xterm 自由折行导致楼梯效果
-    const wrapped = wrapLine(trimmed, 120);
-    for (const part of wrapped) {
-      term.write('\r');        // 光标移到行首
-      term.write(part);
-      term.write('\n');
-    }
-  }
 }
 
 /** 写入视觉分隔线（AI 回答结束后，下次输入前的分隔） */
@@ -118,14 +55,31 @@ function getXtermTheme(isDark: boolean) {
 export function TerminalView({ theme, onInput }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const shownLinesRef = useRef(0);
-  const shownFragmentsRef = useRef(0);
+  // 标记 xterm 是否已挂载到 DOM（避免重复 open）
+  const mountedRef = useRef(false);
   const [inputValue, setInputValue] = useState('');
-  const { terminalLines, terminalChunks, streamEndPending, clearStreamEnd, isStarting, isRunning, error, tokenUsage } = useTaskStore();
+  const {
+    terminalLines,
+    streamEndPending,
+    clearStreamEnd,
+    isStarting,
+    isRunning,
+    error,
+    tokenUsage,
+    pendingInputsCount = 0,
+    markdownCards,
+    processCollapsed,
+    collapsedCardIds,
+    currentCard,
+    previousCard,
+  } = useTaskStore();
 
-  // 初始化 terminal（仅一次）
+  // xterm 初始化：只运行一次，term 实例持久化
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
 
     const term = new Terminal({
       theme: getXtermTheme(theme === 'dark'),
@@ -136,8 +90,8 @@ export function TerminalView({ theme, onInput }: Props) {
       cursorBlink: true,
     });
 
-    term.open(containerRef.current);
-    terminalRef.current = term;
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
 
     // xterm 键盘输入（供外部程序化调用）
     term.onData((data: string) => {
@@ -158,34 +112,82 @@ export function TerminalView({ theme, onInput }: Props) {
     });
 
     // 右键菜单：复制选中文字
-    containerRef.current.addEventListener('contextmenu', (e: MouseEvent) => {
+    const ctxMenuHandler = (e: MouseEvent) => {
       const sel = term.getSelection();
       if (sel) {
         e.preventDefault();
         navigator.clipboard.writeText(sel).catch(() => {/* ignore */});
       }
-    });
+    };
+    container.addEventListener('contextmenu', ctxMenuHandler);
 
-    // 优雅的启动横幅
-    const accent = '\x1b[36m'; // 青色
-    const dim = '\x1b[90m';
-    const bold = '\x1b[1m';
-    const reset = '\x1b[0m';
-    term.writeln('');
-    term.writeln(`${dim}╭${'─'.repeat(54)}╮${reset}`);
-    term.writeln(`${dim}│ ${bold}${accent}Claude Code${reset}  ${dim}Interactive Session${reset}${' '.repeat(16)}${dim}│${reset}`);
-    term.writeln(`${dim}│ ${dim}/Users/ouguangji/2026/cc-web-ui${' '.repeat(25)}${dim}│${reset}`);
-    term.writeln(`${dim}╰${'─'.repeat(54)}╯${reset}`);
-    term.writeln('');
+    // 等容器布局完成后再 open（flex 布局需要 paint 后才有真实高度）
+    let rafId: number;
+    const tryOpen = () => {
+      if (!containerRef.current) return;
+      const h = containerRef.current.clientHeight;
+      if (h <= 0) {
+        rafId = requestAnimationFrame(tryOpen); // 还没布局好，继续等
+        return;
+      }
+      fitAddon.fit();
+      term.open(containerRef.current);
+      terminalRef.current = term;
+      mountedRef.current = true;
+
+      // 容器尺寸变化时自动 fit
+      const resizeObserver = new ResizeObserver(() => {
+        if (containerRef.current?.clientHeight ?? 0 > 0) {
+          fitAddon.fit();
+        }
+      });
+      resizeObserverRef.current = resizeObserver;
+      resizeObserver.observe(containerRef.current);
+
+      // 优雅的启动横幅
+      const accent = '\x1b[36m';
+      const dim = '\x1b[90m';
+      const bold = '\x1b[1m';
+      const reset = '\x1b[0m';
+      term.writeln('');
+      term.writeln(`${dim}╭${'─'.repeat(54)}╮${reset}`);
+      term.writeln(`${dim}│ ${bold}${accent}Claude Code${reset}  ${dim}Interactive Session${reset}${' '.repeat(16)}${dim}│${reset}`);
+      term.writeln(`${dim}│ ${dim}/Users/ouguangji/2026/cc-web-ui${' '.repeat(25)}${dim}│${reset}`);
+      term.writeln(`${dim}╰${'─'.repeat(54)}╯${reset}`);
+      term.writeln('');
+    };
+    rafId = requestAnimationFrame(tryOpen);
 
     return () => {
+      cancelAnimationFrame(rafId);
+      resizeObserverRef.current?.disconnect();
+      container.removeEventListener('contextmenu', ctxMenuHandler);
       term.dispose();
       terminalRef.current = null;
+      mountedRef.current = false;
       shownLinesRef.current = 0;
-      shownFragmentsRef.current = 0;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // processCollapsed 切换时：折叠时清空 xterm 内容，展开时 fit
+  useEffect(() => {
+    const term = terminalRef.current;
+    const container = containerRef.current;
+    if (!term || !container) return;
+
+    if (processCollapsed) {
+      // 折叠：清空 xterm 内容
+      term.clear();
+    } else {
+      // 展开：重新 fit
+      if (container.clientHeight > 0) {
+        const fitAddon = new FitAddon();
+        term.loadAddon(fitAddon);
+        fitAddon.fit();
+      }
+    }
+  }, [processCollapsed]);
 
   // 主题切换时更新 xterm 配色
   useEffect(() => {
@@ -203,23 +205,9 @@ export function TerminalView({ theme, onInput }: Props) {
     shownLinesRef.current = terminalLines.length;
 
     for (const line of newLines) {
-      // 直接写入终端（已是原始文本，含 ANSI 颜色码）
       term.writeln(line);
     }
   }, [terminalLines]);
-
-  // 追加新片段（逐块流式输出，不换行）
-  useEffect(() => {
-    const term = terminalRef.current;
-    if (!term || terminalChunks.length <= shownFragmentsRef.current) return;
-
-    const newFragments = terminalChunks.slice(shownFragmentsRef.current);
-    shownFragmentsRef.current = terminalChunks.length;
-
-    for (const fragment of newFragments) {
-      writeChunk(term, fragment); // 清理 Markdown，处理内嵌换行
-    }
-  }, [terminalChunks]);
 
   // 流式回答结束：清空标志
   useEffect(() => {
@@ -251,7 +239,7 @@ export function TerminalView({ theme, onInput }: Props) {
       if (!term) return;
 
       // 首次问题回答完毕后，第二次输入前显示分隔线
-      if (terminalChunks.length > 0) {
+      if (markdownCards.length > 0) {
         writeSeparator(term, theme === 'dark');
       }
 
@@ -266,8 +254,8 @@ export function TerminalView({ theme, onInput }: Props) {
   const statusLabel = error ? '错误' : isRunning ? '运行中' : '空闲';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-      {/* 顶部状态栏 */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, height: '100%' }}>
+      {/* 顶部状态栏（保持不变） */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -306,20 +294,56 @@ export function TerminalView({ theme, onInput }: Props) {
         </div>
       </div>
 
-      {/* xterm 终端区域 */}
-      <div
-        ref={containerRef}
-        style={{
-          background: 'var(--term-bg)',
-          border: '1px solid var(--term-border)',
-          borderTop: 'none',
-          padding: 12,
-          minHeight: 320,
-          transition: 'background 0.3s, border-color 0.3s',
-        }}
-      />
+      {/* 主内容区 */}
+      <div style={{
+        flex: 1,
+        overflow: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'var(--term-bg)',
+        border: '1px solid var(--term-border)',
+        borderTop: 'none',
+        borderBottom: 'none',
+        transition: 'background 0.3s, border-color 0.3s',
+      }}>
+        {/* MarkdownCard 列表（已完成） */}
+        {markdownCards.length > 0 && (
+          <div style={{ padding: '0 4px' }}>
+            {markdownCards.map(card => (
+              <MarkdownCard key={`${card.queryId}-${collapsedCardIds.has(card.queryId)}`} card={card} defaultAnalysisOpen={false} defaultCollapsed={collapsedCardIds.has(card.queryId)} />
+            ))}
+          </div>
+        )}
 
-      {/* 输入框 */}
+        {/* 实时问答卡片（进行中） */}
+        {previousCard && (
+          <div style={{ padding: '0 4px' }}>
+            <LiveCard card={previousCard} />
+          </div>
+        )}
+
+        {currentCard && (
+          <div style={{ padding: '0 4px' }}>
+            <LiveCard card={currentCard} />
+          </div>
+        )}
+
+        {/* xterm 工具调用日志 */}
+        <div
+          ref={containerRef}
+          style={{
+            minHeight: processCollapsed ? 0 : '120px',
+            height: processCollapsed ? 0 : 'auto',
+            overflow: 'hidden',
+            background: 'var(--term-bg)',
+            padding: processCollapsed ? 0 : '12px 8px 12px 12px',
+            transition: 'padding 0.2s, height 0.2s',
+            flexShrink: 0,
+          }}
+        />
+      </div>
+
+      {/* 输入框（保持不变） */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -335,7 +359,7 @@ export function TerminalView({ theme, onInput }: Props) {
       >
         <span style={{
           color: 'var(--accent)',
-          fontFamily: "'JetBrains Mono', monospace",
+          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
           fontSize: 13,
           fontWeight: 700,
           lineHeight: 1,
@@ -346,20 +370,40 @@ export function TerminalView({ theme, onInput }: Props) {
           value={inputValue}
           onChange={e => setInputValue(e.target.value)}
           onKeyDown={handleInputKeyDown}
-          placeholder={isRunning ? '输入命令后按 Enter...' : '等待 Claude Code 启动...'}
-          disabled={!isRunning && !isStarting}
+          placeholder={
+            isRunning
+              ? 'Claude 工作中，可继续输入...'
+              : isStarting
+              ? '等待 Claude Code 启动...'
+              : '输入消息，按 Enter 发送...'
+          }
+          disabled={false}
           style={{
             flex: 1,
             padding: '10px 8px',
             fontSize: 12,
             fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
             background: 'transparent',
-            color: isRunning ? 'var(--text-primary)' : 'var(--text-muted)',
+            color: 'var(--text-primary)',
             border: 'none',
             outline: 'none',
             cursor: isRunning ? 'text' : 'not-allowed',
           }}
         />
+        {pendingInputsCount > 0 && (
+          <span style={{
+            padding: '2px 8px',
+            borderRadius: 10,
+            fontSize: 10,
+            background: 'var(--warn-bg)',
+            color: 'var(--warn)',
+            border: '1px solid var(--warn-border)',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}>
+            +{pendingInputsCount} 条等待
+          </span>
+        )}
       </div>
     </div>
   );

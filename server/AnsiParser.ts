@@ -3,6 +3,13 @@ import type { ClaudeEvent } from '../src/types/events.js';
 
 export class AnsiParser extends EventEmitter {
   private buffer = '';
+  private currentQueryId = '';
+  // 检测到 stream-json 模式后，禁止 fallback 的 terminalLine（防止重复输出）
+  private streamJsonMode = false;
+
+  setCurrentQueryId(id: string): void {
+    this.currentQueryId = id;
+  }
 
   feed(data: string): void {
     this.buffer += data;
@@ -29,11 +36,19 @@ export class AnsiParser extends EventEmitter {
     if (clean.startsWith('{')) {
       try {
         const obj = JSON.parse(clean) as Record<string, unknown>;
+        const type = obj.type as string;
+
+        // 检测 stream-json 模式：收到 system/init 消息后确认
+        if (type === 'system') {
+          this.streamJsonMode = true;
+        }
+
         // 结构化事件
         const events = this.jsonToEvents(obj);
         for (const event of events) {
           this.emit('event', event);
         }
+
         // 流式文本：assistant text 块逐块发出 terminalChunk
         const chunks = this.jsonToTerminalChunks(obj);
         for (const chunk of chunks) {
@@ -41,11 +56,21 @@ export class AnsiParser extends EventEmitter {
         }
         return;
       } catch {
-        // 不是有效 JSON
+        // 不是有效 JSON → fallback 处理
       }
     }
 
-    // ANSI 终端输出：事件 + 原始文本
+    // stream-json 模式下：非 JSON 行（如调试信息）写入终端，并发结构化事件
+    if (this.streamJsonMode) {
+      const events = this.parseAnsiLine(clean);
+      for (const event of events) {
+        this.emit('event', event);
+      }
+      this.emit('terminalLine', clean);
+      return;
+    }
+
+    // 交互模式（ANSI）：事件 + 原始文本
     const events = this.parseAnsiLine(clean);
     for (const event of events) {
       this.emit('event', event);
@@ -77,11 +102,6 @@ export class AnsiParser extends EventEmitter {
 
   /**
    * 将 stream-json JSON 对象转换为 ClaudeEvent[]
-   *
-   * stream-json 事件类型：
-   *   { "type": "system", "subtype": "init" }
-   *   { "type": "assistant", "message": { "content": [...] } }
-   *   { "type": "result", "result": "..." }
    */
   private jsonToEvents(obj: Record<string, unknown>): ClaudeEvent[] {
     const events: ClaudeEvent[] = [];
@@ -100,7 +120,7 @@ export class AnsiParser extends EventEmitter {
               type: 'tool_call',
               toolId: tool.id,
               tool: tool.name.toLowerCase(),
-              args: tool.input,
+              args: tool.input ?? {},
             });
           }
         }
@@ -110,12 +130,24 @@ export class AnsiParser extends EventEmitter {
     if (type === 'result') {
       const isError = obj.subtype === 'error' || obj.is_error === true;
       const resultStr = String(obj.result ?? obj.error ?? '');
+
       if (isError) {
         events.push({ type: 'error', message: resultStr });
-      } else {
-        events.push({ type: 'tool_result', toolId: 'last', result: resultStr, status: 'success' });
         events.push({ type: 'streamEnd' });
-        events.push({ type: 'session_end', sessionId: '', reason: 'completed' });
+      } else {
+        // 区分 tool result 和 query summary：
+        // tool result 有 tool_use_id；query summary（最终回答）没有
+        if (obj.tool_use_id != null) {
+          events.push({ type: 'tool_result', toolId: 'last', result: resultStr, status: 'success' });
+        } else {
+          // 最终回答 → 作为 query summary 发出
+          events.push({
+            type: 'query_summary',
+            queryId: this.currentQueryId || 'main',
+            summary: resultStr,
+          });
+        }
+        events.push({ type: 'streamEnd' });
       }
       const usage = obj.usage as Record<string, number> | undefined;
       if (usage) {

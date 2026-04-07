@@ -22,6 +22,13 @@ start() {
     return 1
   fi
 
+  echo "正在检查 TypeScript 编译..."
+  if ! npx tsc --noEmit 2>&1; then
+    echo "❌ TypeScript 编译失败，请先修复错误"
+    return 1
+  fi
+  echo "✓ 类型检查通过"
+
   echo "正在启动 CC Web..."
   NODE_ENV=production npm run dev > "$LOG_FILE" 2>&1 &
   PID=$!

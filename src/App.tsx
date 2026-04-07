@@ -10,9 +10,8 @@ export function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [viewMode, setViewMode] = useState<'terminal' | 'cards'>('terminal');
 
-  // store 初始化时就有了默认会话，activeSessionId 从第一帧就不是 null
   const { activeSessionId } = useSessionStore();
-  const { sendInput } = useWebSocket(activeSessionId);
+  const { sendInput, disconnect, connect } = useWebSocket(activeSessionId);
 
   const applyTheme = (t: 'dark' | 'light') => {
     setTheme(t);
@@ -27,9 +26,16 @@ export function App() {
     // useWebSocket 靠 activeSessionId 变化自动重连
   };
 
+  // 路径切换：先 kill 当前进程，再用新路径重新 spawn
+  const handleSwitchSession = (_sessionId: string) => {
+    disconnect();
+    // 短暂延迟确保旧进程已清理，然后重新连接
+    setTimeout(() => connect(), 100);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <Toolbar theme={theme} onThemeChange={applyTheme} onNewSession={handleNewSession} />
+      <Toolbar theme={theme} onThemeChange={applyTheme} onNewSession={handleNewSession} onSwitchSession={handleSwitchSession} />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         <DAGCanvas style={{ flex: 1 }} />
         <ToolViewPanel

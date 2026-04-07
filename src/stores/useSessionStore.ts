@@ -19,6 +19,7 @@ interface SessionState {
   removeSession: (id: string) => void;
   setActive: (id: string) => void;
   renameSession: (id: string, name: string) => void;
+  updateSession: (id: string, updates: Partial<Pick<Session, 'name' | 'projectPath'>>) => void;
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
@@ -59,6 +60,14 @@ export const useSessionStore = create<SessionState>((set) => ({
   renameSession: (id, name) => {
     set(state => ({
       sessions: state.sessions.map(s => s.id === id ? { ...s, name } : s),
+    }));
+  },
+
+  updateSession: (id, updates) => {
+    set(state => ({
+      sessions: state.sessions.map(s =>
+        s.id === id ? { ...s, ...updates } : s
+      ),
     }));
   },
 }));

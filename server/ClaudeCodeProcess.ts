@@ -9,6 +9,10 @@ const logger = log('ClaudeCodeProcess');
 export class ClaudeCodeProcess extends EventEmitter {
   private processes = new Map<string, ChildProcess>();
   private parsers = new Map<string, AnsiParser>();
+  // 跟踪每个 session 的 query 序号，匹配 send_input → result
+  private queryCounters = new Map<string, number>();
+  // 当前正在等待结果的 queryId（每次 sendInput 时递增写入，result 时读取）
+  private pendingQueryIds = new Map<string, string>();
 
   spawn(sessionId: string, projectPath: string, prompt?: string): void {
     if (this.processes.has(sessionId)) {
@@ -81,13 +85,29 @@ export class ClaudeCodeProcess extends EventEmitter {
     });
   }
 
-  sendInput(sessionId: string, input: string): void {
+  sendInput(sessionId: string, input: string): string {
+    // 返回生成的 queryId，供服务端立即广播给客户端
     const proc = this.processes.get(sessionId);
     if (proc?.stdin) {
+      // 生成 query 序号，与 AnsiParser 中的 queryId 同步
+      const count = (this.queryCounters.get(sessionId) ?? 0) + 1;
+      this.queryCounters.set(sessionId, count);
+      const queryId = `query_${count}`;
+      this.pendingQueryIds.set(sessionId, queryId);
+
+      // 通知 parser 当前 query ID（用于 query_summary 事件）
+      const parser = this.parsers.get(sessionId);
+      if (parser) {
+        parser.setCurrentQueryId(queryId);
+      }
+
       // --input-format stream-json: stdin 必须是 JSON 格式
       const msg = JSON.stringify({ type: 'user', message: { role: 'user', content: input } });
       proc.stdin.write(msg + '\n');
+
+      return queryId;
     }
+    return '';
   }
 
   kill(sessionId: string): void {
