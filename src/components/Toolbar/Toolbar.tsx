@@ -1,19 +1,40 @@
+import { useState } from 'react';
 import { TokenBar } from './TokenBar';
 import { SessionDropdown } from './SessionDropdown';
 import { ThemeToggle } from './ThemeToggle';
-import { useSessionStore } from '../../stores/useSessionStore';
+import { useSessionStore, isPrivacyModeEnabled } from '../../stores/useSessionStore';
+import { useTaskStore } from '../../stores/useTaskStore';
+import { PrivacySettings } from '../PrivacySettings';
 
 interface Props {
   theme: 'dark' | 'light';
   onThemeChange: (t: 'dark' | 'light') => void;
   onNewSession: () => void;
   onSwitchSession: (sessionId: string) => void;
+  onOpenThemeSettings: () => void;
+  onOpenAnalytics?: () => void;
+  onOpenTokenAnalytics?: () => void;
 }
 
-export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession }: Props) {
+export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, onOpenThemeSettings, onOpenAnalytics, onOpenTokenAnalytics }: Props) {
   const { addSession } = useSessionStore();
+  const { groupingEnabled, toggleGrouping } = useTaskStore();
+  const [showPrivacySettings, setShowPrivacySettings] = useState(false);
+  const [privacyMode, setPrivacyMode] = useState(isPrivacyModeEnabled());
+
+  // 定时刷新隐私模式状态
+  useState(() => {
+    const interval = setInterval(() => {
+      setPrivacyMode(isPrivacyModeEnabled());
+    }, 1000);
+    return () => clearInterval(interval);
+  });
 
   const handleNewSession = () => {
+    // 隐私模式下不创建新会话
+    if (isPrivacyModeEnabled()) {
+      return;
+    }
     const id = `session_${Date.now()}`;
     addSession({
       id,
@@ -62,13 +83,100 @@ export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession }:
         <span style={{ fontSize: 11, color: 'var(--success)' }}>Connected</span>
         <span style={{ color: 'var(--border)', fontSize: 12 }}>|</span>
         <ThemeToggle theme={theme} onChange={onThemeChange} />
-        <button style={{
-          background: 'transparent', color: 'var(--text-muted)',
-          border: '1px solid var(--border)', padding: '6px 12px',
-          borderRadius: 6, fontSize: 12, cursor: 'pointer',
-          fontFamily: 'inherit', transition: 'all 0.2s',
-          display: 'flex', alignItems: 'center', gap: 5,
-        }}>
+        <button
+          onClick={toggleGrouping}
+          style={{
+            background: groupingEnabled ? 'var(--accent)' : 'transparent',
+            color: groupingEnabled ? 'white' : 'var(--text-muted)',
+            border: '1px solid var(--border)', padding: '6px 12px',
+            borderRadius: 6, fontSize: 12, cursor: 'pointer',
+            fontFamily: 'inherit', transition: 'all 0.2s',
+            display: 'flex', alignItems: 'center', gap: 5,
+          }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth={1.8}
+            strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <rect x="14" y="14" width="7" height="7" rx="1" />
+          </svg>
+          节点分组
+        </button>
+        <button
+          onClick={() => setShowPrivacySettings(true)}
+          style={{
+            background: 'transparent', color: 'var(--text-muted)',
+            border: '1px solid var(--border)', padding: '6px 12px',
+            borderRadius: 6, fontSize: 12, cursor: 'pointer',
+            fontFamily: 'inherit', transition: 'all 0.2s',
+            display: 'flex', alignItems: 'center', gap: 5,
+            position: 'relative',
+          }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth={1.8}
+            strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0110 0v4" />
+            <circle cx="12" cy="16" r="1" fill="currentColor" />
+          </svg>
+          隐私设置
+          {privacyMode && (
+            <span style={{
+              position: 'absolute',
+              top: -3,
+              right: -3,
+              width: 7,
+              height: 7,
+              borderRadius: '50%',
+              background: 'var(--accent)',
+              border: '2px solid var(--bg-bar)',
+            }} />
+          )}
+        </button>
+        <button
+          onClick={onOpenAnalytics}
+          style={{
+            background: 'transparent', color: 'var(--text-muted)',
+            border: '1px solid var(--border)', padding: '6px 12px',
+            borderRadius: 6, fontSize: 12, cursor: 'pointer',
+            fontFamily: 'inherit', transition: 'all 0.2s',
+            display: 'flex', alignItems: 'center', gap: 5,
+          }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth={1.8}
+            strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>
+            <path d="M22 12A10 10 0 0 0 12 2v10z"/>
+          </svg>
+          执行分析
+        </button>
+        <button
+          onClick={onOpenTokenAnalytics}
+          style={{
+            background: 'transparent', color: 'var(--text-muted)',
+            border: '1px solid var(--border)', padding: '6px 12px',
+            borderRadius: 6, fontSize: 12, cursor: 'pointer',
+            fontFamily: 'inherit', transition: 'all 0.2s',
+            display: 'flex', alignItems: 'center', gap: 5,
+          }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth={1.8}
+            strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2v20M2 12h20" />
+            <path d="M4 4l16 16M20 4L4 20" />
+          </svg>
+          Token 统计
+        </button>
+        <button
+          onClick={onOpenThemeSettings}
+          style={{
+            background: 'transparent', color: 'var(--text-muted)',
+            border: '1px solid var(--border)', padding: '6px 12px',
+            borderRadius: 6, fontSize: 12, cursor: 'pointer',
+            fontFamily: 'inherit', transition: 'all 0.2s',
+            display: 'flex', alignItems: 'center', gap: 5,
+          }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth={1.8}
             strokeLinecap="round" strokeLinejoin="round">
@@ -78,6 +186,10 @@ export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession }:
           设置
         </button>
       </div>
+      <PrivacySettings
+        isOpen={showPrivacySettings}
+        onClose={() => setShowPrivacySettings(false)}
+      />
     </div>
   );
 }

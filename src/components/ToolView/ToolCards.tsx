@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { ToolIcon, ChevronRightIcon, InboxIcon } from '../Icons';
+import { ErrorBoundary } from '../ErrorBoundary';
 
 // ── formatToolArgs ────────────────────────────────────────────────────────────
 /** 格式化工具参数为可读预览字符串 */
@@ -269,10 +270,20 @@ function ToolCard({ tool, index }: { tool: ReturnType<typeof useTaskStore.getSta
   );
 }
 
-export function ToolCards() {
+interface ToolCardsProps {
+  /** 只显示指定 queryId 的工具调用（不传则显示全部） */
+  queryId?: string;
+}
+
+export function ToolCards({ queryId }: ToolCardsProps = {}) {
   const { toolCalls } = useTaskStore();
 
-  if (toolCalls.length === 0) {
+  // 按 queryId 过滤（parentId 匹配）
+  const filtered = queryId
+    ? toolCalls.filter(t => t.parentId === queryId)
+    : toolCalls;
+
+  if (filtered.length === 0) {
     return (
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center',
@@ -294,8 +305,10 @@ export function ToolCards() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      {[...toolCalls].reverse().map((tool, i) => (
-        <ToolCard key={tool.id} tool={tool} index={i} />
+      {[...filtered].reverse().map((tool, i) => (
+        <ErrorBoundary key={tool.id} name={`ToolCard:${tool.tool}`}>
+          <ToolCard tool={tool} index={i} />
+        </ErrorBoundary>
       ))}
     </div>
   );

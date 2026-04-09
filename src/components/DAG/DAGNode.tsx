@@ -2,6 +2,29 @@ import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { DAGNode as DAGNodeType } from '../../types/events';
 
+// ── 浅比较函数：仅当核心属性变化时才重渲染 ─────────────
+function arePropsEqual(prev: DAGNodeProps, next: DAGNodeProps): boolean {
+  const pd = prev.data;
+  const nd = next.data;
+  return (
+    pd.id === nd.id &&
+    pd.status === nd.status &&
+    pd.label === nd.label &&
+    pd.type === nd.type &&
+    pd.isCollapsed === nd.isCollapsed &&
+    pd.groupCollapsed === nd.groupCollapsed &&
+    pd.count === nd.count &&
+    pd.queryId === nd.queryId &&
+    pd.summaryContent === nd.summaryContent &&
+    pd.args === nd.args &&
+    pd.onOpenDetail === nd.onOpenDetail &&
+    pd.onToggleCollapse === nd.onToggleCollapse &&
+    pd.onToggleGroup === nd.onToggleGroup &&
+    pd.containerWidth === nd.containerWidth &&
+    pd.toolMessage === nd.toolMessage
+  );
+}
+
 
 // ── 内联 SVG 图标 ──────────────────────────────────────
 function AgentSvgIcon() {
@@ -65,25 +88,50 @@ const STATUS_COLOR: Record<string, string> = {
   failed: 'var(--error)',
 };
 
+const TOOL_ACCENT_COLOR: Record<string, string> = {
+  Bash: 'var(--accent)',
+  Read: 'var(--success)',
+  Edit: 'var(--warn)',
+  Search: '#a78bfa',
+  Write: '#f472b6',
+  Grep: '#fb923c',
+};
+
+function getToolAccentColor(label: string): string {
+  return TOOL_ACCENT_COLOR[label] ?? 'var(--accent)';
+}
+
 interface DAGNodeProps {
   data: DAGNodeType & {
     onOpenDetail?: (node: Pick<DAGNodeType, 'id' | 'type' | 'label' | 'status' | 'args' | 'summaryContent'>) => void;
     onToggleCollapse?: (queryId: string) => void;
+    onToggleGroup?: (groupId: string) => void;
     isCollapsed?: boolean;
+    groupCollapsed?: boolean;
+    count?: number;
+    queryId?: string;
+    nodeIds?: string[];
+    isExpanded?: boolean;
+    /** 容器模式下固定子节点宽度 */
+    containerWidth?: number;
   };
   onOpenDetail?: (node: Pick<DAGNodeType, 'id' | 'type' | 'label' | 'status' | 'args' | 'summaryContent'>) => void;
 }
 
 function DAGNodeInner({ data, onOpenDetail }: DAGNodeProps) {
   const isCollapsed = data.isCollapsed ?? false;
+  const isGroupCollapsed = data.groupCollapsed ?? false;
   const handleToggleCollapse = data.onToggleCollapse;
   const s = statusStyle[data.status] ?? statusStyle.pending;
+  const accentColor = getToolAccentColor(data.label);
 
   const nodeArgs = (data.args ?? null) as Record<string, unknown> | null;
   const hasArgs = nodeArgs !== null && Object.keys(nodeArgs).length > 0;
 
   // Summary 节点固定宽度，防止 Markdown 内容撑大节点
   const isSummaryNode = data.type === 'summary';
+  // 容器模式下固定子节点宽度
+  const fixedWidth = data.containerWidth;
 
   const handleOpenDetail = () => {
     const cb = data.onOpenDetail ?? onOpenDetail;
@@ -98,26 +146,123 @@ function DAGNodeInner({ data, onOpenDetail }: DAGNodeProps) {
   };
 
   const handleToggleCollapseClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // 阻止 ReactFlow 拖拽检测
+    e.stopPropagation();
     if (data.type === 'query' && handleToggleCollapse) {
       handleToggleCollapse(data.id);
     }
   };
 
+  const handleToggleGroupClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isGroupCollapsed && data.onToggleGroup && data.queryId) {
+      data.onToggleGroup(`group_${data.queryId}_${data.label}`);
+    }
+  };
+
+  if (isGroupCollapsed) {
+    return (
+      <div style={{
+        background: 'var(--dag-node, var(--bg-card))',
+        border: '1.5px solid',
+        borderColor: `${accentColor}66`,
+        borderRadius: 10,
+        padding: '10px 14px',
+        position: 'relative',
+        minWidth: 120,
+        textAlign: 'left',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+        transition: 'all 0.3s',
+        cursor: 'pointer',
+        opacity: 0.96,
+      }} onClick={handleToggleGroupClick}>
+        {data.parentId && (
+          <Handle type="target" position={Position.Top} style={{ background: accentColor }} />
+        )}
+
+        <div style={{
+          display: 'flex', justifyContent: 'center',
+          color: accentColor,
+          marginBottom: 5,
+        }}>
+          <ToolSvgIcon />
+        </div>
+
+        <div style={{
+          color: 'var(--text-primary)', fontWeight: 500, fontSize: 12,
+          fontFamily: "'JetBrains Mono', monospace",
+          textAlign: 'center',
+        }}>
+          {data.label}
+        </div>
+
+        <div style={{
+          fontSize: 10,
+          marginTop: 4,
+          textAlign: 'center',
+          color: 'var(--text-dim)',
+          fontFamily: 'monospace',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          flexWrap: 'wrap',
+        }}>
+          <span>分组</span>
+          <span style={{
+            color: accentColor,
+            fontWeight: 600,
+            fontFamily: "'JetBrains Mono', monospace",
+            background: `${accentColor}18`,
+            border: `1px solid ${accentColor}2e`,
+            padding: '1px 6px',
+            borderRadius: 999,
+            lineHeight: 1.2,
+          }}>
+            {data.count ?? 0} 个
+          </span>
+        </div>
+
+        <div style={{
+          marginTop: 6,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4,
+          fontSize: 10,
+          color: accentColor,
+          fontFamily: 'monospace',
+        }}>
+          <span>展开</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill={accentColor}>
+            <path d="M10 17l5-5-5-5z"/>
+          </svg>
+        </div>
+
+        <Handle type="source" position={Position.Bottom} style={{ background: accentColor }} />
+      </div>
+    );
+  }
+
   return (
     <div style={{
-      background: 'var(--dag-node, var(--bg-card)',
+      background: 'var(--dag-node, var(--bg-card))',
       border: '1.5px solid',
       borderRadius: 10, padding: '10px 14px',
       position: 'relative',  // 给折叠图标提供定位上下文
-      width: isSummaryNode ? 280 : undefined,
-      minWidth: isSummaryNode ? 280 : 120,
-      maxWidth: isSummaryNode ? 280 : undefined,
+      width: isSummaryNode ? 280 : fixedWidth,
+      minWidth: isSummaryNode ? 280 : (fixedWidth ?? 120),
+      maxWidth: isSummaryNode ? 280 : (fixedWidth ?? undefined),
       textAlign: 'left',
       boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
       transition: 'all 0.3s', ...s,
       opacity: isCollapsed ? 0.85 : 1,
     }}>
+      <style>{`
+        @keyframes tool-bubble-in {
+          from { opacity: 0; transform: translateX(-50%) translateY(4px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+      `}</style>
       {/* 折叠图标（仅 query 节点显示） */}
       {data.type === 'query' && (
         <div
@@ -204,9 +349,35 @@ function DAGNodeInner({ data, onOpenDetail }: DAGNodeProps) {
       )}
 
       <Handle type="source" position={Position.Bottom} style={{ background: 'var(--accent)' }} />
+
+      {/* 工具交互提示气泡（running 状态 + 有提示文字时显示） */}
+      {data.type === 'tool' && data.status === 'running' && data.toolMessage && (
+        <div style={{
+          position: 'absolute',
+          bottom: -30,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0,0,0,0.88)',
+          border: '1px solid var(--accent)',
+          borderRadius: 5,
+          padding: '3px 10px',
+          fontSize: 9,
+          color: 'var(--accent)',
+          fontFamily: "'JetBrains Mono', monospace",
+          whiteSpace: 'nowrap',
+          maxWidth: 200,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          zIndex: 10,
+          pointerEvents: 'none',
+          animation: 'tool-bubble-in 0.2s ease-out',
+        }}>
+          {data.toolMessage}
+        </div>
+      )}
     </div>
   );
 }
 
-export const DAGNodeComponent = memo(DAGNodeInner);
+export const DAGNodeComponent = memo(DAGNodeInner, arePropsEqual);
 DAGNodeComponent.displayName = 'DAGNodeComponent';

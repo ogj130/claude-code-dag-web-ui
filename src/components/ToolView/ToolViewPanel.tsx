@@ -2,6 +2,7 @@ import React from 'react';
 import { TerminalView } from './TerminalView';
 import { ToolCards } from './ToolCards';
 import { TerminalIcon, GridIcon } from '../Icons';
+import { ErrorBoundary } from '../ErrorBoundary';
 
 interface Props {
   viewMode: 'terminal' | 'cards';
@@ -64,8 +65,8 @@ export function ToolViewPanel({ viewMode, onViewModeChange, theme, onInput, styl
       {/* 内容区 */}
       <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
         {viewMode === 'terminal'
-          ? <TerminalView theme={theme} onInput={onInput} />
-          : <ToolCards />
+          ? <ErrorBoundary name="TerminalView"><TerminalView theme={theme} onInput={onInput} /></ErrorBoundary>
+          : <ErrorBoundary name="ToolCards"><ToolCards /></ErrorBoundary>
         }
       </div>
     </div>

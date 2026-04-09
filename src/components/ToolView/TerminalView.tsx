@@ -1,14 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import '@xterm/xterm/css/xterm.css';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { MarkdownCard } from './MarkdownCard';
 import { LiveCard } from './LiveCard';
+import { ToolCards } from './ToolCards';
+import { useHistoryRecall } from '../../hooks/useHistoryRecall';
 
 interface Props {
   theme: 'dark' | 'light';
-  onInput?: (input: string) => void;
+  onInput?: (input: string) => boolean | void;
+  style?: React.CSSProperties;
 }
 
 /** 写入视觉分隔线（AI 回答结束后，下次输入前的分隔） */
@@ -52,7 +57,7 @@ function getXtermTheme(isDark: boolean) {
   };
 }
 
-export function TerminalView({ theme, onInput }: Props) {
+export function TerminalView({ theme, onInput, style }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
@@ -74,7 +79,43 @@ export function TerminalView({ theme, onInput }: Props) {
     collapsedCardIds,
     currentCard,
     previousCard,
+    summaryChunks,
   } = useTaskStore();
+
+  // 历史召回 Hook
+  const {
+    state: recallState,
+    onInputChange,
+    onToolError,
+    dismissSimilarHint,
+    dismissErrorHint,
+  } = useHistoryRecall({ debounceMs: 250, similarityThreshold: 0.8, maxResults: 4 });
+
+  // 监听 toolCalls 错误以触发错误解决方案推荐
+  const prevToolCallsRef = useRef(0);
+  useEffect(() => {
+    if (recallState.isIndexing) return;
+    const toolCalls = useTaskStore.getState().toolCalls;
+    if (toolCalls.length > prevToolCallsRef.current) {
+      const lastCall = toolCalls[toolCalls.length - 1];
+      if (lastCall.status === 'error' && lastCall.result) {
+        onToolError(String(lastCall.result));
+      }
+    }
+    prevToolCallsRef.current = toolCalls.length;
+  });
+
+  // 输入变化时触发召回
+  const handleInputChange = useCallback((value: string) => {
+    setInputValue(value);
+    onInputChange(value);
+  }, [onInputChange]);
+
+  // 点击推荐项时填充输入框
+  const handleApplyRecall = useCallback((query: string) => {
+    setInputValue(query);
+    onInputChange(query);
+  }, [onInputChange]);
 
   // xterm 初始化：只运行一次，term 实例持久化
   useEffect(() => {
@@ -209,9 +250,27 @@ export function TerminalView({ theme, onInput }: Props) {
     }
   }, [terminalLines]);
 
-  // 流式回答结束：清空标志
+  // 工具交互提示：写入 xterm（不再重复显示，ToolCards 已统一展示）
+  // useEffect(() => {
+  //   const term = terminalRef.current;
+  //   if (!term) return;
+  //   for (const [toolId, message] of toolProgressMessages) {
+  //     if (prevToolProgressRef.current.get(toolId) === message) continue;
+  //     prevToolProgressRef.current.set(toolId, message);
+  //     const color = getToolProgressColor(toolProgressMessages, toolId);
+  //     const label = getToolLabel(toolId);
+  //     term.writeln(`${color}▸ \x1b[0m${color}${label}\x1b[0m ${message}`);
+  //   }
+  // }, [toolProgressMessages]);
+
+  // 流式回答结束：显示完成提示
   useEffect(() => {
     if (!streamEndPending) return;
+    const term = terminalRef.current;
+    if (term) {
+      term.writeln('');
+      term.writeln('\x1b[32m✓ 回答已生成\x1b[0m');
+    }
     clearStreamEnd();
   }, [streamEndPending, clearStreamEnd]);
 
@@ -231,21 +290,33 @@ export function TerminalView({ theme, onInput }: Props) {
 
   // 外部文本框按 Enter 时发送
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && inputValue.trim()) {
-      const text = inputValue.trim();
-      setInputValue('');
+    if (e.key !== 'Enter') return;
+    const text = (inputValue ?? '').trim();
+    if (!text) return;
 
-      const term = terminalRef.current;
-      if (!term) return;
+    const term = terminalRef.current;
 
-      // 首次问题回答完毕后，第二次输入前显示分隔线
-      if (markdownCards.length > 0) {
-        writeSeparator(term, theme === 'dark');
+    // 先清空输入框（即使 WebSocket 发送失败也保持 UI 同步）
+    setInputValue('');
+
+    if (!term) return;
+
+    // 首次问题回答完毕后，第二次输入前显示分隔线
+    if (markdownCards.length > 0) {
+      writeSeparator(term, theme === 'dark');
+    }
+
+    // 回显用户输入（换行 + 提示符）
+    term.writeln(`\n\x1b[36m›\x1b[0m \x1b[90m${text}\x1b[0m`);
+
+    // 发送消息（出错时回显提示）
+    try {
+      const sent = onInput?.(text);
+      if (sent === false || sent === undefined) {
+        term.writeln('\x1b[33m⚠ 发送失败，请检查连接状态\x1b[0m');
       }
-
-      // 回显用户输入（换行 + 提示符）
-      term.writeln(`\n\x1b[36m›\x1b[0m \x1b[90m${text}\x1b[0m`);
-      onInput?.(text);
+    } catch (err) {
+      term.writeln(`\x1b[31m✗ 发送异常: ${String(err)}\x1b[0m`);
     }
   };
 
@@ -254,7 +325,7 @@ export function TerminalView({ theme, onInput }: Props) {
   const statusLabel = error ? '错误' : isRunning ? '运行中' : '空闲';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, height: '100%', ...style }}>
       {/* 顶部状态栏（保持不变） */}
       <div style={{
         display: 'flex',
@@ -315,16 +386,88 @@ export function TerminalView({ theme, onInput }: Props) {
           </div>
         )}
 
-        {/* 实时问答卡片（进行中） */}
+        {/* 上一轮问答（已完成的当前轮） */}
         {previousCard && (
           <div style={{ padding: '0 4px' }}>
             <LiveCard card={previousCard} />
           </div>
         )}
 
+        {/* 上一轮问答的工具卡片（等待总结到来时，展示工具执行详情） */}
+        {previousCard && (
+          <div style={{ padding: '0 4px' }}>
+            <ToolCards queryId={previousCard.queryId} />
+          </div>
+        )}
+
+        {/* 当前问答（进行中） */}
         {currentCard && (
           <div style={{ padding: '0 4px' }}>
             <LiveCard card={currentCard} />
+          </div>
+        )}
+
+        {/* 当前 query 的工具卡片（跟随 LiveCard，展示当前轮的工具详情） */}
+        {currentCard && (
+          <div style={{ padding: '0 4px' }}>
+            <ToolCards queryId={currentCard.queryId} />
+          </div>
+        )}
+
+        {/* 流式总结（实时 Markdown 渲染，只要有 chunk 就显示，不依赖 currentCard） */}
+        {summaryChunks.length > 0 && (
+          <div style={{
+            padding: '10px 12px',
+            background: 'rgba(46,204,113,0.04)',
+            borderTop: '1px solid rgba(46,204,113,0.15)',
+            marginTop: 4,
+          }}>
+            {/* 状态头 */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              marginBottom: 6,
+            }}>
+              <div style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: 'var(--success)',
+                animation: 'stream-pulse 1s ease-in-out infinite',
+                flexShrink: 0,
+              }} />
+              <span style={{
+                fontSize: 9, color: 'var(--success)',
+                fontFamily: "'JetBrains Mono', monospace",
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+              }}>
+                总结生成中
+              </span>
+              <span style={{
+                color: 'var(--success)', fontSize: 11,
+                animation: 'cursor-blink 0.8s step-end infinite',
+              }}>▊</span>
+            </div>
+            {/* Markdown 流式内容 */}
+            <div style={{
+              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+              fontSize: 11,
+              color: 'var(--text-secondary)',
+              lineHeight: 1.7,
+              maxHeight: 300,
+              overflowY: 'auto',
+            }}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {summaryChunks.join('')}
+              </ReactMarkdown>
+            </div>
+            <style>{`
+              @keyframes stream-pulse {
+                0%, 100% { opacity: 1; transform: scale(1); }
+                50% { opacity: 0.4; transform: scale(0.85); }
+              }
+              @keyframes cursor-blink {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0; }
+              }
+            `}</style>
           </div>
         )}
 
@@ -342,6 +485,238 @@ export function TerminalView({ theme, onInput }: Props) {
           }}
         />
       </div>
+
+      {/* 历史召回推荐面板 */}
+      {(!recallState.isIndexing && (recallState.showSimilarHint || recallState.showErrorHint || recallState.rankedResults.length > 0 || recallState.welcomeSuggestions.length > 0)) && (
+        <div style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderTop: 'none',
+          borderRadius: 0,
+          padding: '6px 12px',
+          fontSize: 11,
+          maxHeight: 160,
+          overflowY: 'auto',
+          transition: 'opacity 0.2s',
+        }}>
+          {/* 相似问题提示 */}
+          {recallState.showSimilarHint && recallState.similarQueries.length > 0 && (
+            <div style={{ marginBottom: 6 }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                color: 'var(--accent)',
+                fontWeight: 600,
+                fontSize: 10,
+                letterSpacing: '0.03em',
+                marginBottom: 4,
+              }}>
+                <span>你之前问过类似问题</span>
+                <button
+                  onClick={dismissSimilarHint}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: 10,
+                    padding: 0,
+                  }}
+                >
+                  忽略
+                </button>
+              </div>
+              {recallState.similarQueries.slice(0, 3).map((sq, i) => (
+                <div
+                  key={`sim-${sq.document.id}-${i}`}
+                  onClick={() => handleApplyRecall(sq.document.query)}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: 4,
+                    background: 'rgba(74, 142, 255, 0.06)',
+                    marginBottom: 2,
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary)',
+                    transition: 'background 0.15s',
+                    display: 'flex',
+                    gap: 6,
+                    alignItems: 'center',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(74, 142, 255, 0.12)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(74, 142, 255, 0.06)')}
+                >
+                  <span style={{ color: 'var(--text-muted)', fontSize: 9, flexShrink: 0 }}>
+                    {Math.round(sq.similarity * 100)}%
+                  </span>
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {sq.document.query.length > 80 ? sq.document.query.slice(0, 80) + '...' : sq.document.query}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 错误解决方案提示 */}
+          {recallState.showErrorHint && recallState.errorSolutions.length > 0 && (
+            <div style={{ marginBottom: 6 }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                color: 'var(--warn)',
+                fontWeight: 600,
+                fontSize: 10,
+                letterSpacing: '0.03em',
+                marginBottom: 4,
+              }}>
+                <span>找到相似错误的解决方案</span>
+                <button
+                  onClick={dismissErrorHint}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    fontSize: 10,
+                    padding: 0,
+                  }}
+                >
+                  忽略
+                </button>
+              </div>
+              {recallState.errorSolutions.slice(0, 2).map((es, i) => (
+                <div
+                  key={`err-${es.document.id}-${i}`}
+                  onClick={() => handleApplyRecall(es.document.query)}
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: 4,
+                    background: 'rgba(255, 170, 50, 0.06)',
+                    marginBottom: 2,
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary)',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255, 170, 50, 0.12)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255, 170, 50, 0.06)')}
+                >
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 2 }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: 9, flexShrink: 0 }}>
+                      Q:
+                    </span>
+                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {es.document.query.length > 60 ? es.document.query.slice(0, 60) + '...' : es.document.query}
+                    </span>
+                  </div>
+                  {es.document.summary && (
+                    <div style={{ color: 'var(--success)', fontSize: 10, paddingLeft: 14 }}>
+                      解决方案: {es.document.summary.length > 80 ? es.document.summary.slice(0, 80) + '...' : es.document.summary}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 召回排序结果（输入时显示） */}
+          {recallState.rankedResults.length > 0 && (
+            <div style={{ marginBottom: 4 }}>
+              <div style={{
+                color: 'var(--text-muted)',
+                fontSize: 9,
+                letterSpacing: '0.03em',
+                textTransform: 'uppercase',
+                marginBottom: 3,
+              }}>
+                相关历史 ({recallState.rankedResults.length})
+              </div>
+              {recallState.rankedResults.map((r, i) => (
+                <div
+                  key={`rank-${r.id}-${i}`}
+                  onClick={() => handleApplyRecall(r.query)}
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: 4,
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    marginBottom: 2,
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary)',
+                    transition: 'background 0.15s',
+                    display: 'flex',
+                    gap: 6,
+                    alignItems: 'center',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)')}
+                >
+                  <span style={{ color: 'var(--text-muted)', fontSize: 9, flexShrink: 0 }}>
+                    #{i + 1}
+                  </span>
+                  <span style={{
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {r.query.length > 80 ? r.query.slice(0, 80) + '...' : r.query}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 9, flexShrink: 0 }}>
+                    {Math.round(r.score * 100)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 欢迎推荐（无输入时，显示最近的历史记录） */}
+          {inputValue.trim() === '' && recallState.welcomeSuggestions.length > 0 && (
+            <div style={{ marginBottom: 4 }}>
+              <div style={{
+                color: 'var(--text-muted)',
+                fontSize: 9,
+                letterSpacing: '0.03em',
+                textTransform: 'uppercase',
+                marginBottom: 3,
+              }}>
+                最近问答 ({recallState.welcomeSuggestions.length})
+              </div>
+              {recallState.welcomeSuggestions.map((r, i) => (
+                <div
+                  key={`welcome-${r.id}-${i}`}
+                  onClick={() => handleApplyRecall(r.query)}
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: 4,
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    marginBottom: 2,
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary)',
+                    transition: 'background 0.15s',
+                    display: 'flex',
+                    gap: 6,
+                    alignItems: 'center',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)')}
+                >
+                  <span style={{ color: 'var(--text-muted)', fontSize: 9, flexShrink: 0 }}>
+                    #{i + 1}
+                  </span>
+                  <span style={{
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {r.query.length > 80 ? r.query.slice(0, 80) + '...' : r.query}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 输入框（保持不变） */}
       <div style={{
@@ -368,7 +743,7 @@ export function TerminalView({ theme, onInput }: Props) {
         <input
           type="text"
           value={inputValue}
-          onChange={e => setInputValue(e.target.value)}
+          onChange={e => handleInputChange(e.target.value)}
           onKeyDown={handleInputKeyDown}
           placeholder={
             isRunning

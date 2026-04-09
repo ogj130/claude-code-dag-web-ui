@@ -1,5 +1,8 @@
 import { create } from 'zustand';
-import type { DAGNode, ToolCall, TokenUsage, ClaudeEvent } from '../types/events';
+import type { DAGNode, ToolCall as EventToolCall, TokenUsage, ClaudeEvent } from '../types/events';
+import { createQuery } from './queryStorage';
+import { useSessionStore } from './useSessionStore';
+import type { ToolCall as StorageToolCall } from '@/types/storage';
 
 export interface MarkdownCardData {
   id: string;
@@ -7,7 +10,9 @@ export interface MarkdownCardData {
   timestamp: number;
   query: string;         // 用户问题
   analysis: string;      // AI 分析过程（Markdown）
-  summary?: string;     // 最终总结（无工具调用时可能为空）
+  summary?: string;      // 最终总结（无工具调用时可能为空）
+  completeSummary?: string; // 完整总结（用于流式补完动画：summary 先显示流式内容，再动画补完到 completeSummary）
+  tokenUsage?: number;  // 单次查询 Token 消耗
 }
 
 // 进行中的问答卡片（实时更新）
@@ -21,11 +26,12 @@ export interface CurrentCardData {
 
 interface TaskState {
   nodes: Map<string, DAGNode>;
-  toolCalls: ToolCall[];
+  toolCalls: EventToolCall[];
   toolProgressMessages: Map<string, string>; // toolId → 累积的 progress 文本
   tokenUsage: TokenUsage;
   terminalLines: string[];
   terminalChunks: string[];
+  summaryChunks: string[];
   streamEndPending: boolean;
   isRunning: boolean;
   isStarting: boolean;
@@ -42,16 +48,75 @@ interface TaskState {
   collapsedCardIds: Set<string>;  // 已叠起的卡片ID集合
   currentCard: CurrentCardData | null;  // 进行中的问答卡片（实时显示）
   previousCard: CurrentCardData | null;  // 前一个被折叠的进行中卡片（等待总结到来）
+  groupingEnabled: boolean;  // 节点分组开关
+  expandedGroupIds: Set<string>;  // 已展开的分组 ID 集合
+  lastTokenUsage: number;  // 最近一次查询的 Token 消耗
 
   handleEvent: (event: ClaudeEvent) => void;
   addTerminalLine: (line: string) => void;
   addTerminalChunk: (fragment: string) => void;
+  addSummaryChunk: (chunk: string) => void;
+  clearSummaryChunks: () => void;
   clearStreamEnd: () => void;
   updatePendingInputsCount: (count: number) => void;
   addMarkdownCard: (card: MarkdownCardData) => void;
   toggleProcessCollapsed: (collapsed: boolean) => void;
   toggleDagQueryCollapse: (queryId: string) => void;  // 手动折叠/展开 DAG query
+  collapseAllDagQueries: () => void;  // 折叠全部 DAG query 节点
+  expandAllDagQueries: () => void;  // 展开全部 DAG query 节点
+  toggleGrouping: () => void;  // 切换节点分组开关
+  toggleGroupExpand: (groupId: string) => void;  // 切换分组展开/折叠
+  collapseAllGroups: () => void;  // 折叠全部工具分组
   reset: () => void;
+}
+
+// ── 辅助函数：将 Query 数据保存到 IndexedDB ──────────────────────────────
+
+/**
+ * 将完成的 Query 保存到 IndexedDB（用于分析统计）
+ */
+async function saveQueryToDB(params: {
+  queryId: string;
+  question: string;
+  answer: string;
+  toolCalls: EventToolCall[];
+  tokenUsage: number;
+  duration: number;
+  status: 'success' | 'error' | 'partial';
+}) {
+  try {
+    const sessionId = useSessionStore.getState().activeSessionId;
+    if (!sessionId) {
+      console.warn('[TaskStore] No active session, skipping DB save');
+      return;
+    }
+
+    // 转换 ToolCall 格式：从 events 格式转为 storage 格式
+    const storageToolCalls: StorageToolCall[] = params.toolCalls.map((tc, index) => ({
+      id: tc.id || `tc_${params.queryId}_${index}`,
+      queryId: params.queryId,
+      name: tc.tool,
+      arguments: tc.args || {},
+      result: tc.result,
+      startTime: tc.startTime || Date.now(),
+      endTime: tc.endTime || Date.now(),
+      success: tc.status === 'completed' || tc.status === 'running',
+    }));
+
+    await createQuery({
+      sessionId,
+      question: params.question,
+      answer: params.answer,
+      toolCalls: storageToolCalls,
+      tokenUsage: params.tokenUsage,
+      duration: params.duration,
+      status: params.status,
+    });
+
+    console.info('[TaskStore] Saved query to DB:', params.queryId);
+  } catch (error) {
+    console.error('[TaskStore] Failed to save query to DB:', error);
+  }
 }
 
 export const useTaskStore = create<TaskState>((set, get) => ({
@@ -61,6 +126,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   tokenUsage: { input: 0, output: 0 },
   terminalLines: [],
   terminalChunks: [],
+  summaryChunks: [],
   streamEndPending: false,
   isRunning: false,
   isStarting: false,
@@ -77,8 +143,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   collapsedCardIds: new Set(),
   currentCard: null,
   previousCard: null,
+  groupingEnabled: true,  // 默认开启节点分组
+  expandedGroupIds: new Set(),  // 默认全部折叠
+  lastTokenUsage: 0,
 
   handleEvent: (event: ClaudeEvent) => {
+    if (event.type === 'summary_chunk') {
+      const s = get();
+      console.log('[Store] ✅ summary_chunk:', event.chunk?.slice(0, 30), '| queryId:', event.queryId, '| chunks len:', s.summaryChunks.length);
+    }
     const { nodes, toolCalls } = get();
 
     switch (event.type) {
@@ -91,6 +164,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         set({
           streamEndPending: true,
           terminalChunks: [],
+          // summaryChunks 不清空，等 query_summary 到达时再清（流式总结要等最终结果才收尾）
           processCollapsed: true,
           pendingAnalysisByQueryId: newMap,
         });
@@ -137,12 +211,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         break;
       }
       case 'tool_call': {
-        const toolCall: ToolCall = {
+        const currentQueryId = get().currentQueryId;
+        const toolCall: EventToolCall = {
           id: event.toolId,
           tool: event.tool,
           args: event.args,
           status: 'running',
           startTime: Date.now(),
+          parentId: currentQueryId ?? 'main-agent',
         };
         // 同时创建 DAG node（parentId 关联当前 query node）
         const newNodes = new Map(nodes);
@@ -151,7 +227,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           label: event.tool,
           status: 'running',
           type: 'tool',
-          parentId: get().currentQueryId ?? 'main-agent',
+          parentId: currentQueryId ?? 'main-agent',
           startTime: Date.now(),
           args: event.args,
         };
@@ -181,16 +257,22 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         break;
       }
       case 'tool_progress': {
-        const msg = event.message;
         set(state => {
           const m = new Map(state.toolProgressMessages);
-          m.set(event.toolId, (m.get(event.toolId) ?? '') + msg);
-          return { toolProgressMessages: m };
+          m.set(event.toolId, event.message);
+          // 同时更新 DAG 节点 data 中的 toolMessage（触发 DAG 重渲染）
+          const newNodes = new Map(state.nodes);
+          const node = newNodes.get(event.toolId);
+          if (node) {
+            newNodes.set(event.toolId, { ...node, toolMessage: event.message });
+          }
+          return { toolProgressMessages: m, nodes: newNodes };
         });
         break;
       }
       case 'token_usage': {
-        set({ tokenUsage: event.usage });
+        const totalTokens = event.usage.input + event.usage.output;
+        set({ tokenUsage: event.usage, lastTokenUsage: totalTokens });
         break;
       }
       case 'session_end': {
@@ -274,25 +356,73 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         set({ nodes: newNodesQE });
         break;
       }
+      case 'summary_chunk': {
+        // 追加到 DAG 总结节点（DAG 图实时更新）
+        const newNodesSC = new Map(nodes);
+        const summaryNodeId = `${event.queryId}_summary`;
+        const existingNode = newNodesSC.get(summaryNodeId);
+
+        if (existingNode) {
+          // 追加 chunk 到已有 summary 节点
+          newNodesSC.set(summaryNodeId, {
+            ...existingNode,
+            summaryContent: (existingNode.summaryContent ?? '') + event.chunk,
+          });
+        } else {
+          // 第一个 chunk：创建 summary 节点（running 状态）
+          const summaryNode: DAGNode = {
+            id: summaryNodeId,
+            label: '总结',
+            status: 'running',
+            type: 'summary',
+            parentId: event.queryId,
+            startTime: Date.now(),
+            summaryContent: event.chunk,
+          };
+          newNodesSC.set(summaryNodeId, summaryNode);
+        }
+
+        // 同时写入 summaryChunks，让 LiveCard 流式渲染
+        set(state => ({
+          nodes: newNodesSC,
+          summaryChunks: [...state.summaryChunks, event.chunk],
+        }));
+        break;
+      }
       case 'query_summary': {
-        const { pendingAnalysisByQueryId, toolCalls } = get();
+        const { pendingAnalysisByQueryId, toolCalls, lastTokenUsage, summaryChunks } = get();
+        // 提取流式累积内容（在 summaryChunks 被清空之前）
+        const streamedSummary = summaryChunks.join('');
         const analysis = pendingAnalysisByQueryId.get(event.queryId) ?? '';
         const newMap = new Map(pendingAnalysisByQueryId);
         newMap.delete(event.queryId);
         const newNodesQS = new Map(nodes);
         const summaryNodeId = `${event.queryId}_summary`;
-        const summaryNode: DAGNode = {
-          id: summaryNodeId,
-          label: '总结',
-          status: 'completed',
-          type: 'summary',
-          parentId: event.endToolIds?.at(-1) ?? event.queryId,
-          endToolIds: event.endToolIds,
-          startTime: Date.now(),
-          endTime: Date.now(),
-          summaryContent: event.summary,
-        };
-        newNodesQS.set(summaryNodeId, summaryNode);
+
+        // 如果 summary 节点已存在（流式创建），只更新 status 和完整内容
+        const existingSummary = newNodesQS.get(summaryNodeId);
+        if (existingSummary) {
+          newNodesQS.set(summaryNodeId, {
+            ...existingSummary,
+            status: 'completed',
+            summaryContent: event.summary,
+            endTime: Date.now(),
+          });
+        } else {
+          // 兼容旧流程：一次性创建 summary 节点
+          const summaryNode: DAGNode = {
+            id: summaryNodeId,
+            label: '总结',
+            status: 'completed',
+            type: 'summary',
+            parentId: event.endToolIds?.at(-1) ?? event.queryId,
+            endToolIds: event.endToolIds,
+            startTime: Date.now(),
+            endTime: Date.now(),
+            summaryContent: event.summary,
+          };
+          newNodesQS.set(summaryNodeId, summaryNode);
+        }
         const qNode2 = newNodesQS.get(event.queryId);
         if (qNode2) {
           newNodesQS.set(event.queryId, { ...qNode2, status: 'completed' });
@@ -338,6 +468,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             collapsedCardIds: newCollapsedCardIds,
             currentCard: null,
             previousCard: null,
+            summaryChunks: [], // 流式总结结束，清空累积的 chunks
             markdownCards: [
               ...markdownCards.slice(-50),
               {
@@ -346,9 +477,21 @@ export const useTaskStore = create<TaskState>((set, get) => ({
                 timestamp: inProgressCard.timestamp,
                 query: inProgressCard.query,
                 analysis,
-                summary: event.summary,
+                summary: streamedSummary || event.summary, // 流式内容优先，保证立即有内容可显示
+                completeSummary: event.summary, // 流式补完动画目标
+                tokenUsage: lastTokenUsage,
               },
             ],
+          });
+          // 保存到 IndexedDB（用于分析统计）
+          saveQueryToDB({
+            queryId: event.queryId,
+            question: inProgressCard.query,
+            answer: event.summary || analysis,
+            toolCalls: updatedToolCalls,
+            tokenUsage: lastTokenUsage,
+            duration: Date.now() - inProgressCard.timestamp,
+            status: 'success',
           });
         } else if (previousCard && previousCard.queryId === event.queryId) {
           // 情况2：前一张被折叠的卡片（Q2发送时Q1还未完成）
@@ -362,6 +505,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             toolCalls: updatedToolCalls,
             collapsedCardIds: newCollapsedCardIds,
             previousCard: null,
+            summaryChunks: [], // 流式总结结束，清空累积的 chunks
             markdownCards: [
               ...markdownCards.slice(-50),
               {
@@ -370,9 +514,21 @@ export const useTaskStore = create<TaskState>((set, get) => ({
                 timestamp: previousCard.timestamp,
                 query: previousCard.query,
                 analysis,
-                summary: event.summary,
+                summary: streamedSummary || event.summary, // 流式内容优先，保证立即有内容可显示
+                completeSummary: event.summary, // 流式补完动画目标
+                tokenUsage: lastTokenUsage,
               },
             ],
+          });
+          // 保存到 IndexedDB（用于分析统计）
+          saveQueryToDB({
+            queryId: event.queryId,
+            question: previousCard.query,
+            answer: event.summary || analysis,
+            toolCalls: updatedToolCalls,
+            tokenUsage: lastTokenUsage,
+            duration: Date.now() - previousCard.timestamp,
+            status: 'success',
           });
         } else {
           // 情况3：无 currentCard（如服务端直接开始 query），创建新卡片
@@ -384,6 +540,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             lastCompletedQueryId: event.queryId,
             toolCalls: updatedToolCalls,
             collapsedCardIds: newCollapsedCardIds,
+            summaryChunks: [], // 流式总结结束，清空累积的 chunks
             markdownCards: [
               ...markdownCards.slice(-50),
               {
@@ -392,9 +549,21 @@ export const useTaskStore = create<TaskState>((set, get) => ({
                 timestamp: Date.now(),
                 query: queryText,
                 analysis,
-                summary: event.summary,
+                summary: streamedSummary || event.summary, // 流式内容优先，保证立即有内容可显示
+                completeSummary: event.summary, // 流式补完动画目标
+                tokenUsage: lastTokenUsage,
               },
             ],
+          });
+          // 保存到 IndexedDB（用于分析统计）
+          saveQueryToDB({
+            queryId: event.queryId,
+            question: queryText,
+            answer: event.summary || analysis,
+            toolCalls: updatedToolCalls,
+            tokenUsage: lastTokenUsage,
+            duration: 0,
+            status: 'success',
           });
         }
         break;
@@ -410,6 +579,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   addTerminalChunk: (fragment: string) => {
     set(state => ({ terminalChunks: [...state.terminalChunks, fragment] }));
+  },
+
+  addSummaryChunk: (chunk: string) => {
+    set(state => ({ summaryChunks: [...state.summaryChunks, chunk] }));
+  },
+
+  clearSummaryChunks: () => {
+    set({ summaryChunks: [] });
   },
 
   clearStreamEnd: () => {
@@ -440,6 +617,42 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     });
   },
 
+  collapseAllDagQueries: () => {
+    set(state => {
+      const allQueryIds = new Set<string>();
+      for (const [, node] of state.nodes) {
+        if (node.type === 'query') {
+          allQueryIds.add(node.id);
+        }
+      }
+      return { collapsedDagQueryIds: allQueryIds };
+    });
+  },
+
+  expandAllDagQueries: () => {
+    set({ collapsedDagQueryIds: new Set() });
+  },
+
+  toggleGrouping: () => {
+    set(state => ({ groupingEnabled: !state.groupingEnabled }));
+  },
+
+  toggleGroupExpand: (groupId: string) => {
+    set(state => {
+      const next = new Set(state.expandedGroupIds);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return { expandedGroupIds: next };
+    });
+  },
+
+  collapseAllGroups: () => {
+    set({ expandedGroupIds: new Set() });
+  },
+
   reset: () => {
     set({
       nodes: new Map(),
@@ -448,6 +661,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       tokenUsage: { input: 0, output: 0 },
       terminalLines: [],
       terminalChunks: [],
+      summaryChunks: [],
       streamEndPending: false,
       isRunning: false,
       isStarting: false,
@@ -464,6 +678,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       collapsedCardIds: new Set(),
       currentCard: null,
       previousCard: null,
+      groupingEnabled: true,
+      expandedGroupIds: new Set(),
     });
   },
 }));

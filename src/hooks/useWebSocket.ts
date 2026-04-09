@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useTaskStore } from '../stores/useTaskStore';
 import { useSessionStore } from '../stores/useSessionStore';
 import { createLogger } from '../utils/logger';
+import { useWebSocketState } from './useWebSocketState';
 import type { WSMessage, WSClientMessage, WSTerminalMessage, WSTerminalChunkMessage, ClaudeEvent } from '../types/events';
 
 const log = createLogger('WebSocket');
@@ -17,7 +18,28 @@ export function useWebSocket(sessionId: string | null) {
   const connectedSessionRef = useRef<string | null>(null);
   const { handleEvent, addTerminalLine, addTerminalChunk, reset } = useTaskStore();
 
-  const connect = useCallback(() => {
+  // ── 消息队列（重连期间缓冲） ──────────────────────────
+  const reconnectQueueRef = useRef<string[]>([]);
+
+  // ── 状态机 ─────────────────────────────────────────
+  const {
+    connectionState,
+    retryCount,
+    manualReconnect,
+    reportConnected,
+    reportDisconnected,
+    reportError,
+    reset: resetState,
+    registerConnectionCallbacks,
+  } = useWebSocketState({
+    url: WS_URL,
+    onReconnect: doConnect,
+    onConnected: undefined,
+    onDisconnected: undefined,
+  });
+
+  /** 实际建立 WebSocket 连接的内部函数 */
+  function doConnect() {
     if (!sessionId) return;
 
     // 幂等性检查：同一 sessionId 已连接（wsRef 有效）→ 跳过
@@ -42,6 +64,20 @@ export function useWebSocket(sessionId: string | null) {
     const ws = new WebSocket(WS_URL);
     wsRef.current = ws;
 
+    // 注册生命周期回调（使状态机感知连接状态）
+    registerConnectionCallbacks({
+      onOpen: () => reportConnected(),
+      onClose: () => {
+        // 同步清空 ref，防止 StrictMode 第二次 connect() 时误判已有连接
+        if (wsRef.current === ws) {
+          wsRef.current = null;
+        }
+        connectedSessionRef.current = null;
+        reportDisconnected();
+      },
+      onError: () => reportError(),
+    });
+
     ws.onopen = () => {
       // 从 store 动态读取当前会话的 projectPath
       const session = useSessionStore.getState().sessions.find(s => s.id === sessionId);
@@ -59,12 +95,21 @@ export function useWebSocket(sessionId: string | null) {
       if (preInput) {
         log.info('Sending pre-connection queued input');
         ws.send(JSON.stringify({ type: 'send_input', sessionId, input: preInput } as WSClientMessage));
-        // queryId 由服务端生成并广播过来，客户端等待 WS 消息即可
         isRunningRef.current = true;
-        // 队列里还有剩余
         if (preConnectQueueRef.current.length > 0) {
           useTaskStore.getState().updatePendingInputsCount(preConnectQueueRef.current.length);
         }
+      }
+
+      // 重连后 flush 缓冲队列
+      const reconnectQueue = reconnectQueueRef.current.splice(0);
+      for (const input of reconnectQueue) {
+        log.info('Flushing reconnect queue item');
+        ws.send(JSON.stringify({ type: 'send_input', sessionId, input } as WSClientMessage));
+      }
+      if (reconnectQueue.length > 0) {
+        isRunningRef.current = true;
+        useTaskStore.getState().updatePendingInputsCount(0);
       }
     };
 
@@ -86,7 +131,6 @@ export function useWebSocket(sessionId: string | null) {
         const evt = (parsed as WSMessage).event;
         if (evt) {
           if (evt.type === 'streamEnd') {
-            // pendingInputsRef[0] 是当前正在处理的 queryId
             const queryId = pendingInputsRef.current[0] ?? useTaskStore.getState().currentQueryId;
             handleEvent({ ...evt, queryId } as ClaudeEvent);
           } else {
@@ -103,7 +147,6 @@ export function useWebSocket(sessionId: string | null) {
 
           const nextInput = pendingInputsRef.current.shift();
           if (nextInput && wsRef.current?.readyState === WebSocket.OPEN) {
-            // 还有排队的输入，立即发送
             log.info('Sending next queued input');
             useTaskStore.getState().updatePendingInputsCount(pendingInputsRef.current.length);
             wsRef.current.send(JSON.stringify({
@@ -111,9 +154,7 @@ export function useWebSocket(sessionId: string | null) {
               sessionId,
               input: nextInput,
             } as WSClientMessage));
-            // queryId 由服务端生成并广播过来
           } else {
-            // 队列空了，设置为 idle
             isRunningRef.current = false;
             useTaskStore.getState().updatePendingInputsCount(0);
           }
@@ -124,77 +165,74 @@ export function useWebSocket(sessionId: string | null) {
     };
 
     ws.onclose = () => {
-      log.info('Disconnected');
-      // 同步清空 ref，防止 StrictMode 第二次 connect() 时误判已有连接
-      if (wsRef.current === ws) {
-        wsRef.current = null;
-      }
-      connectedSessionRef.current = null;
-      pendingInputsRef.current = [];
-      isRunningRef.current = false;
+      log.info('WebSocket closed');
+      // 注意：pendingInputsRef 和 reconnectQueueRef 不清空，保留到下次连接成功时 flush
     };
 
     ws.onerror = (err) => {
       log.error('Connection error', err);
     };
-  }, [sessionId, handleEvent, addTerminalLine, addTerminalChunk]);
+  }
 
   const disconnect = useCallback(() => {
     pendingInputsRef.current = [];
+    reconnectQueueRef.current = [];
     isRunningRef.current = false;
     if (wsRef.current) {
       if (wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: 'kill_session', sessionId } as WSClientMessage));
       }
       wsRef.current.close();
-      // 同步清空 ref（onclose 会在之后异步触发，但 ref 需要立即可见）
       wsRef.current = null;
       connectedSessionRef.current = null;
     }
+    resetState();
     reset();
-  }, [sessionId, reset]);
+  }, [sessionId, reset, resetState]);
 
-  const sendInput = useCallback((input: string) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      // 已连接，立即发送
-      if (isRunningRef.current) {
-        // 当前有任务在运行，入队
-        log.info('Queueing input (running)');
-        pendingInputsRef.current.push(input);
-        useTaskStore.getState().updatePendingInputsCount(pendingInputsRef.current.length);
-        return;
-      }
+  const sendInput = useCallback((input: string): boolean => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      // 未连接：加入重连缓冲队列，重连后自动 flush
+      log.warn('WS not open, queueing for reconnect flush');
+      reconnectQueueRef.current.push(input);
+      useTaskStore.getState().updatePendingInputsCount(reconnectQueueRef.current.length);
+      return false;
+    }
+    if (isRunningRef.current) {
+      log.info('Queueing input (running)');
+      pendingInputsRef.current.push(input);
+      useTaskStore.getState().updatePendingInputsCount(pendingInputsRef.current.length);
+      return true; // 已入队
+    }
+    try {
       isRunningRef.current = true;
-      wsRef.current.send(JSON.stringify({ type: 'send_input', sessionId, input } as WSClientMessage));
-      // queryId 由服务端生成并广播过来，客户端等待 WS 消息即可
-    } else {
-      // 未连接，加入预连接队列（StrictMode 等场景），OPEN 后自动发送
-      log.info('WS not ready, queueing for later');
-      preConnectQueueRef.current.push(input);
-      useTaskStore.getState().updatePendingInputsCount(preConnectQueueRef.current.length);
+      ws.send(JSON.stringify({ type: 'send_input', sessionId, input } as WSClientMessage));
+      return true; // 发送成功
+    } catch (err) {
+      log.error('sendInput failed:', err);
+      isRunningRef.current = false; // 发送失败时立即重置，避免永久阻塞
+      pendingInputsRef.current.push(input); // 消息重新入队等待下次
+      return false;
     }
   }, [sessionId]);
 
-  // 自动重连 + 连接初始化：监听 WebSocket 断开，超时后自动重连
+  // 自动连接：sessionId 变化时立即连接，断开时清理
   useEffect(() => {
     if (!sessionId) return;
 
-    // 立即连接
-    connect();
-
-    // 每 3 秒检查一次，如果断了就自动重连
-    const timer = setInterval(() => {
-      if (wsRef.current?.readyState !== WebSocket.OPEN) {
-        log.info('Auto-reconnect: WebSocket not open, reconnecting...');
-        connect();
-      }
-    }, 3000);
+    doConnect();
 
     return () => {
-      clearInterval(timer);
       disconnect();
     };
-  }, [sessionId, connect, disconnect]);
+  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return { sendInput, disconnect, connect };
+  return {
+    sendInput,
+    disconnect,
+    connect: manualReconnect,
+    connectionState,
+    retryCount,
+  };
 }

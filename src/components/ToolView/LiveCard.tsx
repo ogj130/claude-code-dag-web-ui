@@ -2,7 +2,9 @@ import React, { memo } from 'react';
 import { CardToolTimeline } from './CardToolTimeline';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useTaskStore } from '../../stores/useTaskStore';
 import type { CurrentCardData } from '../../stores/useTaskStore';
+import { StreamingSummary } from './StreamingSummary';
 
 interface Props {
   card: CurrentCardData;
@@ -87,6 +89,7 @@ const summaryHeaderStyle: React.CSSProperties = {
 
 function LiveCardInner({ card }: Props) {
   const hasSummary = (card.summary ?? '').trim().length > 0;
+  const lastTokenUsage = useTaskStore((state) => state.lastTokenUsage);
 
   const isCollapsed = card.isCollapsed ?? false;
   const outerStyle = { ...cardStyle, opacity: hasSummary ? 1 : 0.9 };
@@ -149,7 +152,10 @@ function LiveCardInner({ card }: Props) {
       {/* Tool Timeline (auto-updates from store) */}
       <CardToolTimeline queryId={card.queryId} />
 
-      {/* Summary */}
+      {/* 流式总结（实时 Markdown 渲染，streaming 期间显示） */}
+      <StreamingSummary />
+
+      {/* 最终总结（streaming 结束后，query_summary 到达时显示） */}
       {hasSummary && (
         <div style={summaryBoxStyle}>
           <div style={summaryHeaderStyle}>
@@ -185,6 +191,33 @@ function LiveCardInner({ card }: Props) {
           >
             {card.summary}
           </ReactMarkdown>
+        </div>
+      )}
+
+      {/* Token 使用信息（完成时显示） */}
+      {hasSummary && lastTokenUsage > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            padding: '6px 12px',
+            borderTop: '1px solid var(--border)',
+            background: 'var(--bg-bar)',
+            gap: 6,
+          }}
+        >
+          <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>Token:</span>
+          <span
+            style={{
+              fontSize: 11,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 600,
+              color: 'var(--accent)',
+            }}
+          >
+            {lastTokenUsage.toLocaleString()}
+          </span>
         </div>
       )}
       </>

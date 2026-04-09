@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CardToolTimeline } from './CardToolTimeline';
@@ -9,7 +9,9 @@ export interface MarkdownCardData {
   timestamp: number;
   query: string;         // 用户问题
   analysis: string;       // AI 分析过程（Markdown）
-  summary?: string;       // 最终总结
+  summary?: string;       // 当前显示的总结（流式开始时为流式内容，最终为完整内容）
+  completeSummary?: string; // 完整总结（用于流式补完动画：summary 先显示流式内容，再动画补完到 completeSummary）
+  tokenUsage?: number;    // 单次查询 Token 消耗
 }
 
 interface MarkdownCardProps {
@@ -67,9 +69,56 @@ const markdownStyles: Record<string, React.CSSProperties> = {
 function MarkdownCardInner({ card, defaultAnalysisOpen = false, defaultCollapsed = false }: MarkdownCardProps) {
   const [open, setOpen] = useState(!defaultCollapsed);  // 外部控制折叠时，默认折叠
   const [analysisOpen, setAnalysisOpen] = useState(defaultAnalysisOpen);
+  // 流式补完动画：初始显示流式内容，逐字补完到完整内容
+  const [displaySummary, setDisplaySummary] = useState(card.summary ?? '');
+  const animationRef = useRef<number | null>(null);
+  const completeRef = useRef(card.completeSummary ?? card.summary ?? '');
+
+  // 监测 completeSummary 变化，触发流式补完动画
+  useEffect(() => {
+    const complete = card.completeSummary ?? card.summary ?? '';
+    const current = card.summary ?? '';
+    completeRef.current = complete;
+
+    if (complete.length <= current.length) {
+      // 无需动画，直接显示
+      setDisplaySummary(current);
+      return;
+    }
+
+    // 从流式内容开始，逐步补完
+    setDisplaySummary(current);
+    let index = current.length;
+    const speed = Math.max(15, Math.min(40, 60000 / complete.length)); // ~30-50ms/char
+
+    const tick = () => {
+      if (index < completeRef.current.length) {
+        // 每次补完一小段（约 4 个字符），减少 React 重渲染次数
+        const end = Math.min(index + 4, completeRef.current.length);
+        index = end;
+        setDisplaySummary(completeRef.current.slice(0, index));
+        animationRef.current = requestAnimationFrame(tick);
+        // 用 setTimeout 控制速度（requestAnimationFrame 在不同刷新率下速度不同）
+        setTimeout(() => {
+          if (animationRef.current !== null) {
+            animationRef.current = requestAnimationFrame(tick);
+          }
+        }, speed);
+      }
+    };
+
+    animationRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card.id]); // 只在卡片创建时触发一次
 
   const hasAnalysis = card.analysis.trim().length > 0;
-  const hasSummary = (card.summary ?? '').trim().length > 0;
+  const hasSummary = (displaySummary ?? '').trim().length > 0;
   const analysisSize = new Blob([card.analysis]).size;
   const analysisLabel = analysisSize > 1024
     ? `分析内容 (${(analysisSize / 1024).toFixed(1)}KB)`
@@ -253,35 +302,83 @@ function MarkdownCardInner({ card, defaultAnalysisOpen = false, defaultCollapsed
                 <span style={{ fontSize: 12, color: 'var(--success)', flexShrink: 0, marginTop: 1 }}>📋</span>
                 <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>最终总结</span>
               </div>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  h1: ({ children }) => <h1 style={markdownStyles.h1}>{children}</h1>,
-                  h2: ({ children }) => <h2 style={markdownStyles.h2}>{children}</h2>,
-                  h3: ({ children }) => <h3 style={markdownStyles.h3}>{children}</h3>,
-                  p: ({ children }) => <p style={markdownStyles.p}>{children}</p>,
-                  ul: ({ children }) => <ul style={markdownStyles.ul}>{children}</ul>,
-                  ol: ({ children }) => <ol style={markdownStyles.ol}>{children}</ol>,
-                  li: ({ children }) => <li style={markdownStyles.li}>{children}</li>,
-                  code: ({ className, children, ...props }) => {
-                    const isBlock = className?.startsWith('language-');
-                    return isBlock
-                      ? <code style={markdownStyles['pre code']} className={className} {...props}>{children}</code>
-                      : <code style={markdownStyles.code} {...props}>{children}</code>;
-                  },
-                  pre: ({ children }) => <pre style={markdownStyles.pre}>{children}</pre>,
-                  blockquote: ({ children }) => <blockquote style={markdownStyles.blockquote}>{children}</blockquote>,
-                  table: ({ children }) => <table style={markdownStyles.table}>{children}</table>,
-                  th: ({ children }) => <th style={markdownStyles.th}>{children}</th>,
-                  td: ({ children }) => <td style={markdownStyles.td}>{children}</td>,
-                  a: ({ children, href }) => <a style={markdownStyles.a} href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
-                  strong: ({ children }) => <strong style={markdownStyles.strong}>{children}</strong>,
-                  em: ({ children }) => <em style={markdownStyles.em}>{children}</em>,
-                  hr: () => <hr style={markdownStyles.hr} />,
+              {/* Summary 内容 + 流式补完光标 */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h1: ({ children }) => <h1 style={markdownStyles.h1}>{children}</h1>,
+                      h2: ({ children }) => <h2 style={markdownStyles.h2}>{children}</h2>,
+                      h3: ({ children }) => <h3 style={markdownStyles.h3}>{children}</h3>,
+                      p: ({ children }) => <p style={markdownStyles.p}>{children}</p>,
+                      ul: ({ children }) => <ul style={markdownStyles.ul}>{children}</ul>,
+                      ol: ({ children }) => <ol style={markdownStyles.ol}>{children}</ol>,
+                      li: ({ children }) => <li style={markdownStyles.li}>{children}</li>,
+                      code: ({ className, children, ...props }) => {
+                        const isBlock = className?.startsWith('language-');
+                        return isBlock
+                          ? <code style={markdownStyles['pre code']} className={className} {...props}>{children}</code>
+                          : <code style={markdownStyles.code} {...props}>{children}</code>;
+                      },
+                      pre: ({ children }) => <pre style={markdownStyles.pre}>{children}</pre>,
+                      blockquote: ({ children }) => <blockquote style={markdownStyles.blockquote}>{children}</blockquote>,
+                      table: ({ children }) => <table style={markdownStyles.table}>{children}</table>,
+                      th: ({ children }) => <th style={markdownStyles.th}>{children}</th>,
+                      td: ({ children }) => <td style={markdownStyles.td}>{children}</td>,
+                      a: ({ children, href }) => <a style={markdownStyles.a} href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
+                      strong: ({ children }) => <strong style={markdownStyles.strong}>{children}</strong>,
+                      em: ({ children }) => <em style={markdownStyles.em}>{children}</em>,
+                      hr: () => <hr style={markdownStyles.hr} />,
+                    }}
+                  >
+                    {displaySummary}
+                  </ReactMarkdown>
+                </div>
+                {/* 流式补完闪烁光标 */}
+                {card.completeSummary !== undefined && card.completeSummary !== displaySummary && (
+                  <div style={{
+                    width: 2, height: 14, minWidth: 2, minHeight: 14,
+                    background: 'var(--success)',
+                    marginTop: 8,
+                    flexShrink: 0,
+                    animation: 'summary-cursor-blink 0.7s step-end infinite',
+                  }} />
+                )}
+              </div>
+              <style>{`
+                @keyframes summary-cursor-blink {
+                  0%, 100% { opacity: 1; }
+                  50% { opacity: 0; }
+                }
+              `}</style>
+            </div>
+          )}
+
+          {/* Token 使用信息 */}
+          {card.tokenUsage != null && card.tokenUsage > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                padding: '6px 12px',
+                borderTop: '1px solid var(--border)',
+                background: 'var(--bg-bar)',
+                gap: 6,
+              }}
+            >
+              <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>Token:</span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontWeight: 600,
+                  color: 'var(--accent)',
                 }}
               >
-                {card.summary}
-              </ReactMarkdown>
+                {card.tokenUsage.toLocaleString()}
+              </span>
             </div>
           )}
         </div>

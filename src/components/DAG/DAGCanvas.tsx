@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   ReactFlow,
   Background,
@@ -7,22 +7,30 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { DAGNodeComponent } from './DAGNode';
+import { GroupNodeComponent } from './GroupNode';
 import { NodeDetailModal } from './NodeDetailModal';
 import { useTaskStore } from '../../stores/useTaskStore';
-import type { Node, Edge } from '@xyflow/react';
+import { getGlobalMonitor } from '../../utils/performance';
+import { NODE_LIMIT } from '../../utils/memoryManager';
+import type { Node, Edge, OnNodesChange, OnEdgesChange, NodeMouseHandler } from '@xyflow/react';
 import type { DAGNode } from '../../types/events';
 
 // 模块级 ref：存储 ReactFlow 实例的 fitView，跨 render 稳定
 let fitViewInstance: ((options?: { padding: number; duration: number; nodes?: Node[] }) => void) | null = null;
 
-const nodeTypes = { dagNode: DAGNodeComponent };
+// 注册节点类型：dagNode 和 group
+const nodeTypes = { dagNode: DAGNodeComponent, group: GroupNodeComponent };
 
 interface Props {
   style?: React.CSSProperties;
 }
 
 export function DAGCanvas({ style }: Props) {
-  const { nodes: storeNodes, collapsedDagQueryIds, currentQueryId } = useTaskStore();
+  const {
+    nodes: storeNodes,
+    collapsedDagQueryIds,
+    currentQueryId,
+  } = useTaskStore();
 
   interface ModalState {
     open: boolean;
@@ -61,6 +69,11 @@ export function DAGCanvas({ style }: Props) {
     useTaskStore.getState().toggleDagQueryCollapse(queryId);
   }, []);
 
+  const collapseAllGroups = useCallback(() => {
+    useTaskStore.getState().collapseAllGroups();
+  }, []);
+
+  // 工具节点布局计算
   const flowNodes: Node[] = Array.from(storeNodes.values()).map((node: DAGNode) => ({
     id: node.id,
     type: 'dagNode',
@@ -82,28 +95,58 @@ export function DAGCanvas({ style }: Props) {
     return !collapsedQueryIds.has(parentId);       // 工具节点隐藏
   });
 
-  // 按 query 链分组布局：每条链（query + 其 tools + summary）占一个水平 band，纵向排列
-  // 不再依赖 level1 数组下标，而是按链的关系分配 X
+  // 按 (toolType, queryId) 分组，返回每个分组的元信息
+  const groupedToolGroups = useMemo(() => {
+    const toolNodes = filteredFlowNodes.filter(n => n.data.type === 'tool');
+    const groups = new Map<string, { toolType: string; queryId: string; tools: Node[]; isExpanded: boolean; groupId: string }>();
+
+    for (const tool of toolNodes) {
+      const dagNode = tool.data as DAGNode;
+      const toolType = dagNode.label || 'unknown';
+      const queryId = dagNode.parentId || 'main-agent';
+      const groupId = `group_${queryId}_${toolType}`;
+      const isExpanded = useTaskStore.getState().expandedGroupIds.has(groupId);
+
+      if (!groups.has(groupId)) {
+        groups.set(groupId, { toolType, queryId, tools: [], isExpanded, groupId });
+      }
+      groups.get(groupId)!.tools.push(tool);
+    }
+
+    return groups;
+  }, [filteredFlowNodes]);
+
+  // 布局计算：处理 parent container 和子节点定位
   const positionedNodes = useMemo(() => {
     const result: Node[] = [];
-    const mainAgentNodes: Node[] = filteredFlowNodes.filter(n => n.id === 'main-agent');
-    const queryNodes: Node[] = filteredFlowNodes.filter(n => n.data.type === 'query');
-    const toolNodes: Node[] = filteredFlowNodes.filter(n => n.data.type === 'tool');
-    const summaryNodes: Node[] = filteredFlowNodes.filter(n => n.data.type === 'summary');
 
     const centerX = 400;
     const yStep = 220;
-    const chainGap = 60; // 有工具的链底部到下一链query的额外间距
-    const queryNodeX = 0;       // query 节点 X（每条链起始位置）
-    const toolStartX = 180;    // 工具区域起始 X
-    const toolSpacing = 180;   // 相邻工具间距
-    const summaryOffsetX = 180; // summary 相对 query 的 X 偏移
+    const chainGap = 60;
+    const queryNodeX = 0;
+    const summaryOffsetX = 180;
+    const toolSpacing = 220;   // 工具节点间距（加大防止覆盖）
+    const toolPadding = 24;    // 工具节点到容器边框的内边距
 
-    // 预计算每条链是否有工具（基于原始 storeNodes，避免折叠后 toolNodes 缺失导致误判）
-    // collapsedQueryIds 只影响布局的视觉分组，不影响"是否有工具"的判断
+    // 收集所有 query
+    const allQueryNodes = filteredFlowNodes.filter(n => n.data.type === 'query');
+    const mainAgentNodes = filteredFlowNodes.filter(n => n.id === 'main-agent');
+    const summaryNodes = filteredFlowNodes.filter(n => n.data.type === 'summary');
+
+    // 收集每条链的分组
+    type ToolGroupEntry = { groupId: string; isExpanded: boolean; tools: Node[]; toolType: string };
+    const chainGroups = new Map<string, ToolGroupEntry[]>();
+    for (const [, group] of groupedToolGroups) {
+      if (group.tools.length < 2) continue; // 只有 ≥2 个工具才合并
+      const existing = chainGroups.get(group.queryId) ?? [];
+      existing.push({ groupId: group.groupId, isExpanded: group.isExpanded, tools: group.tools, toolType: group.toolType });
+      chainGroups.set(group.queryId, existing);
+    }
+
+    // 预计算每条链是否有工具（用于 summary 定位）
     const chainHasTools = new Map<string, boolean>();
-    for (const q of queryNodes) {
-      chainHasTools.set(q.id, Array.from(storeNodes.values()).some(n => n.type === 'tool' && n.parentId === q.id));
+    for (const q of allQueryNodes) {
+      chainHasTools.set(q.id, filteredFlowNodes.some(n => n.data.type === 'tool' && (n.data as DAGNode).parentId === q.id));
     }
 
     // main-agent 居中顶部
@@ -111,136 +154,376 @@ export function DAGCanvas({ style }: Props) {
       result.push({ ...n, position: { x: centerX, y: 20 } });
     });
 
-    // 按链分组：每条链 = 一个 query 及其 tools + summary
-    // 累积 Y：不再用固定 chainIdx*yStep，而是跟踪每条链的真实底部高度
+    // 按链布局
     let cumulativeY = 20;
-    queryNodes.forEach((q) => {
-      const toolsInChain = toolNodes.filter(t => (t.data as DAGNode).parentId === q.id);
-      const summaryInChain = summaryNodes.find(s => (s.data as DAGNode).parentId === q.id);
-      const hasTools = chainHasTools.get(q.id) ?? false;
-
+    allQueryNodes.forEach((q) => {
       const chainY = cumulativeY + yStep;
-      cumulativeY = chainY; // 初始：query节点底部在 chainY
+      const summaryInChain = summaryNodes.find(s => (s.data as DAGNode).parentId === q.id);
+      const groupsThisChain = chainGroups.get(q.id) ?? [];
 
       // query 节点
       result.push({ ...q, position: { x: queryNodeX, y: chainY } });
 
-      // tools：水平排列在 query 右侧
-      toolsInChain.forEach((t, ti) => {
-        const totalWidth = (toolsInChain.length - 1) * toolSpacing;
-        const startX = toolStartX - totalWidth / 2;
-        result.push({ ...t, position: { x: startX + ti * toolSpacing, y: chainY + yStep } });
+      let chainToolsY = chainY + yStep;
+      let chainBottom = chainY;
+
+      // 处理每组工具
+      groupsThisChain.forEach((grp: ToolGroupEntry) => {
+        const { groupId, isExpanded, tools, toolType } = grp;
+        const toolCount = tools.length;
+
+        if (isExpanded) {
+          // 展开状态：创建父容器 + 子工具节点
+          // 容器宽度要能容纳所有子节点：总间距 + 左右 padding + 最后一个节点宽度
+          const childWidth = 200; // 容器内工具节点固定宽度
+          const containerWidth = (toolCount - 1) * toolSpacing + toolPadding * 2 + childWidth;
+          const containerHeight = 210; // header(~40px) + children area
+          const headerHeight = 40;     // header 高度
+
+          const containerNode: Node = {
+            id: groupId,
+            type: 'group',
+            data: {
+              type: 'tool',
+              label: toolType,
+              count: toolCount,
+              nodeIds: tools.map((t: Node) => t.id),
+              queryId: q.id,
+              onToggleGroup: (id: string) => useTaskStore.getState().toggleGroupExpand(id),
+              isExpanded: true,
+            },
+            position: { x: 0, y: chainToolsY },
+            style: {
+              width: containerWidth,
+              height: containerHeight,
+              background: 'var(--dag-bg)',
+              border: '1px solid var(--dag-node-border)',
+              borderRadius: 10,
+              boxShadow: 'none',
+            },
+            extent: 'parent' as const,
+          };
+          result.push(containerNode);
+
+          // 子工具节点：位置相对于容器，内容从 header 下方开始
+          const startX = toolPadding;
+          tools.forEach((t: Node, ti: number) => {
+            result.push({
+              ...t,
+              position: { x: startX + ti * toolSpacing, y: headerHeight + 12 },
+              parentId: groupId,
+              extent: 'parent' as const,
+              data: {
+                ...t.data,
+                containerWidth: childWidth,
+              },
+            });
+          });
+
+          chainToolsY += containerHeight + 20;
+        } else {
+          // 折叠状态：使用普通 dagNode 渲染，避免 React Flow group wrapper 灰框
+          result.push({
+            id: groupId,
+            type: 'dagNode',
+            data: {
+              id: groupId,
+              type: 'tool',
+              label: toolType,
+              status: 'completed',
+              parentId: q.id,
+              count: toolCount,
+              queryId: q.id,
+              nodeIds: tools.map((t: Node) => t.id),
+              groupCollapsed: true,
+              onToggleGroup: (id: string) => useTaskStore.getState().toggleGroupExpand(id),
+              isExpanded: false,
+            },
+            position: { x: toolSpacing, y: chainToolsY },
+          });
+          chainToolsY += yStep;
+        }
       });
 
-      // summary：
-      // 有工具 → 在工具行下方（同 chainY + yStep + yStep/2）
-      // 无工具 → 与 query 同层，query 右侧
-      if (summaryInChain) {
-        const sy = hasTools ? chainY + yStep + yStep / 2 : chainY;
-        result.push({ ...summaryInChain, position: { x: queryNodeX + summaryOffsetX, y: sy } });
+      // 非分组工具（独立的或 <2 个的同类型工具）：直接显示
+      const groupedToolIds = new Set(groupsThisChain.flatMap(g => g.tools.map(t => t.id)));
+      const independentTools = filteredFlowNodes.filter(
+        n => n.data.type === 'tool' && (n.data as DAGNode).parentId === q.id && !groupedToolIds.has(n.id)
+      );
+      if (independentTools.length > 0) {
+        const totalWidth = (independentTools.length - 1) * toolSpacing;
+        const startX = toolSpacing - totalWidth / 2;
+        independentTools.forEach((t: Node, ti: number) => {
+          result.push({ ...t, position: { x: startX + ti * toolSpacing, y: chainToolsY } });
+        });
+        chainToolsY += yStep;
       }
 
-      // 累积下一条链的起始Y：
-      // 有工具的链 → tools行y + chainGap（留出呼吸空间）
-      // 无工具的链 → query行y + chainGap（保证最小间距）
-      const chainBottom = hasTools ? chainY + yStep + chainGap : chainY + chainGap;
+      // summary
+      const hasAnyTools = chainHasTools.get(q.id) ?? false;
+      if (summaryInChain) {
+        const sy = hasAnyTools ? chainToolsY : chainY;
+        result.push({ ...summaryInChain, position: { x: queryNodeX + summaryOffsetX, y: sy } });
+        chainToolsY = hasAnyTools ? chainToolsY : chainY;
+      }
+
+      // 累积下一条链的起始Y
+      chainBottom = chainToolsY + chainGap;
       cumulativeY = chainBottom;
     });
 
     return result.length > 0 ? result : filteredFlowNodes;
-  }, [filteredFlowNodes, collapsedQueryIds]);
+  }, [filteredFlowNodes, groupedToolGroups, collapsedQueryIds, storeNodes]);
 
-  // Auto-fit：节点数量或折叠状态变化时重新 fit
-  useEffect(() => {
-    if (fitViewInstance) {
-      fitViewInstance({ padding: 0.15, duration: 300 });
+  // ── 碰撞检测 + 自动推挤优化 ─────────────────────────────
+  // 在 positionedNodes 变化后立即检测重叠，若有重叠则修正位置
+  const NODE_W = 200;   // 节点宽度
+  const NODE_H = 60;    // 节点高度
+  const MIN_Y_GAP = 40; // 最小 Y 间距
+
+  const overlapOptimizedNodes = useMemo(() => {
+    const nodes = positionedNodes;
+
+    // 第一遍：按 (x, y) 分桶，同桶内检测碰撞
+    // 用 Map<yBucket, Node[]>，yBucket = floor(y / (NODE_H + MIN_Y_GAP))
+    const buckets = new Map<number, Node[]>();
+    for (const n of nodes) {
+      const bucketKey = Math.floor(n.position.y / (NODE_H + MIN_Y_GAP));
+      const bucket = buckets.get(bucketKey) ?? [];
+      bucket.push(n);
+      buckets.set(bucketKey, bucket);
     }
-  }, [positionedNodes.length, collapsedQueryIds.size]);
 
-  // 聚焦当前问题 query 链（当 currentQueryId 变化时触发）
-  useEffect(() => {
-    if (!fitViewInstance || !currentQueryId) return;
+    // 修正映射：nodeId → 调整后的 y
+    const yShifts = new Map<string, number>();
 
-    // 收集当前 query 链的所有节点（query 本身 + 其 tools + summary）
-    const chainNodes = positionedNodes.filter(n =>
-      n.id === currentQueryId ||
-      n.id === `${currentQueryId}_summary` ||
-      ((n.data as DAGNode).parentId === currentQueryId)
-    );
+    for (const [, bucketNodes] of buckets) {
+      if (bucketNodes.length < 2) continue;
 
-    if (chainNodes.length > 0) {
-      // fitView 到当前 query 链的节点区域
-      fitViewInstance({
-        nodes: chainNodes,
-        padding: 0.3,
-        duration: 400,
-      });
-    }
-  }, [currentQueryId, positionedNodes]);
+      // 同桶内按 x 排序，检测 x 方向重叠
+      const sorted = [...bucketNodes].sort((a, b) => a.position.x - b.position.x);
 
-  const edges: Edge[] = Array.from(storeNodes.values())
-    .filter(n => {
-      if (!n.parentId || !storeNodes.has(n.parentId)) return false;
-      const parentId = n.parentId ?? 'main-agent';
+      for (let i = 0; i < sorted.length - 1; i++) {
+        const a = sorted[i];
+        const b = sorted[i + 1];
+        const aRight = a.position.x + NODE_W;
+        // X 方向重叠（允许 4px 缝隙）
+        if (aRight > b.position.x + 4) {
+          // b 需要向右推挤或向下推挤
+          // 优先保持 x，改为增加间距：把 b 及其同组节点下移
+          const neededShift = aRight - b.position.x + 4;
+          const newY = b.position.y + neededShift;
 
-      // 折叠 query 的工具节点不出边
-      if (n.type === 'tool' && collapsedQueryIds.has(parentId)) return false;
-
-      // summary 作为 target 时：
-      // - parentId 指向 tool（endTool）→ 直接渲染
-      // - parentId 指向 query 且有 endToolIds → 不渲染（由 endTool→summary 多边替代）
-      // - parentId 指向 query 且无 endToolIds → 渲染 query→summary（单工具 fallback）
-      if (n.type === 'summary') {
-        const parentIsEndTool = storeNodes.has(parentId) && storeNodes.get(parentId)!.type === 'tool';
-        if (parentIsEndTool) {
-          return true; // endTool→summary，直接渲染
+          // 只记录需要调整的节点（按 id 避免重复处理）
+          if (!yShifts.has(b.id) || yShifts.get(b.id)! < newY) {
+            yShifts.set(b.id, newY);
+          }
         }
-        // parent 是 query：检查是否有 endToolIds
-        const hasEndTools = (n.endToolIds?.length ?? 0) > 0;
-        if (hasEndTools) return false; // endTool→summary 多边会处理
-        // 无 endToolIds：单工具 fallback，渲染 query→summary
       }
-      return true;
-    })
-    .map(n => {
-      const source = n.parentId!;
-      const parentIsEndTool = storeNodes.has(source) && storeNodes.get(source)!.type === 'tool';
-      return {
-        id: `${source}-${n.id}`,
-        source,
-        target: n.id,
-        style: {
-          stroke: n.status === 'completed' ? 'var(--success)'
-            : n.status === 'running' ? 'var(--warn)'
-            : 'var(--accent)',
-          strokeWidth: 1.5,
-          strokeDasharray: (n.type === 'summary' && !parentIsEndTool) ? '6,3' : (
-            n.status === 'pending' ? '4,3' : undefined
-          ),
-        },
-      };
-    });
+    }
 
-  // 额外边：每个 summary 的 endToolIds[1:] → summary（[0] 已由上面的 parentId 处理）
+    // 如果没有任何调整，直接返回原节点
+    if (yShifts.size === 0) return positionedNodes;
+
+    // 应用调整：被调整的节点后续节点也顺延
+    const shifts = new Map<string, number>();
+    for (const [nodeId, newY] of yShifts) {
+      shifts.set(nodeId, newY);
+    }
+
+    return positionedNodes.map(n => {
+      const newY = shifts.get(n.id);
+      return newY !== undefined ? { ...n, position: { ...n.position, y: newY } } : n;
+    });
+  }, [positionedNodes]);
+
+  // 聚焦当前问题 query 链（当 currentQueryId 或 positionedNodes 变化时触发）
+  useEffect(() => {
+    if (!fitViewInstance) return;
+
+    // 如果有当前 queryId，聚焦到该链；否则全局 fitView
+    if (currentQueryId) {
+      // 收集当前 query 链的所有节点：
+      // 1. 当前 query 本身
+      // 2. Summary 节点
+      // 3. 直接子节点（parentId === currentQueryId）
+      // 4. 容器节点本身（type === 'group'，属于当前 query）
+      // 5. 容器内的子节点（parentId 以 group_ 开头，属于当前 query 的容器）
+      const chainNodes = overlapOptimizedNodes.filter(n => {
+        const nd = n.data as DAGNode;
+        if (n.id === currentQueryId) return true;
+        if (n.id === `${currentQueryId}_summary`) return true;
+        if (nd.parentId === currentQueryId) return true;
+        // 容器节点本身
+        if (n.type === 'group' && nd.queryId === currentQueryId) return true;
+        // 容器内子节点
+        if (n.parentId?.startsWith('group_')) {
+          const groupNode = overlapOptimizedNodes.find(g => g.id === n.parentId);
+          if (groupNode && (groupNode.data as DAGNode).queryId === currentQueryId) return true;
+        }
+        return false;
+      });
+
+      if (chainNodes.length > 0) {
+        // fitView 到当前 query 链的节点区域（包含展开的子节点）
+        fitViewInstance({
+          nodes: chainNodes,
+          padding: 0.3,
+          duration: 400,
+        });
+        return;
+      }
+    }
+
+    // 没有 currentQueryId 或链节点未就绪时，全局 fitView
+    fitViewInstance({ padding: 0.15, duration: 300 });
+  }, [currentQueryId, overlapOptimizedNodes]);
+
+  // ReactFlow onNodesChange/onEdgesChange（controlled 模式，回调仅占位）
+  const onNodesChange: OnNodesChange = useCallback(() => {
+    // controlled 模式：节点位置由 layout 计算，无需响应 ReactFlow 内部变更
+  }, []);
+
+  const onEdgesChange: OnEdgesChange = useCallback(() => {
+    // 同上
+  }, []);
+
+  const onPaneClick = useCallback(() => {
+    collapseAllGroups();
+  }, [collapseAllGroups]);
+
+  const onNodeClick: NodeMouseHandler = useCallback((_, node) => {
+    if (node.type === 'group') return;
+    if ((node.data as { groupCollapsed?: boolean }).groupCollapsed) return;
+    if (node.parentId?.startsWith('group_')) return;
+    collapseAllGroups();
+  }, [collapseAllGroups]);
+
+  // FPS 帧率监控（通过 rAF 采集）
+  const monitorRef = useRef(getGlobalMonitor());
+  useEffect(() => {
+    let rafId: number;
+    const tick = () => {
+      monitorRef.current.recordFrame();
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+
+  // 构建边：展开的分组显示工具→summary 边，折叠的分组显示 group→summary 边
+  const edges: Edge[] = [];
+
+  for (const n of storeNodes.values()) {
+    if (!n.parentId || !storeNodes.has(n.parentId)) continue;
+
+    // 折叠 query 的工具节点不出边
+    if (n.type === 'tool' && collapsedQueryIds.has(n.parentId)) continue;
+
+    // 如果工具在展开的分组中，跳过（后面用工具→summary 边代替）
+    if (n.type === 'tool') {
+      const groupId = `group_${n.parentId}_${n.label}`;
+      if (useTaskStore.getState().expandedGroupIds.has(groupId)) {
+        const sameTypeTools = Array.from(storeNodes.values()).filter(
+          t => t.type === 'tool' && t.parentId === n.parentId && t.label === n.label
+        );
+        if (sameTypeTools.length >= 2) continue; // 在展开分组中，跳过
+      }
+    }
+
+    // summary 的边处理
+    if (n.type === 'summary') {
+      const parentIsEndTool = storeNodes.has(n.parentId) && storeNodes.get(n.parentId)!.type === 'tool';
+      if (parentIsEndTool) {
+        edges.push({ id: `${n.parentId}-${n.id}`, source: n.parentId, target: n.id, style: { stroke: 'var(--success)', strokeWidth: 1.5 } });
+        continue;
+      }
+      const hasEndTools = (n.endToolIds?.length ?? 0) > 0;
+      if (hasEndTools) continue;
+    }
+
+    const source = n.parentId;
+    const parentIsEndTool = storeNodes.has(source) && storeNodes.get(source)!.type === 'tool';
+    edges.push({
+      id: `${source}-${n.id}`,
+      source,
+      target: n.id,
+      style: {
+        stroke: n.status === 'completed' ? 'var(--success)'
+          : n.status === 'running' ? 'var(--warn)'
+          : 'var(--accent)',
+        strokeWidth: 1.5,
+        strokeDasharray: (n.type === 'summary' && !parentIsEndTool) ? '6,3' : (
+          n.status === 'pending' ? '4,3' : undefined
+        ),
+      },
+    });
+  }
+
+  // 额外边：每个 summary 的 endToolIds[1:] → summary
   const extraEdges: Edge[] = [];
   for (const node of storeNodes.values()) {
     if (node.type === 'summary' && node.endToolIds && node.endToolIds.length > 1) {
-      for (const endToolId of node.endToolIds.slice(1)) { // 跳过 [0]
+      for (const endToolId of node.endToolIds.slice(1)) {
         if (storeNodes.has(endToolId)) {
           extraEdges.push({
             id: `extra-${endToolId}-${node.id}`,
             source: endToolId,
             target: node.id,
-            style: {
-              stroke: 'var(--success)',
-              strokeWidth: 1.5,
-            },
+            style: { stroke: 'var(--success)', strokeWidth: 1.5 },
           });
         }
       }
     }
   }
-  const allEdges = [...edges, ...extraEdges];
+
+  // 分组边：query→group 始终创建，group→summary 在 summary 存在时创建
+  const groupEdges: Edge[] = [];
+  for (const [, group] of groupedToolGroups) {
+    if (group.tools.length < 2) continue;
+
+    // query → group 边（group 容器一出现就需要）
+    const queryNodeExists = positionedNodes.some(n => n.id === group.queryId);
+    if (queryNodeExists) {
+      groupEdges.push({
+        id: `${group.queryId}->${group.groupId}`,
+        source: group.queryId,
+        target: group.groupId,
+        style: { stroke: 'var(--accent)', strokeWidth: 1.5 },
+      });
+    }
+
+    // group → summary 边（summary 存在时才创建）
+    const summaryId = `${group.queryId}_summary`;
+    if (storeNodes.has(summaryId)) {
+      if (group.isExpanded) {
+        // 展开状态：每个工具→summary
+        for (const tool of group.tools) {
+          groupEdges.push({
+            id: `${tool.id}-${summaryId}`,
+            source: tool.id,
+            target: summaryId,
+            style: { stroke: 'var(--success)', strokeWidth: 1.5 },
+          });
+        }
+      } else {
+        // 折叠状态：group→summary
+        groupEdges.push({
+          id: `${group.groupId}-${summaryId}`,
+          source: group.groupId,
+          target: summaryId,
+          style: { stroke: 'var(--success)', strokeWidth: 1.5, strokeDasharray: '6,3' },
+        });
+      }
+    }
+  }
+
+  const allEdges = [...edges, ...extraEdges, ...groupEdges];
+
+  // 4.3.1: 节点数限制警告
+  const nodeCount = storeNodes.size;
+  const isOverNodeLimit = nodeCount > NODE_LIMIT;
+  const isNearNodeLimit = nodeCount > NODE_LIMIT * 0.8 && nodeCount <= NODE_LIMIT;
 
   return (
     <div style={{
@@ -259,12 +542,40 @@ export function DAGCanvas({ style }: Props) {
         <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
           DAG 执行图
         </span>
+        <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 4 }}>
+          {nodeCount} 节点
+        </span>
+        {isOverNodeLimit && (
+          <span style={{
+            fontSize: 10, color: '#ef4444', fontWeight: 600,
+            background: 'rgba(239,68,68,0.1)', padding: '2px 6px', borderRadius: 4,
+          }}>
+            已超过 {NODE_LIMIT} 节点限制，建议折叠旧查询
+          </span>
+        )}
+        {isNearNodeLimit && (
+          <span style={{
+            fontSize: 10, color: '#f59e0b', fontWeight: 600,
+            background: 'rgba(245,158,11,0.1)', padding: '2px 6px', borderRadius: 4,
+          }}>
+            接近 {NODE_LIMIT} 节点限制
+          </span>
+        )}
       </div>
       <div style={{ flex: 1 }}>
         <ReactFlow
-          nodes={positionedNodes}
+          nodes={overlapOptimizedNodes}
           edges={allEdges}
           nodeTypes={nodeTypes}
+          // 虚拟化配置：只渲染可视区域内的节点
+          onlyRenderVisibleElements={true}
+          // 回调（controlled 模式，仅占位）
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onPaneClick={onPaneClick}
+          onNodeClick={onNodeClick}
+          // 性能优化
+          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
           fitView
           onInit={(rf) => { fitViewInstance = rf.fitView; }}
           panOnDrag
