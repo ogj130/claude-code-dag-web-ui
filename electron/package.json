@@ -1,0 +1,64 @@
+{
+  "name": "cc-web-ui-electron",
+  "version": "1.1.0",
+  "description": "Claude Code DAG Web UI - Electron Package for Windows",
+  "main": "dist/main.js",
+  "author": "ogj130",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.7",
+    "@types/ws": "^8.5.14",
+    "electron": "^33.4.0",
+    "electron-builder": "^25.1.8",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "build": {
+    "appId": "com.ccwebui.app",
+    "productName": "Claude Code Web UI",
+    "copyright": "Copyright © 2026 ogj130",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "server/**/*",
+      "src/types/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "dist/main.js"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Claude Code Web UI"
+    },
+    "asar": true
+  }
+}

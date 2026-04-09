@@ -67,6 +67,21 @@ npm run dev
 > 🌐 Frontend → http://localhost:5400
 > ⚡ WebSocket → ws://localhost:5300
 
+### Windows Installation (Standalone .exe)
+
+> [!IMPORTANT]
+> **Requires [Claude Code CLI](https://docs.anthropic.com/en/claude-code/getting-started/install) to be installed first.**
+
+Download the latest Windows installer from GitHub Releases:
+
+```
+https://github.com/ogj130/claude-code-dag-web-ui/releases/latest
+```
+
+Click the `.exe` file to install → Double-click to launch → Browser opens automatically.
+
+The Windows package is auto-built via GitHub Actions on every push to `main`. No Node.js required on the user's machine.
+
 ### Architecture
 
 #### Event-Driven State
@@ -256,6 +271,25 @@ npm run dev
 
 > 🌐 前端 → http://localhost:5400
 > ⚡ WebSocket → ws://localhost:5300
+
+### Windows 安装包（.exe 独立运行）
+
+> [!IMPORTANT]
+> **请先安装 [Claude Code CLI](https://docs.anthropic.com/zh-CN/claude-code/getting-started/install)：**
+>
+> ```bash
+> npm install -g @anthropic/claude-code
+> ```
+
+从 GitHub Releases 下载最新的 Windows 安装包：
+
+```
+https://github.com/ogj130/claude-code-dag-web-ui/releases/latest
+```
+
+下载 `.exe` 文件 → 双击安装 → 自动打开浏览器界面。
+
+> 💡 安装包由 GitHub Actions 自动构建，每次 push 到 `main` 分支自动发布，无需手动操作。
 
 ### 架构设计
 
