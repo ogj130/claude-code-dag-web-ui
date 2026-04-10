@@ -98,3 +98,75 @@ jobs:
             electron/release/*.deb
             electron/release/*.rpm
           retention-days: 7
+
+  create-release:
+    needs: build-platforms
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Display artifact structure
+        run: ls -R artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version_tag }}
+          name: "Claude Code Web UI ${{ github.event.inputs.version_tag }}"
+          body: |
+            ## Claude Code Web UI
+
+            跨平台桌面应用，支持 Windows、macOS、Linux。
+
+            ### 前置要求
+            请先安装 [Claude Code CLI](https://docs.anthropic.com/zh-CN/claude-code/getting-started/install)：
+
+            ```bash
+            npm install -g @anthropic/claude-code
+            ```
+
+            ### 安装步骤
+
+            **Windows:**
+            1. 下载 `.exe` 安装包
+            2. 双击运行，按提示安装
+            3. 启动后自动打开浏览器界面
+
+            **macOS:**
+            1. 下载 `.dmg` 磁盘镜像
+            2. 打开 DMG，拖拽应用到 Applications 文件夹
+            3. 首次运行需要在"系统偏好设置 > 安全性与隐私"中允许
+
+            **Linux:**
+            - **AppImage（推荐）:** 下载后添加执行权限 `chmod +x *.AppImage`，直接运行
+            - **deb（Debian/Ubuntu）:** `sudo dpkg -i *.deb`
+            - **rpm（Fedora/CentOS）:** `sudo rpm -i *.rpm`
+
+            ### 版本
+            **${{ github.event.inputs.version_tag }}**
+
+            ### 功能
+            - 🔥 DAG 执行图可视化
+            - 💻 终端 + 工具卡片合并视图
+            - 📝 流式总结逐字补完动画
+            - 🌙 暗黑/明亮模式
+            - ⚡ WebSocket 实时通信
+            - 🌍 跨平台支持（Windows、macOS、Linux）
+
+          files: |
+            artifacts/installer-windows-latest/*.exe
+            artifacts/installer-macos-latest/*.dmg
+            artifacts/installer-ubuntu-latest/*.AppImage
+            artifacts/installer-ubuntu-latest/*.deb
+            artifacts/installer-ubuntu-latest/*.rpm
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
