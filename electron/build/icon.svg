@@ -1,15 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
   <defs>
-    <!-- 背景渐变：紫蓝色系 -->
+    <!-- 背景渐变：深蓝到靛蓝 - 专业稳重 -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#764ba2;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#1e3a8a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#312e81;stop-opacity:1" />
     </linearGradient>
 
-    <!-- 节点渐变：青色到蓝色 -->
+    <!-- 节点渐变：橙黄色 - 高对比度醒目 -->
     <linearGradient id="nodeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4facfe;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#00f2fe;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#fbbf24;stop-opacity:1" />
     </linearGradient>
 
     <!-- 发光效果 -->
@@ -26,10 +26,10 @@
   <rect width="256" height="256" rx="56" fill="url(#bgGrad)"/>
 
   <!-- DAG 流程图 - 简化版 -->
-  <!-- 连接线 -->
-  <path d="M 80 80 L 128 128" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
-  <path d="M 176 80 L 128 128" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
-  <path d="M 128 128 L 128 176" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+  <!-- 连接线 - 浅蓝色半透明 -->
+  <path d="M 80 80 L 128 128" stroke="#93c5fd" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 176 80 L 128 128" stroke="#93c5fd" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
+  <path d="M 128 128 L 128 176" stroke="#93c5fd" stroke-width="4" stroke-linecap="round" opacity="0.7"/>
 
   <!-- 节点 - 圆形设计 -->
   <circle cx="80" cy="80" r="20" fill="url(#nodeGrad)" filter="url(#glow)"/>
