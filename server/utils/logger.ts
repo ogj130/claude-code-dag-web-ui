@@ -29,11 +29,6 @@ if (LOG_DIR && !fs.existsSync(LOG_DIR)) {
   fs.mkdirSync(LOG_DIR, { recursive: true });
 }
 
-function getLogFile() {
-  const today = new Date().toISOString().slice(0, 10);
-  return path.join(LOG_DIR, `cc-server-${today}.log`);
-}
-
 function cleanupOldLogs() {
   if (!LOG_DIR) return;
   try {
