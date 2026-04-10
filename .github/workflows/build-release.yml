@@ -71,8 +71,12 @@ jobs:
 
       - name: Set version from workflow input
         if: github.event_name == 'workflow_dispatch'
-        run: >
-          node -e "const fs=require('fs'); const v='${{ github.event.inputs.version_tag }}'.replace(/^v/,''); const pkg=JSON.parse(fs.readFileSync('package.json','utf8')); pkg.version=v; fs.writeFileSync('package.json',JSON.stringify(pkg)); console.log('Version: '+v);"
+        shell: bash
+        run: |
+          VER="${VERSION_TAG#v}"
+          node -e "const fs=require('fs'); const v='$VER'.replace(/^v/,''); const pkg=JSON.parse(fs.readFileSync('package.json','utf8')); pkg.version=v; fs.writeFileSync('package.json',JSON.stringify(pkg)); console.log('Version: '+v);"
+        env:
+          VERSION_TAG: ${{ github.event.inputs.version_tag }}
         working-directory: electron
 
       - name: Build Electron
