@@ -1,0 +1,186 @@
+/* ================================================
+   EmptyState 空状态组件
+   ================================================ */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.empty-state__icon {
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.empty-state__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.empty-state__subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 260px;
+}
+
+.empty-state__action {
+  margin-top: 8px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+.empty-state__action:hover {
+  background: var(--accent-dim);
+}
+
+/* ================================================
+   LoadingSkeleton 骨架屏组件
+   ================================================ */
+
+/* Session 骨架屏 */
+.skeleton-session {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+}
+
+.skeleton-session__item {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+}
+
+/* 通用骨架线（闪烁动画） */
+.skeleton-line {
+  border-radius: 4px;
+  background: var(--border);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* DAG 骨架屏 */
+.skeleton-dag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 40px 24px;
+  height: 100%;
+  position: relative;
+}
+
+.skeleton-dag__agent {
+  width: 120px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--border);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-dag__connector {
+  width: 2px;
+  height: 40px;
+  background: var(--border);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-dag__chain {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.skeleton-dag__query {
+  width: 100px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--border);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.skeleton-dag__tools {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.skeleton-dag__tool {
+  width: 80px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--border);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 0.2s);
+}
+
+.skeleton-dag__summary {
+  width: 90px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--border);
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* ================================================
+   ErrorState 错误状态组件
+   ================================================ */
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 100%;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.error-state__icon {
+  color: var(--error);
+  margin-bottom: 4px;
+}
+
+.error-state__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.error-state__action {
+  margin-top: 8px;
+  background: var(--error);
+  color: #fff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.2s;
+}
+.error-state__action:hover {
+  opacity: 0.85;
+}

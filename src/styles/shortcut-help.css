@@ -1,0 +1,215 @@
+/* ─── ShortcutHelp 弹窗 ─── */
+
+.shortcut-help__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: shortcut-help-fade-in 0.15s ease;
+}
+
+@keyframes shortcut-help-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.shortcut-help__dialog {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 480px;
+  max-width: 90vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  animation: shortcut-help-slide-up 0.2s ease;
+}
+
+@keyframes shortcut-help-slide-up {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Header */
+.shortcut-help__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcut-help__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shortcut-help__title svg {
+  color: var(--accent);
+}
+
+.shortcut-help__close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.shortcut-help__close:hover {
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+/* Body */
+.shortcut-help__body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.shortcut-help__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shortcut-help__item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background 0.1s;
+}
+
+.shortcut-help__item:hover {
+  background: var(--bg-input);
+}
+
+.shortcut-help__key {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 120px;
+  flex-shrink: 0;
+}
+
+.shortcut-help__key kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.shortcut-help__plus {
+  color: var(--text-dim);
+  font-size: 10px;
+  margin: 0 1px;
+}
+
+.shortcut-help__desc {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.shortcut-help__scope {
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--bg-input);
+  padding: 2px 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+/* Conflicts */
+.shortcut-help__conflicts {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.shortcut-help__conflicts-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #f59e0b;
+  margin-bottom: 10px;
+}
+
+.shortcut-help__conflict-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.shortcut-help__conflict-item kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 6px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 10px;
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+
+/* Footer */
+.shortcut-help__footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.shortcut-help__footer kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 10px;
+  color: var(--text);
+  box-shadow: 0 1px 0 var(--border);
+  margin: 0 2px;
+}

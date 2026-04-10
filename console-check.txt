@@ -1,0 +1,11 @@
+Total messages: 10 (Errors: 1, Warnings: 1)
+Returning 8 messages for level "info"
+
+[INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ http://localhost:5400/node_modules/.vite/deps/chunk-UVXKGGW7.js?v=1f4bb45d:21608
+[WARNING] WebSocket connection to 'ws://localhost:5300/' failed: WebSocket is closed before the connection is established. @ http://localhost:5400/src/hooks/useWebSocket.ts:149
+[ERROR] [09:19:26.444] [ERROR] [WebSocket] Connection error Event @ http://localhost:5400/src/utils/logger.ts:23
+[LOG] [09:19:26.445] [INFO] [WebSocket] WebSocket closed @ http://localhost:5400/src/utils/logger.ts:23
+[INFO] [SearchIndex] Built index with 0 sessions and 0 queries @ http://localhost:5400/src/stores/searchIndex.ts:48
+[INFO] [SearchIndex] Built index with 0 sessions and 0 queries @ http://localhost:5400/src/stores/searchIndex.ts:48
+[INFO] [SearchIndex] Built index with 0 documents @ http://localhost:5400/src/utils/searchIndex.ts:64
+[INFO] [SearchIndex] Built index with 0 documents @ http://localhost:5400/src/utils/searchIndex.ts:64

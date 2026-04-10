@@ -1,0 +1,204 @@
+<h2>🎯 三个功能优化 — 整体设计预览</h2>
+<p class="subtitle">问题1：展开容器后 DAG 聚焦 · 问题2：重叠检测与自动优化 · 问题3：工具交互提示</p>
+
+<!-- 功能1：展开聚焦 -->
+<div class="mockup">
+  <div class="mockup-header">功能 1：DAG 展开后智能聚焦</div>
+  <div class="mockup-body">
+    <div style="background:#1a1a2e;border-radius:8px;padding:20px;position:relative;min-height:180px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+      <!-- DAG 可视化：展开前 → 展开后 -->
+      <div style="display:flex;gap:24px;align-items:flex-start;">
+        <!-- 展开前 -->
+        <div style="text-align:center;flex:1;">
+          <div style="color:#4a8eff;font-size:10px;margin-bottom:8px;">展开前</div>
+          <svg width="180" height="160" style="background:#0f0f1a;border-radius:6px;">
+            <!-- Query节点 -->
+            <rect x="60" y="10" width="60" height="30" rx="6" fill="#2a2a4a" stroke="#4a8eff" stroke-width="1.5"/>
+            <text x="90" y="30" fill="#4a8eff" text-anchor="middle" font-size="10">Q1</text>
+            <!-- 折叠分组 -->
+            <rect x="40" y="55" width="100" height="36" rx="6" fill="#1e1e3a" stroke="#8b5cf6" stroke-width="1.5" stroke-dasharray="4,2"/>
+            <text x="90" y="70" fill="#a78bfa" text-anchor="middle" font-size="9">🗂 Read ×3</text>
+            <text x="90" y="83" fill="#6b7280" text-anchor="middle" font-size="8">▶ 点击展开</text>
+            <!-- Summary节点 -->
+            <rect x="60" y="105" width="60" height="30" rx="6" fill="#2a2a4a" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="90" y="125" fill="#22c55e" text-anchor="middle" font-size="10">Summary</text>
+            <!-- 连接线 -->
+            <line x1="90" y1="40" x2="90" y2="55" stroke="#4a8eff" stroke-width="1" stroke-dasharray="3,2"/>
+            <line x1="90" y1="91" x2="90" y2="105" stroke="#4a8eff" stroke-width="1" stroke-dasharray="3,2"/>
+          </svg>
+          <div style="color:#6b7280;font-size:9px;margin-top:6px;">聚焦: Q1 链节点</div>
+        </div>
+        <!-- 箭头 -->
+        <div style="color:#4a8eff;font-size:20px;align-self:center;padding-top:30px;">→</div>
+        <!-- 展开后 -->
+        <div style="text-align:center;flex:1;">
+          <div style="color:#4a8eff;font-size:10px;margin-bottom:8px;">展开后（修复）</div>
+          <svg width="220" height="160" style="background:#0f0f1a;border-radius:6px;">
+            <!-- Query节点 -->
+            <rect x="80" y="5" width="60" height="30" rx="6" fill="#2a2a4a" stroke="#4a8eff" stroke-width="1.5"/>
+            <text x="110" y="25" fill="#4a8eff" text-anchor="middle" font-size="10">Q1</text>
+            <!-- 展开容器（宽） -->
+            <rect x="20" y="42" width="180" height="56" rx="6" fill="#1e1e3a" stroke="#8b5cf6" stroke-width="1.5"/>
+            <text x="30" y="55" fill="#a78bfa" font-size="8">🗂 Read ×3</text>
+            <!-- 子节点 -->
+            <rect x="30" y="60" width="44" height="28" rx="4" fill="#2a2a4a" stroke="#6366f1" stroke-width="1"/>
+            <text x="52" y="77" fill="#a5b4fc" text-anchor="middle" font-size="7">file1.ts</text>
+            <rect x="88" y="60" width="44" height="28" rx="4" fill="#2a2a4a" stroke="#6366f1" stroke-width="1"/>
+            <text x="110" y="77" fill="#a5b4fc" text-anchor="middle" font-size="7">file2.ts</text>
+            <rect x="146" y="60" width="44" height="28" rx="4" fill="#2a2a4a" stroke="#6366f1" stroke-width="1"/>
+            <text x="168" y="77" fill="#a5b4fc" text-anchor="middle" font-size="7">file3.ts</text>
+            <!-- Summary节点 -->
+            <rect x="80" y="108" width="60" height="30" rx="6" fill="#2a2a4a" stroke="#22c55e" stroke-width="1.5"/>
+            <text x="110" y="128" fill="#22c55e" text-anchor="middle" font-size="10">Summary</text>
+            <!-- 连接线 -->
+            <line x1="110" y1="35" x2="110" y2="42" stroke="#4a8eff" stroke-width="1" stroke-dasharray="3,2"/>
+            <line x1="110" y1="98" x2="110" y2="108" stroke="#4a8eff" stroke-width="1" stroke-dasharray="3,2"/>
+            <!-- 聚焦框（绿色边框） -->
+            <rect x="5" y="0" width="210" height="138" rx="8" fill="none" stroke="#22c55e" stroke-width="2" stroke-dasharray="6,3" opacity="0.6"/>
+          </svg>
+          <div style="color:#22c55e;font-size:9px;margin-top:6px;">✅ 自动聚焦整个展开区域</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;padding:8px 10px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:6px;text-align:center;">
+        <span style="color:#22c55e;font-size:10px;">✨ fitView(nodes=[容器+所有子节点+summary])，padding:0.3，duration:400ms</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section"></div>
+
+<!-- 功能2：重叠检测 -->
+<div class="mockup">
+  <div class="mockup-header">功能 2：DAG 变化后自动检测并优化重叠节点</div>
+  <div class="mockup-body">
+    <div style="background:#1a1a2e;border-radius:8px;padding:20px;position:relative;min-height:120px;font-family:'JetBrains Mono',monospace;font-size:11px;">
+      <div style="display:flex;gap:24px;align-items:flex-start;">
+        <!-- 重叠检测示意 -->
+        <div style="flex:1;text-align:center;">
+          <div style="color:#f59e0b;font-size:10px;margin-bottom:8px;">检测到重叠</div>
+          <svg width="160" height="100" style="background:#0f0f1a;border-radius:6px;">
+            <!-- 重叠节点（红色半透明） -->
+            <rect x="30" y="15" width="80" height="30" rx="6" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5"/>
+            <text x="70" y="34" fill="#ef4444" text-anchor="middle" font-size="9">Query-2</text>
+            <rect x="55" y="30" width="80" height="30" rx="6" fill="rgba(239,68,68,0.15)" stroke="#ef4444" stroke-width="1.5"/>
+            <text x="95" y="49" fill="#ef4444" text-anchor="middle" font-size="9">Query-3</text>
+            <text x="95" y="80" fill="#f59e0b" text-anchor="middle" font-size="8">⚠ 重叠区域</text>
+          </svg>
+          <div style="color:#6b7280;font-size:9px;margin-top:4px;">碰撞检测算法</div>
+        </div>
+        <div style="color:#f59e0b;font-size:20px;align-self:center;">→</div>
+        <!-- 优化后 -->
+        <div style="flex:1;text-align:center;">
+          <div style="color:#22c55e;font-size:10px;margin-bottom:8px;">自动优化后</div>
+          <svg width="160" height="100" style="background:#0f0f1a;border-radius:6px;">
+            <rect x="30" y="10" width="80" height="30" rx="6" fill="#2a2a4a" stroke="#4a8eff" stroke-width="1.5"/>
+            <text x="70" y="29" fill="#4a8eff" text-anchor="middle" font-size="9">Query-2</text>
+            <rect x="30" y="50" width="80" height="30" rx="6" fill="#2a2a4a" stroke="#4a8eff" stroke-width="1.5"/>
+            <text x="70" y="69" fill="#4a8eff" text-anchor="middle" font-size="9">Query-3</text>
+            <text x="70" y="90" fill="#22c55e" text-anchor="middle" font-size="8">✅ 间距均分</text>
+          </svg>
+          <div style="color:#6b7280;font-size:9px;margin-top:4px;">节点间距 +40px</div>
+        </div>
+        <!-- 触发时机 -->
+        <div style="flex:1;">
+          <div style="color:#a78bfa;font-size:10px;margin-bottom:8px;">触发时机</div>
+          <div style="background:#0f0f1a;border-radius:6px;padding:10px;">
+            <div style="color:#a78bfa;font-size:9px;margin-bottom:6px;">useEffect 监听:</div>
+            <div style="color:#6b7280;font-size:8px;line-height:1.8;">
+              • 新增节点 → 立即检测<br/>
+              • 折叠容器 → 立即检测<br/>
+              • 展开容器 → 立即检测<br/>
+              • 碰撞 → 触发布局重算
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section"></div>
+
+<!-- 功能3：工具交互提示 -->
+<div class="mockup">
+  <div class="mockup-header">功能 3：工具交互提示 — 终端 + DAG 双展示</div>
+  <div class="mockup-body">
+    <div style="background:#1a1a2e;border-radius:8px;padding:20px;position:relative;min-height:200px;">
+
+      <!-- 终端侧 -->
+      <div style="margin-bottom:16px;">
+        <div style="color:#a78bfa;font-size:10px;margin-bottom:8px;font-family:'JetBrains Mono',monospace;">🖥 终端视图（xterm）</div>
+        <div style="background:#0d1117;border-radius:8px;padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.7;min-height:80px;border:1px solid #30363d;">
+          <div style="color:#8b949e;">$ 分析代码结构...</div>
+          <div style="color:#39d353;margin-top:4px;">▸ <span style="color:#79c0ff;">Reading</span> src/components/DAG/DAGCanvas.tsx</div>
+          <div style="color:#39d353;">▸ <span style="color:#79c0ff;">Reading</span> src/stores/useTaskStore.ts</div>
+          <div style="color:#f0883e;margin-top:4px;">▸ <span style="color:#ffa657;">Editing</span> DAGCanvas.tsx (line 42-58)</div>
+          <div style="color:#a5d6ff;margin-top:4px;">▸ <span style="color:#79c0ff;">Bash</span> npx tsc --noEmit</div>
+          <div style="color:#8b949e;margin-top:4px;">✓ 回答已生成</div>
+        </div>
+      </div>
+
+      <!-- DAG侧 -->
+      <div>
+        <div style="color:#a78bfa;font-size:10px;margin-bottom:8px;font-family:'JetBrains Mono',monospace;">🕸 DAG 视图（工具节点）</div>
+        <div style="background:#0f0f1a;border-radius:8px;padding:20px;min-height:120px;border:1px solid #30363d;display:flex;flex-direction:column;gap:12px;align-items:flex-start;">
+          <!-- 工具节点1：Read -->
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="background:#2a2a4a;border:1.5px solid #6366f1;border-radius:8px;padding:8px 14px;min-width:160px;animation:node-pulse 1.5s ease-in-out infinite;">
+              <div style="color:#a5b4fc;font-size:11px;font-weight:600;">📖 Read</div>
+            </div>
+            <div style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.4);border-radius:6px;padding:6px 10px;animation:tip-fadein 0.3s ease-out;">
+              <span style="color:#a5b4fc;font-size:10px;">Reading</span>
+              <span style="color:#79c0ff;font-size:10px;font-family:'JetBrains Mono',monospace;margin-left:4px;">src/...</span>
+            </div>
+          </div>
+          <!-- 工具节点2：Edit -->
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="background:#2a2a4a;border:1.5px solid #f59e0b;border-radius:8px;padding:8px 14px;min-width:160px;">
+              <div style="color:#fbbf24;font-size:11px;font-weight:600;">✏️ Edit</div>
+            </div>
+            <div style="background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);border-radius:6px;padding:6px 10px;">
+              <span style="color:#fbbf24;font-size:10px;">Editing</span>
+              <span style="color:#ffa657;font-size:10px;font-family:'JetBrains Mono',monospace;margin-left:4px;">DAGCanvas.tsx</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>
+        @keyframes node-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0.4); }
+          50% { box-shadow: 0 0 0 4px rgba(99,102,241,0); }
+        }
+        @keyframes tip-fadein {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      </style>
+
+      <!-- 数据流说明 -->
+      <div style="margin-top:14px;padding:10px 12px;background:rgba(167,139,250,0.08);border:1px solid rgba(167,139,250,0.2);border-radius:6px;">
+        <div style="color:#a78bfa;font-size:9px;margin-bottom:4px;">数据流</div>
+        <div style="color:#6b7280;font-size:9px;font-family:'JetBrains Mono',monospace;line-height:1.7;">
+          Claude Code <span style="color:#4a8eff;">type:'input'</span> → AnsiParser 解析 → <span style="color:#22c55e;">tool_progress</span> 事件 → WebSocket → Terminal + DAG
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section"></div>
+
+<h3>实现顺序</h3>
+<p class="subtitle">按优先级排列：问题3 → 问题1 → 问题2</p>
+
+<div class="options" data-multiselect>
+  <div class="option" data-choice="proceed" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>开始实现</h3>
+      <p>按问题3 → 问题1 → 问题2 的顺序实施，建议每次完成一个功能后测试验证</p>
+    </div>
+  </div>
+</div>

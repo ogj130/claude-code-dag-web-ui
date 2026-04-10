@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { DAGNode } from '../../types/events';
+import { useTaskStore } from '../../stores/useTaskStore';
 
 // ── Props ────────────────────────────────────────────────────────────────────
 export interface NodeDetailModalProps {
@@ -45,7 +46,7 @@ const markdownStyles: Record<string, React.CSSProperties> = {
   ol: { paddingLeft: 16, margin: '4px 0' },
   li: { margin: '2px 0' },
   code: { background: 'rgba(255,255,255,0.06)', borderRadius: 3, padding: '1px 4px', fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: 'var(--accent)' },
-  pre: { background: 'rgba(0,0,0,0.35)', borderRadius: 6, padding: '10px 12px', overflowX: 'auto', margin: '6px 0' },
+  pre: { background: 'rgba(0,0,0,0.35)', borderRadius: 6, padding: '10px 12px', margin: '6px 0', whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
   'pre code': { background: 'transparent', padding: 0, color: 'var(--text-secondary)', fontSize: 11 },
   blockquote: { borderLeft: '3px solid var(--success)', paddingLeft: 10, color: 'var(--text-muted)', fontStyle: 'italic' as const, margin: '6px 0' },
   table: { width: '100%', borderCollapse: 'collapse' as const, margin: '6px 0', fontSize: 11 },
@@ -94,10 +95,17 @@ function useFocusTrap(ref: React.RefObject<HTMLDivElement | null>, active: boole
 // ── 主组件 ────────────────────────────────────────────────────────────────────
 export function NodeDetailModal({
   nodeType, nodeLabel, nodeId, nodeStatus,
-  args, summaryContent, onClose,
+  args, summaryContent: initialSummary, onClose,
 }: NodeDetailModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   useFocusTrap(overlayRef, true);
+
+  // 流式 summary：从 store 直接读取最新内容，确保弹窗内容实时跟随
+  const liveSummaryContent = useTaskStore(s => {
+    if (nodeType !== 'summary') return initialSummary;
+    const node = s.nodes.get(nodeId);
+    return node?.summaryContent ?? initialSummary ?? '';
+  });
 
   // ESC 关闭
   useEffect(() => {
@@ -205,7 +213,7 @@ export function NodeDetailModal({
             </div>
           )}
 
-          {nodeType === 'summary' && summaryContent && (
+          {nodeType === 'summary' && liveSummaryContent && (
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -233,7 +241,7 @@ export function NodeDetailModal({
                 hr: () => <hr style={markdownStyles.hr} />,
               }}
             >
-              {summaryContent}
+              {liveSummaryContent}
             </ReactMarkdown>
           )}
         </div>

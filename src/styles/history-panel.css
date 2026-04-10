@@ -1,0 +1,221 @@
+/* ─── HistoryPanel ─── */
+
+.history-panel__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 900;
+  animation: history-fade-in 0.15s ease;
+}
+
+@keyframes history-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.history-panel__panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 380px;
+  max-width: 90vw;
+  height: 100vh;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.3);
+  animation: history-slide-in 0.2s ease;
+  z-index: 901;
+}
+
+@keyframes history-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* Header */
+.history-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.history-panel__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-panel__title svg {
+  color: var(--accent);
+}
+
+.history-panel__count {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--bg-input);
+  padding: 1px 7px;
+  border-radius: 10px;
+}
+
+.history-panel__close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.history-panel__close:hover {
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+/* Body */
+.history-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-panel__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: var(--text-dim);
+  text-align: center;
+  gap: 12px;
+}
+
+.history-panel__empty p {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Card */
+.history-panel__card {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.history-panel__card:hover {
+  background: var(--bg-input);
+  border-color: var(--accent);
+}
+
+.history-panel__card--active {
+  border-color: var(--warn);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.history-panel__card--active:hover {
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.history-panel__card--expanded {
+  border-color: var(--accent);
+}
+
+.history-panel__card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.history-panel__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.history-panel__status-dot--running {
+  background: var(--warn);
+  animation: pulse-dot 1.2s ease-in-out infinite;
+}
+
+.history-panel__status-dot--done {
+  background: var(--success);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.history-panel__card-time {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.history-panel__card-query {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.history-panel__card-summary {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.6;
+}
+
+.history-panel__card-expand-hint {
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--accent);
+  opacity: 0.6;
+}
+
+/* Footer */
+.history-panel__footer {
+  padding: 10px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.history-panel__footer kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 10px;
+  color: var(--text);
+  box-shadow: 0 1px 0 var(--border);
+  margin: 0 2px;
+}
