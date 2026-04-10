@@ -67,20 +67,57 @@ npm run dev
 > 🌐 Frontend → http://localhost:5400
 > ⚡ WebSocket → ws://localhost:5300
 
-### Windows Installation (Standalone .exe)
+### Installation
 
 > [!IMPORTANT]
 > **Requires [Claude Code CLI](https://docs.anthropic.com/en/claude-code/getting-started/install) to be installed first.**
 
-Download the latest Windows installer from GitHub Releases:
+```bash
+npm install -g @anthropic/claude-code
+```
+
+Download the latest installer from GitHub Releases:
 
 ```
 https://github.com/ogj130/claude-code-dag-web-ui/releases/latest
 ```
 
-Click the `.exe` file to install → Double-click to launch → Browser opens automatically.
+#### Windows
 
-The Windows package is auto-built via GitHub Actions on every push to `main`. No Node.js required on the user's machine.
+1. Download the latest `.exe` installer
+2. Double-click to install
+3. Launch the app and the browser UI opens automatically
+
+#### macOS
+
+1. Download the latest `.dmg` image
+2. Open the DMG and drag the app into `Applications`
+3. On first launch, allow the app in system security settings if prompted
+
+> Note: the app is currently unsigned, so macOS may require a manual security confirmation on first launch.
+
+#### Linux
+
+**AppImage (recommended)**
+
+```bash
+chmod +x Claude-Code-Web-UI-*.AppImage
+./Claude-Code-Web-UI-*.AppImage
+```
+
+**Debian / Ubuntu**
+
+```bash
+sudo dpkg -i claude-code-web-ui_*.deb
+```
+
+**Fedora / CentOS / RHEL**
+
+```bash
+sudo rpm -i claude-code-web-ui-*.rpm
+```
+
+> Installers are built automatically on every push to `main`. GitHub Release publishing is triggered manually from the `Build Cross-Platform Release` workflow.
 
 ### Architecture
 
