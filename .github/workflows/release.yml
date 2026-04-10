@@ -56,7 +56,7 @@ jobs:
 
       # ── 6. 列出构建产物 ──────────────────────────────
       - name: List release files
-        run: ls -la electron/release/
+        run: dir electron\release\
 
       # ── 6. 发布到 GitHub Release ─────────────────────
       - name: Create GitHub Release
