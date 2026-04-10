@@ -1,0 +1,103 @@
+name: Build Windows Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Git tag for this release (e.g., v1.1.0)'
+        required: true
+        default: 'v1.1.0'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          node-version: 24
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      # ── 1. 安装前端依赖 ─────────────────────────────────────
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # ── 2. 构建前端 ─────────────────────────────────────
+      - name: Build frontend
+        run: npm run build
+
+      # ── 3. 安装 Electron 依赖 ─────────────────────────
+      - name: Install Electron deps
+        working-directory: electron
+        run: npm ci
+
+      # ── 4. 编译 Electron TypeScript ──────────────────
+      - name: Build Electron
+        working-directory: electron
+        run: npm run build
+
+      # ── 5. 打包 Windows exe ───────────────────────────
+      - name: Build Windows installer
+        working-directory: electron
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist
+
+      # ── 6. 列出构建产物 ──────────────────────────────
+      - name: List release files
+        run: dir electron\release\
+
+      # ── 7. 发布到 GitHub Release（仅手动触发时）─────────────────────
+      - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version_tag }}
+          name: "Claude Code Web UI ${{ github.event.inputs.version_tag }}"
+          body: |
+            ## Claude Code Web UI
+
+            Windows 安装包，双击即可运行。
+
+            ### 前置要求
+            请先安装 [Claude Code CLI](https://docs.anthropic.com/zh-CN/claude-code/getting-started/install)：
+
+            ```bash
+            npm install -g @anthropic/claude-code
+            ```
+
+            ### 安装步骤
+            1. 下载下方 `.exe` 安装包
+            2. 双击运行，一路下一步即可
+            3. 启动后自动打开浏览器界面
+
+            ### 版本
+            **${{ github.event.inputs.version_tag }}**
+
+            ### 功能
+            - 🔥 DAG 执行图可视化
+            - 💻 终端 + 工具卡片合并视图
+            - 📝 流式总结逐字补完动画
+            - 🌙 暗黑/明亮模式
+            - ⚡ WebSocket 实时通信
+
+          files: electron/release/**/*.exe
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

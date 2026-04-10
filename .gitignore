@@ -51,9 +51,6 @@ openspec/
 # All documentation
 docs/
 
-# GitHub Actions workflows (CI config, not needed in repo)
-.github/
-
 # Worktrees
 .worktrees/
 

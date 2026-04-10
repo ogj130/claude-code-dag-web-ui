@@ -1,0 +1,182 @@
+name: Build Cross-Platform Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version_tag:
+        description: 'Git tag for this release (e.g., v1.2.0)'
+        required: true
+        default: 'v1.3.0'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist/
+          retention-days: 1
+
+  build-platforms:
+    needs: build-frontend
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist/
+
+      - name: Install Electron dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Set version from workflow input
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          VER="${VERSION_TAG#v}"
+          node -e "const fs=require('fs'); const v='$VER'.replace(/^v/,''); const pkg=JSON.parse(fs.readFileSync('package.json','utf8')); pkg.version=v; fs.writeFileSync('package.json',JSON.stringify(pkg)); console.log('Version: '+v);"
+        env:
+          VERSION_TAG: ${{ github.event.inputs.version_tag }}
+        working-directory: electron
+
+      - name: Build Electron
+        working-directory: electron
+        run: npm run build
+
+      - name: Build installer
+        working-directory: electron
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist
+
+      - name: List release files (Windows)
+        if: runner.os == 'Windows'
+        run: dir electron\release\
+
+      - name: List release files (Unix)
+        if: runner.os != 'Windows'
+        run: ls -la electron/release/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.os }}
+          path: |
+            electron/release/*.exe
+            electron/release/*.dmg
+            electron/release/*.AppImage
+            electron/release/*.deb
+            electron/release/*.rpm
+          retention-days: 7
+
+  create-release:
+    needs: build-platforms
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Display artifact structure
+        run: ls -R artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version_tag }}
+          name: "Claude Code Web UI ${{ github.event.inputs.version_tag }}"
+          body: |
+            ## Claude Code Web UI
+
+            跨平台桌面应用，支持 Windows、macOS、Linux。
+
+            ### 前置要求
+            请先安装 [Claude Code CLI](https://docs.anthropic.com/zh-CN/claude-code/getting-started/install)：
+
+            ```bash
+            npm install -g @anthropic/claude-code
+            ```
+
+            ### 安装步骤
+
+            **Windows:**
+            1. 下载 `.exe` 安装包
+            2. 双击运行，按提示安装
+            3. 启动后自动打开浏览器界面
+
+            **macOS:**
+            1. 下载 `.dmg` 磁盘镜像
+            2. 打开 DMG，拖拽应用到 Applications 文件夹
+            3. 首次运行需要在"系统偏好设置 > 安全性与隐私"中允许
+
+            **Linux:**
+            - **AppImage（推荐）:** 下载后添加执行权限 `chmod +x *.AppImage`，直接运行
+            - **deb（Debian/Ubuntu）:** `sudo dpkg -i *.deb`
+            - **rpm（Fedora/CentOS）:** `sudo rpm -i *.rpm`
+
+            ### 版本
+            **${{ github.event.inputs.version_tag }}**
+
+            ### 功能
+            - 🔥 DAG 执行图可视化
+            - 💻 终端 + 工具卡片合并视图
+            - 📝 流式总结逐字补完动画
+            - 🌙 暗黑/明亮模式
+            - ⚡ WebSocket 实时通信
+            - 🌍 跨平台支持（Windows、macOS、Linux）
+
+          files: |
+            artifacts/installer-windows-latest/*.exe
+            artifacts/installer-macos-latest/*.dmg
+            artifacts/installer-ubuntu-latest/*.AppImage
+            artifacts/installer-ubuntu-latest/*.deb
+            artifacts/installer-ubuntu-latest/*.rpm
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
