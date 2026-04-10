@@ -2,7 +2,7 @@ import pino from 'pino';
 import fs from 'fs';
 import path from 'path';
 
-const __dirname = path.dirname(__filename);
+// __dirname 在 CommonJS 里是 Node.js 内置全局变量，无需重新声明
 const LOG_DIR = path.resolve(__dirname, '../../logs');
 const MAX_DAYS = 5;
 
