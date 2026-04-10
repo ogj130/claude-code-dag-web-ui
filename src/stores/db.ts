@@ -74,6 +74,14 @@ export class CCDatabase extends Dexie {
         }
       });
     });
+
+    // Version 3: 添加 workspacePath 索引
+    this.version(3).stores({
+      sessions: 'id, workspacePath, updatedAt, status, createdAt, accessCount, *tags',
+      queries: 'id, sessionId, createdAt, status, accessCount',
+      toolCalls: 'id, queryId, sessionId',
+      sessionShards: 'id, sessionId, [sessionId+shardIndex]',
+    });
   }
 }
 

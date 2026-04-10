@@ -36,6 +36,8 @@ export interface DBSession {
   shardCount?: number;
   /** 访问次数（用于历史召回频率评分） */
   accessCount?: number;
+  /** 所属工作区路径 */
+  workspacePath?: string;
 }
 
 /**
