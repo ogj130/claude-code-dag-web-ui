@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 // @ts-ignore
-import type { ClaudeEvent } from '../../dist/src/types/events.js';
+import type { ClaudeEvent } from '../types/events.js';
 
 export class AnsiParser extends EventEmitter {
   private buffer = '';

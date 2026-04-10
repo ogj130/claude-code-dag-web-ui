@@ -2,7 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { ClaudeCodeProcess } from './ClaudeCodeProcess.js';
 import { child as log } from './utils/logger.js';
 // @ts-ignore
-import type { WSMessage, WSClientMessage } from '../../dist/src/types/events.js';
+import type { WSMessage, WSClientMessage } from '../types/events.js';
 
 const PORT = 5300;
 const logger = log('server');
