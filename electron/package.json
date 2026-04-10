@@ -13,7 +13,8 @@
     "url": "https://github.com/ogj130/claude-code-dag-web-ui.git"
   },
   "scripts": {
-    "build": "tsc && npm run build:server",
+    "build": "tsc && npm run build:server && npm run copy:frontend",
+    "copy:frontend": "cp -R ../dist/. dist/",
     "build:main": "tsc",
     "build:server": "tsc -p tsconfig.server.json",
     "pack": "npm run build && electron-builder --dir",
@@ -43,7 +44,6 @@
     },
     "files": [
       "dist/**/*",
-      "node_modules/**/*",
       "package.json"
     ],
     "extraMetadata": {

@@ -56,23 +56,12 @@ async function startWsServer(): Promise<void> {
   // 动态导入预编译的 CommonJS server 模块
   const serverModule = await import(serverPath);
 
-  // 跨平台 WebSocket 端口处理
   return new Promise((resolve, reject) => {
     const wss = new WebSocketServer({ port: WS_PORT });
 
     wss.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
-        console.warn(`[Main] WS port ${WS_PORT} in use, trying random port...`);
-        wss.close();
-        const fallback = new WebSocketServer({ port: 0 });
-        fallback.on('listening', () => {
-          const addr = fallback.address();
-          const port = typeof addr === 'object' && addr ? addr.port : WS_PORT;
-          console.log(`[Main] ✓ WS Server started on ws://localhost:${port}`);
-          serverModule.start(fallback);
-          resolve();
-        });
-        fallback.on('error', reject);
+        reject(new Error(`WebSocket port ${WS_PORT} is already in use. Please close the conflicting process and restart the app.`));
       } else {
         reject(err);
       }
@@ -129,11 +118,7 @@ async function startHttpServer(): Promise<void> {
 
     server.on('error', (err: NodeJS.ErrnoException) => {
       if (err.code === 'EADDRINUSE') {
-        console.warn(`[Main] Port ${FRONTEND_PORT} already in use, trying next...`);
-        server.listen(0, '127.0.0.1', () => {
-          console.log(`[Main] HTTP server listening on port ${(server.address() as any).port}`);
-          resolve();
-        });
+        reject(new Error(`HTTP port ${FRONTEND_PORT} is already in use. Please close the conflicting process and restart the app.`));
       } else {
         reject(err);
       }

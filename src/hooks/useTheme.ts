@@ -66,13 +66,20 @@ function saveConfig(config: ThemeConfig): void {
   }
 }
 
-/** 将配置应用到 DOM data 属性 */
+/** 将配置应用到 DOM data 属性和 class */
 function applyToDOM(config: ThemeConfig): void {
   const root = document.documentElement;
 
   // 解析实际主题
   const resolved = config.mode === 'system' ? detectSystemTheme() : config.mode;
   root.setAttribute('data-theme', resolved);
+
+  // ReactFlow dark mode 检测 .dark class，同时维护 data-theme 的兼容
+  if (resolved === 'dark') {
+    root.classList.add('dark');
+  } else {
+    root.classList.remove('dark');
+  }
 
   // 主题色
   root.setAttribute('data-accent', config.accent);
@@ -104,7 +111,13 @@ export function useTheme(): UseThemeReturn {
 
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = (e: MediaQueryListEvent) => {
-      document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      const resolved = e.matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', resolved);
+      if (resolved === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
     };
     mq.addEventListener('change', handler);
     return () => mq.removeEventListener('change', handler);
