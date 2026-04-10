@@ -1,7 +1,7 @@
 {
   "name": "cc-web-ui-electron",
   "version": "1.1.0",
-  "description": "Claude Code DAG Web UI - Electron Package for Windows",
+  "description": "Claude Code DAG Web UI - Electron Package for Windows, macOS, and Linux",
   "main": "dist/main.js",
   "author": "ogj130",
   "license": "MIT",
