@@ -41,3 +41,60 @@ jobs:
           name: frontend-dist
           path: dist/
           retention-days: 1
+
+  build-platforms:
+    needs: build-frontend
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: electron/package-lock.json
+
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist/
+
+      - name: Install Electron dependencies
+        working-directory: electron
+        run: npm ci
+
+      - name: Build Electron
+        working-directory: electron
+        run: npm run build
+
+      - name: Build installer
+        working-directory: electron
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist
+
+      - name: List release files (Windows)
+        if: runner.os == 'Windows'
+        run: dir electron\release\
+
+      - name: List release files (Unix)
+        if: runner.os != 'Windows'
+        run: ls -la electron/release/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.os }}
+          path: |
+            electron/release/*.exe
+            electron/release/*.dmg
+            electron/release/*.AppImage
+            electron/release/*.deb
+            electron/release/*.rpm
+          retention-days: 7
