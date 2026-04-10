@@ -58,12 +58,13 @@ jobs:
       - name: List release files
         run: dir electron\release\
 
-      # ── 6. 发布到 GitHub Release ─────────────────────
+      # ── 7. 发布到 GitHub Release（仅手动触发时）─────────────────────
       - name: Create GitHub Release
+        if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version_tag || 'v1.1.0' }}
-          name: "Claude Code Web UI ${{ github.event.inputs.version_tag || 'v1.1.0' }}"
+          tag_name: ${{ github.event.inputs.version_tag }}
+          name: "Claude Code Web UI ${{ github.event.inputs.version_tag }}"
           body: |
             ## Claude Code Web UI
 
@@ -82,7 +83,7 @@ jobs:
             3. 启动后自动打开浏览器界面
 
             ### 版本
-            **${{ github.event.inputs.version_tag || 'v1.1.0' }}**
+            **${{ github.event.inputs.version_tag }}**
 
             ### 功能
             - 🔥 DAG 执行图可视化
