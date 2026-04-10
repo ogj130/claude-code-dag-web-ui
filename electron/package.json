@@ -43,9 +43,6 @@
     },
     "files": [
       "dist/**/*",
-      "dist/server/**/*",
-      "server/**/*",
-      "src/types/**/*",
       "node_modules/**/*",
       "package.json"
     ],

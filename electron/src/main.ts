@@ -49,11 +49,41 @@ async function startWsServer(): Promise<void> {
   const projectRoot = path.resolve(__dirname, '..');
   const serverPath = path.join(projectRoot, 'dist', 'server', 'index.js');
 
+  // 关键：Electron 打包后 NODE_ENV 未定义，强制设为 production
+  // 这样 server 的 logger 不会尝试加载 pino-pretty transport
+  process.env.NODE_ENV = 'production';
+
   // 动态导入预编译的 CommonJS server 模块
   const serverModule = await import(serverPath);
-  const wss = new WebSocketServer({ port: WS_PORT });
-  serverModule.start(wss);
-  console.log(`[Main] ✓ WS Server started on ws://localhost:${WS_PORT}`);
+
+  // 跨平台 WebSocket 端口处理
+  return new Promise((resolve, reject) => {
+    const wss = new WebSocketServer({ port: WS_PORT });
+
+    wss.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EADDRINUSE') {
+        console.warn(`[Main] WS port ${WS_PORT} in use, trying random port...`);
+        wss.close();
+        const fallback = new WebSocketServer({ port: 0 });
+        fallback.on('listening', () => {
+          const addr = fallback.address();
+          const port = typeof addr === 'object' && addr ? addr.port : WS_PORT;
+          console.log(`[Main] ✓ WS Server started on ws://localhost:${port}`);
+          serverModule.start(fallback);
+          resolve();
+        });
+        fallback.on('error', reject);
+      } else {
+        reject(err);
+      }
+    });
+
+    wss.on('listening', () => {
+      console.log(`[Main] ✓ WS Server started on ws://localhost:${WS_PORT}`);
+      serverModule.start(wss);
+      resolve();
+    });
+  });
 }
 
 // ── 启动 HTTP 服务器（静态文件）───────────────────────────
