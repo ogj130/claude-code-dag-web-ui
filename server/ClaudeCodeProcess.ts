@@ -1,7 +1,8 @@
 import { spawn, ChildProcess } from 'child_process';
 import { EventEmitter } from 'events';
 import { AnsiParser } from './AnsiParser.js';
-import type { ClaudeEvent } from '../src/types/events.js';
+// @ts-ignore
+import type { ClaudeEvent } from '../../dist/src/types/events.js';
 import { child as log } from './utils/logger.js';
 
 const logger = log('ClaudeCodeProcess');

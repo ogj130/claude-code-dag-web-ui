@@ -1,9 +1,8 @@
 import pino from 'pino';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = path.dirname(__filename);
 const LOG_DIR = path.resolve(__dirname, '../../logs');
 const MAX_DAYS = 5;
 
