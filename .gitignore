@@ -30,46 +30,32 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# Test/debug screenshots (local only)
-*.test-screenshot.png
-card-dark-mode.png
-card-light-mode.png
-cc-web-initial-state.png
-dag-args-check.png
-dag-collapse-preview.png
-dag-collapsed-q1.png
-dag-controls-dark.png
-dag-final-check.png
-dag-fix-check.png
-dag-fixed.png
-dag-fixed2.png
-dag-horizontal-final.png
-dag-q1-expanded.png
-dag-step1-initial.png
-dag-step2-collapsed.png
-dag-test-hello.png
-dag-v3-initial.png
-dag-v3-q1-collapsed.png
-dag-vertical-layout.png
-final-fix.png
-terminal-input-check.png
-terminal-input-final.png
-terminal-input-fix.png
-terminal-scroll-test.png
-
 # Local PID/log files
 .cc-web.log
 .cc-web.pid
 
-# Design docs (local brainstorming, not for version control)
-docs/superpowers/
+# Environment files
 .env
 .env.local
 .env.*.local
+
+# Claude Code (local AI context, skills, memory)
+.claude/
+
+# Superpowers skills
+.superpowers/
+
+# OpenSpec workflow artifacts
+openspec/
+
+# All documentation
+docs/
+
+# GitHub Actions workflows (CI config, not needed in repo)
+.github/
 
 # Worktrees
 .worktrees/
 
 # Misc
 *.local
-dist/

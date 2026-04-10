@@ -1,469 +1,168 @@
 # Claude Code DAG Web UI
 
-<p align="center">
-  <img src="docs/screenshots/readme-full-view.png" alt="Claude Code DAG Web UI" width="100%" />
-</p>
+> 现代化 Web 界面，实时可视化 Claude Code Agent 执行流程
 
-<p align="center">
-  <a href="https://github.com/ogj130/claude-code-dag-web-ui">
-    <img src="https://img.shields.io/badge/GitHub-Repo-blue?style=flat-square&logo=github" alt="GitHub" />
-  </a>
-  <img src="https://img.shields.io/badge/React-18-blue?style=flat-square&logo=react" alt="React" />
-  <img src="https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Zustand-State-orange?style=flat-square" alt="Zustand" />
-  <img src="https://img.shields.io/badge/ReactFlow-DAG-green?style=flat-square" alt="ReactFlow" />
-  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" />
-</p>
-
-[English](#english) · [中文](#中文)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18-blue?style=flat-square&logo=react)](https://react.dev/)
+[![Electron](https://img.shields.io/badge/Electron-33-black?style=flat-square&logo=electron)](https://www.electronjs.org/)
 
 ---
 
-## English
+## 这个项目做什么？
 
-> ✨ A modern web interface for visualizing Claude Code agent execution in real-time
+Claude Code DAG Web UI 是一个桌面应用，将 Claude Code 的 Agent 执行过程以 **DAG（有向无环图）** 的形式实时可视化出来。
 
-### Features
+当你向 Claude Code 发送一个问题时，应用会：
+- 在 DAG 图中实时展示 AI 的思考链路、工具调用顺序
+- 在终端视图中同步显示原始执行日志
+- 用卡片系统记录每轮问答的完整分析
 
-| | |
-|---|---|
-| 🔥 **DAG Execution Graph** | Interactive task flow visualization with collapsible query nodes |
-| 💻 **Terminal Tool View** | Real-time tool call display via xterm.js, ToolCards embedded directly in terminal — no Tab switching |
-| 📝 **Live Card System** | Auto-updating cards: `query → tools → summary`, arranged chronologically top-to-bottom |
-| 📄 **Markdown Rendering** | Beautiful markdown with GFM support, tables, code blocks |
-| 🌙 **Dark / Light Mode** | Seamless theme switching with CSS variables |
-| 📁 **Session Management** | Multiple Claude Code sessions with history navigation |
-| ⚡ **WebSocket** | Real-time bidirectional communication |
-| ✨ **Streaming Summary** | AI response streamed in real-time + MarkdownCard typewriter animation + blinking green cursor |
-| 📐 **Responsive Layout** | < 1024px fixed / 1024-1440px 50/50 split / > 1440px DAG-first 55/45 |
+---
 
-### Preview
+## 适合哪些人？
 
-<details open>
-<summary><b>🗺️ DAG Execution Graph (Dark Mode)</b></summary>
-<img src="docs/screenshots/readme-dag-view.png" alt="DAG View" width="100%" />
-</details>
+| 群体 | 为什么需要它 |
+|------|-------------|
+| **Claude Code 重度用户** | 想直观看到 AI 在做什么，而不是只看终端滚动的日志 |
+| **AI Agent 开发者** | 调试 Agent 行为，分析工具调用链路 |
+| **学习 AI 编程的开发者** | 可视化理解 AI 是怎么分解任务、调用工具的 |
 
-<details>
-<summary><b>📋 Terminal Card View (Dark Mode)</b></summary>
-<img src="docs/screenshots/readme-card-view.png" alt="Card View" width="100%" />
-</details>
+---
 
-<details>
-<summary><b>☀️ Light Mode Preview</b></summary>
-<img src="docs/screenshots/readme-light-mode.png" alt="Light Mode" width="100%" />
-</details>
+## 环境要求
 
-### Quick Start
+- **Node.js** ≥ 20（推荐 22）
+- **Claude Code CLI** 已安装
+  ```bash
+  npm install -g @anthropic/claude-code
+  claude --version  # 验证安装
+  ```
+
+---
+
+## 使用方式一：开发模式（推荐调试时用）
 
 ```bash
-# Install
+# 克隆项目
+git clone https://github.com/ogj130/claude-code-dag-web-ui.git
+cd claude-code-dag-web-ui
+
+# 安装依赖
 npm install
 
-# Start (frontend + backend)
+# 启动开发服务器（前端 + 后端）
 npm run dev
 ```
 
-> 🌐 Frontend → http://localhost:5400
-> ⚡ WebSocket → ws://localhost:5300
+然后浏览器打开 **http://localhost:5400**
 
-### Installation
+---
 
-> [!IMPORTANT]
-> **Requires [Claude Code CLI](https://docs.anthropic.com/en/claude-code/getting-started/install) to be installed first.**
+## 使用方式二：安装独立应用（生产使用）
 
-```bash
-npm install -g @anthropic/claude-code
-```
+从 GitHub Releases 下载对应平台安装包：
 
-Download the latest installer from GitHub Releases:
+👉 **https://github.com/ogj130/claude-code-dag-web-ui/releases/latest**
 
-```
-https://github.com/ogj130/claude-code-dag-web-ui/releases/latest
-```
+### macOS
 
-#### Windows
+1. 下载 `Claude Code Web UI-x.x.x-arm64.dmg`（Apple Silicon）
+   或 `Claude Code Web UI-x.x.x.dmg`（Intel）
+2. 打开 DMG，将应用拖入「应用程序」
+3. 首次启动时，如提示"无法打开"，去「系统设置 → 隐私与安全性」允许运行
 
-1. Download the latest `.exe` installer
-2. Double-click to install
-3. Launch the app and the browser UI opens automatically
+### Windows
 
-#### macOS
+1. 下载 `.exe` 安装包
+2. 双击运行，安装程序会自动安装
+3. 从开始菜单启动应用
 
-1. Download the latest `.dmg` image
-2. Open the DMG and drag the app into `Applications`
-3. On first launch, allow the app in system security settings if prompted
+### Linux
 
-> Note: the app is currently unsigned, so macOS may require a manual security confirmation on first launch.
-
-#### Linux
-
-**AppImage (recommended)**
-
+**AppImage（推荐）**
 ```bash
 chmod +x Claude-Code-Web-UI-*.AppImage
 ./Claude-Code-Web-UI-*.AppImage
 ```
 
 **Debian / Ubuntu**
-
 ```bash
 sudo dpkg -i claude-code-web-ui_*.deb
 ```
 
-**Fedora / CentOS / RHEL**
-
+**Fedora / RHEL**
 ```bash
 sudo rpm -i claude-code-web-ui-*.rpm
 ```
 
-> Installers are built automatically on every push to `main`. GitHub Release publishing is triggered manually from the `Build Cross-Platform Release` workflow.
+---
 
-### Architecture
+## 界面介绍
 
-#### Event-Driven State
-
-The UI is entirely driven by events from the Claude Code backend:
-
-| Event | Description |
-|---|---|
-| `session_start` | Agent session initialized |
-| `query_start` | New user query begins |
-| `query_end` | Query execution completes |
-| `summary_chunk` | AI response fragment (streaming) |
-| `query_summary` | Final summary generated |
-| `tool_call` | Tool invocation starts |
-| `tool_result` | Tool execution result |
-| `tool_progress` | Real-time progress updates |
-| `token_usage` | Token consumption stats |
-
-#### DAG Node Types
-
-| Type | Description |
-|---|---|
-| 🟦 **Agent** | Root Claude Agent node |
-| 🟩 **Query** | User question node (collapsible) |
-| 🟨 **Tool** | Tool execution node |
-| 🟪 **Summary** | Query completion summary |
-
-#### Card System
-
-| Card | Description |
-|---|---|
-| ⚡ **LiveCard** | Real-time in-progress card (streaming updates) |
-| ✅ **MarkdownCard** | Completed Q&A card with collapsible analysis, **summary with typewriter animation** |
-
-#### Terminal Layout (Top → Bottom)
+启动后，应用分为三个区域：
 
 ```
-MarkdownCard × N (completed)
-  └ LiveCard (previousCard) + ToolCards (waiting for summary)
-      └ LiveCard (currentCard) ← in-progress Q&A
-          └ ToolCards (current round tools)
-              └ Streaming Summary Preview (summaryChunks real-time)
-                  └ xterm (raw terminal logs, no duplicate tool progress)
+┌─────────────────────────────────────────────────┐
+│  Toolbar（会话管理 / 主题切换 / 快捷键）          │
+├────────────────────────┬────────────────────────┤
+│                        │                        │
+│   DAG 可视化区域        │   终端视图区域          │
+│   展示 Agent 执行链路   │   原始工具日志          │
+│   可折叠/展开查询节点   │   输入框发送问题        │
+│                        │                        │
+├────────────────────────┴────────────────────────┤
+│  Bottom Bar（最近工具 / Token 统计）            │
+└─────────────────────────────────────────────────┘
 ```
 
-#### Streaming Summary Mechanism
+### DAG 节点类型
 
-```
-summary_chunk event → summaryChunks[] accumulated → streaming preview renders
-         │
-         │ query_summary arrives
-         ▼
-MarkdownCard appears (content starts from streaming) → typewriter animation → cursor disappears
-```
-
-### Tech Stack
-
-```
-Frontend          Backend
-─────────────     ─────────────
- React 18    →    Node.js WS
- TypeScript  →    tsx runner
- Zustand     →    ws server
- ReactFlow   →    Claude Code
- xterm.js    →    process
- react-md    →    ANSI parser
-```
-
-#### System Architecture
-
-```mermaid
-graph TB
-    subgraph Backend["⚙️ Backend (Node.js)"]
-        CC["🤖 Claude Code\nprocess"]
-        WS["⚡ WebSocket Server\n:5300"]
-        AP["📝 ANSI Parser"]
-        CC -->|stdout/ events| AP
-        AP -->|parsed events| WS
-    end
-
-    subgraph Frontend["🌐 Frontend (React)"]
-        WH["🔌 WebSocket Handler"]
-        Store["🗃️ Zustand Store"]
-        DAG["🔥 DAGCanvas\n(ReactFlow)"]
-        Terminal["💻 TerminalView\n(xterm.js)"]
-        Cards["📋 Card System\nLiveCard + MarkdownCard"]
-        WH -->|handleEvent| Store
-        Store -->|nodes/ edges| DAG
-        Store -->|toolCalls/ lines| Terminal
-        Store -->|currentCard/ markdownCards| Cards
-    end
-
-    WS -.->|"WebSocket"| WH
-    DAG -.->|onNodeClick| Cards
-    Cards -.->|selectNode| DAG
-```
-
-#### Event-Driven Data Flow
-
-```mermaid
-sequenceDiagram
-    participant User as 👤 User
-    participant UI as 💻 Frontend
-    participant WS as ⚡ WebSocket
-    participant Backend as ⚙️ Claude Code
-    participant Store as 🗃️ Zustand Store
-
-    User->>UI: 发送问题
-    UI->>WS: user_input_sent
-    WS->>Backend: forward to Claude Code
-    Backend-->>WS: session_start
-    Backend-->>WS: query_start
-    Backend-->>WS: tool_call
-    Backend-->>WS: tool_result / tool_progress
-    Backend-->>WS: query_end
-    Backend-->>WS: query_summary
-    WS->>Store: handleEvent(event)
-    Store->>Store: update state
-    Store->>UI: re-render DAG / Terminal / Cards
-
-    rect rgba(0, 180, 120, 0.1)
-        Note over User,Store: 🔄 Auto-Collapse: 新问题开始时<br/>DAG 和 Terminal 自动折叠上一个问题
-    end
-```
-
-#### State Transition
-
-```mermaid
-stateDiagram-v2
-    [*] --> Idle: session_start
-    Idle --> Running: user_input_sent
-    Running --> Running: query_start (next query)
-    Running --> QueryEnd: query_end
-    QueryEnd --> Completed: query_summary
-    Completed --> Running: user_input_sent (next query)
-    Completed --> [*]: session_end
-```
+| 节点 | 含义 |
+|------|------|
+| 🟦 Agent | 根节点，Claude Agent 本身 |
+| 🟩 Query | 用户提问，对应一轮问答（可折叠） |
+| 🟨 Tool | 工具调用（如 Bash 执行、文件读写等） |
+| 🟪 Summary | 本轮问答总结，AI 生成的分析 |
 
 ---
 
-## 中文
+## 技术架构
 
-> ✨ 现代化 Claude Code 执行可视化 Web 界面
+```
+  ┌─────────────┐     WebSocket      ┌──────────────────┐
+  │   浏览器     │ ←──────────────→  │  Node.js WS Server│
+  │  (React)    │   ws://:5300      │                  │
+  └─────────────┘                   │  解析 Claude Code │
+                                     │  stdout 事件      │
+                                     │  ANSI 转 JSON     │
+                                     └────────┬─────────┘
+                                              │ spawn
+                                     ┌────────▼─────────┐
+                                     │  Claude Code CLI  │
+                                     └──────────────────┘
+```
 
-### 功能特性
+- **前端**：React 18 + TypeScript + ReactFlow + Zustand + xterm.js
+- **后端**：Node.js WebSocket Server + tsx runner
+- **Electron 桌面版**：独立打包，可离线运行
 
-| | |
-|---|---|
-| 🔥 **DAG 执行图** | 可交互的任务流程可视化，支持折叠/展开查询节点 |
-| 💻 **终端工具视图** | 基于 xterm.js 的实时工具调用展示，工具卡片直接嵌入终端，无需 Tab 切换 |
-| 📝 **实时卡片系统** | 自动更新的问答卡片：`问题 → 工具 → 总结`，按时间顺序从上往下排列 |
-| 📄 **Markdown 渲染** | 支持 GFM 的精美渲染，含表格、代码块等 |
-| 🌙 **暗黑/明亮模式** | 基于 CSS 变量的无缝主题切换 |
-| 📁 **会话管理** | 多会话历史记录与导航 |
-| ⚡ **WebSocket** | 与 Claude Code 后端的实时双向通信 |
-| ✨ **流式总结** | AI 回答实时流式输出 + MarkdownCard 逐字补完动画 + 绿色闪烁光标 |
-| 📐 **响应式布局** | < 1024px 固定宽度 / 1024-1440px 均分 50/50 / > 1440px DAG 优先 55/45 |
+---
 
-### 效果预览
-
-<details open>
-<summary><b>🗺️ DAG 执行图（暗黑模式）</b></summary>
-<img src="docs/screenshots/readme-dag-view.png" alt="DAG 视图" width="100%" />
-<img src="docs/screenshots/image.png" alt="DAG 视图" width="100%" />
-</details>
-
-<details>
-<summary><b>📋 终端卡片视图（暗黑模式）</b></summary>
-<img src="docs/screenshots/readme-card-view.png" alt="卡片视图" width="100%" />
-</details>
-
-<details>
-<summary><b>☀️ 明亮模式预览</b></summary>
-<img src="docs/screenshots/readme-light-mode.png" alt="明亮模式" width="100%" />
-<img src="docs/screenshots/image-2.png" alt="明亮模式" width="100%" />
-</details>
-
-### 快速开始
+## 本地构建
 
 ```bash
-# 安装依赖
+# 克隆后
 npm install
 
-# 启动开发（前端 + 后端）
-npm run dev
-```
+# 前端构建（Vite）
+npm run build    # 输出到 dist/
 
-> 🌐 前端 → http://localhost:5400
-> ⚡ WebSocket → ws://localhost:5300
-
-### Windows 安装包（.exe 独立运行）
-
-> [!IMPORTANT]
-> **请先安装 [Claude Code CLI](https://docs.anthropic.com/zh-CN/claude-code/getting-started/install)：**
->
-> ```bash
-> npm install -g @anthropic/claude-code
-> ```
-
-从 GitHub Releases 下载最新的 Windows 安装包：
-
-```
-https://github.com/ogj130/claude-code-dag-web-ui/releases/latest
-```
-
-下载 `.exe` 文件 → 双击安装 → 自动打开浏览器界面。
-
-> 💡 安装包由 GitHub Actions 自动构建，每次 push 到 `main` 分支自动发布，无需手动操作。
-
-### 架构设计
-
-#### 事件驱动状态
-
-UI 完全由 Claude Code 后端的事件驱动：
-
-| 事件 | 说明 |
-|---|---|
-| `session_start` | Agent 会话初始化 |
-| `query_start` | 新用户问题开始 |
-| `query_end` | 问题执行完成 |
-| `summary_chunk` | AI 回答片段（流式） |
-| `query_summary` | 最终总结生成 |
-| `tool_call` | 工具调用开始 |
-| `tool_result` | 工具执行结果 |
-| `tool_progress` | 实时进度更新 |
-| `token_usage` | Token 消耗统计 |
-
-#### DAG 节点类型
-
-| 类型 | 说明 |
-|---|---|
-| 🟦 **Agent** | 根节点 — Claude Agent |
-| 🟩 **Query** | 查询节点 — 用户问题（可折叠）|
-| 🟨 **Tool** | 工具节点 — 工具执行 |
-| 🟪 **Summary** | 总结节点 — 问题完成总结 |
-
-#### 卡片系统
-
-| 卡片 | 说明 |
-|---|---|
-| ⚡ **LiveCard** | 实时卡片 — 正在进行的问答（流式更新）|
-| ✅ **MarkdownCard** | 完成卡片 — 已完成的问答，支持折叠分析内容，**总结区域带逐字补完动画** |
-
-#### 终端视图布局（从上到下）
-
-```
-MarkdownCard × N（已完成）
-  └ LiveCard（previousCard） + ToolCards（等待总结到来）
-      └ LiveCard（currentCard）← 进行中的问答
-          └ ToolCards（当前轮工具）
-              └ 流式总结预览区（summaryChunks 实时渲染）
-                  └ xterm（原始终端日志，无重复工具进度）
-```
-
-#### 流式总结机制
-
-```
-summary_chunk 事件 → summaryChunks[] 累积 → 流式预览区实时显示
-         │
-         │ query_summary 到达
-         ▼
-MarkdownCard 出现（内容从流式内容开始）→ 逐字补完动画 → 光标消失
-```
-
-### 技术栈
-
-```
-前端              后端
-─────────────     ─────────────
- React 18    →    Node.js WS
- TypeScript  →    tsx runner
- Zustand     →    ws server
- ReactFlow   →    Claude Code
- xterm.js    →    ANSI parser
- react-md    →    process
-```
-
-#### 系统架构图
-
-```mermaid
-graph TB
-    subgraph Backend["⚙️ 后端 (Node.js)"]
-        CC["🤖 Claude Code\nprocess"]
-        WS["⚡ WebSocket Server\n:5300"]
-        AP["📝 ANSI Parser"]
-        CC -->|stdout/ events| AP
-        AP -->|parsed events| WS
-    end
-
-    subgraph Frontend["🌐 前端 (React)"]
-        WH["🔌 WebSocket Handler"]
-        Store["🗃️ Zustand Store"]
-        DAG["🔥 DAGCanvas\n(ReactFlow)"]
-        Terminal["💻 TerminalView\n(xterm.js)"]
-        Cards["📋 卡片系统\nLiveCard + MarkdownCard"]
-        WH -->|handleEvent| Store
-        Store -->|nodes/ edges| DAG
-        Store -->|toolCalls/ lines| Terminal
-        Store -->|currentCard/ markdownCards| Cards
-    end
-
-    WS -.->|"WebSocket"| WH
-    DAG -.->|onNodeClick| Cards
-    Cards -.->|selectNode| DAG
-```
-
-#### 事件驱动数据流
-
-```mermaid
-sequenceDiagram
-    participant User as 👤 用户
-    participant UI as 💻 前端
-    participant WS as ⚡ WebSocket
-    participant Backend as ⚙️ Claude Code
-    participant Store as 🗃️ Zustand Store
-
-    User->>UI: 发送问题
-    UI->>WS: user_input_sent
-    WS->>Backend: forward to Claude Code
-    Backend-->>WS: session_start
-    Backend-->>WS: query_start
-    Backend-->>WS: tool_call
-    Backend-->>WS: tool_result / tool_progress
-    Backend-->>WS: query_end
-    Backend-->>WS: query_summary
-    WS->>Store: handleEvent(event)
-    Store->>Store: update state
-    Store->>UI: re-render DAG / Terminal / Cards
-
-    rect rgba(0, 180, 120, 0.1)
-        Note over User,Store: 🔄 自动折叠：新问题开始时<br/>DAG 和 Terminal 自动折叠上一个问题
-    end
-```
-
-#### 状态转换图
-
-```mermaid
-stateDiagram-v2
-    [*] --> Idle: session_start
-    Idle --> Running: user_input_sent
-    Running --> Running: query_start (下一个问题)
-    Running --> QueryEnd: query_end
-    QueryEnd --> Completed: query_summary
-    Completed --> Running: user_input_sent (下一个问题)
-    Completed --> [*]: session_end
+# Electron 桌面应用构建
+cd electron
+npm install
+ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/" npm run dist
+# 输出：electron/release/*.dmg / *.exe / *.AppImage
 ```
 
 ---
