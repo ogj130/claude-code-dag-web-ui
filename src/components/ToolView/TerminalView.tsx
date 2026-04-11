@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import '@xterm/xterm/css/xterm.css';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { useRAGContext } from '../../hooks/useRAGContext';
+import type { RAGContextItem } from '../../hooks/useRAGContext';
 import { MarkdownCard } from './MarkdownCard';
 import { LiveCard } from './LiveCard';
 import { ToolCards } from './ToolCards';
@@ -66,6 +67,10 @@ export function TerminalView({ theme, onInput, style }: Props) {
   // 标记 xterm 是否已挂载到 DOM（避免重复 open）
   const mountedRef = useRef(false);
   const [inputValue, setInputValue] = useState('');
+  /** 本次发送的 query 文本（用于在上方分离显示） */
+  const [pendingQueryText, setPendingQueryText] = useState('');
+  /** 本次发送的 RAG chunks（用于在上方分离显示） */
+  const [pendingRAGChunks, setPendingRAGChunks] = useState<RAGContextItem[]>([]);
   const {
     terminalLines,
     streamEndPending,
@@ -290,7 +295,7 @@ export function TerminalView({ theme, onInput, style }: Props) {
   }, [error]);
 
   // 外部文本框按 Enter 时发送
-  const { getPromptContext } = useRAGContext();
+  const { getPromptContext, items: ragItems } = useRAGContext();
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return;
@@ -309,21 +314,53 @@ export function TerminalView({ theme, onInput, style }: Props) {
       writeSeparator(term, theme === 'dark');
     }
 
-    // 回显用户输入（换行 + 提示符）
+    // ── 构造 payload：有 RAG chunks 时用 JSON，否则用原始文本 ─────
+    const payload = ragItems.length > 0
+      ? JSON.stringify({ query: text, ragChunks: ragItems })
+      : text;
+
+    // 回显用户输入（使用原始 text，不是 JSON）
     term.writeln(`\n\x1b[36m›\x1b[0m \x1b[90m${text}\x1b[0m`);
 
-    // 获取 RAG 上下文并注入到 prompt
+    // 获取 RAG 上下文并注入到 prompt（给服务端/AI 使用）
     const ragContext = getPromptContext();
-    const finalText = ragContext ? `${ragContext}用户问题：${text}` : text;
+
+    // 发送 payload（带 RAG 时是 JSON，不带 RAG 时是原始文本）
+    const finalText = ragContext ? `${ragContext}用户问题：${payload}` : payload;
+
+    // ── 设置 pending 状态（用于上方分离显示）───────────────
+    if (ragItems.length > 0) {
+      // 先设置 pending RAG chunks（用于 DAG 节点）
+      useTaskStore.getState().setPendingRAGItems(
+        ragItems.map(item => ({
+          id: item.id,
+          content: item.content,
+          summary: item.summary,
+          score: item.score,
+          sourceSessionId: item.sourceSessionId,
+          sourceSessionTitle: item.sourceSessionTitle,
+          timestamp: item.timestamp,
+        }))
+      );
+      // 设置本地 pending 状态（用于上方分离显示）
+      setPendingQueryText(text);
+      setPendingRAGChunks([...ragItems]);
+    }
 
     // 发送消息（出错时回显提示）
     try {
       const sent = onInput?.(finalText);
       if (sent === false || sent === undefined) {
         term.writeln('\x1b[33m⚠ 发送失败，请检查连接状态\x1b[0m');
-      } else if (ragContext) {
-        // RAG 上下文已注入，发送后清除
-        useRAGContext.getState().clearAll();
+      } else {
+        // 清除 RAG 上下文（UI 侧）
+        if (ragItems.length > 0) {
+          useRAGContext.getState().clearAll();
+          setTimeout(() => {
+            setPendingQueryText('');
+            setPendingRAGChunks([]);
+          }, 3000);
+        }
       }
     } catch (err) {
       term.writeln(`\x1b[31m✗ 发送异常: ${String(err)}\x1b[0m`);
@@ -478,6 +515,108 @@ export function TerminalView({ theme, onInput, style }: Props) {
                 50% { opacity: 0; }
               }
             `}</style>
+          </div>
+        )}
+
+        {/* ── Query + RAG Chunks 分离显示 ────────────────────────────── */}
+        {(pendingQueryText || pendingRAGChunks.length > 0) && (
+          <div style={{
+            padding: '8px 12px',
+            borderTop: '1px solid var(--border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}>
+            {/* Query 区（蓝色边框） */}
+            {pendingQueryText && (
+              <div style={{
+                border: '1px solid rgba(74,142,255,0.35)',
+                borderRadius: 6,
+                padding: '6px 10px',
+                background: 'rgba(74,142,255,0.04)',
+              }}>
+                <div style={{
+                  fontSize: 9,
+                  color: 'rgba(74,142,255,0.7)',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  marginBottom: 3,
+                }}>
+                  用户问题
+                </div>
+                <div style={{
+                  fontSize: 12,
+                  color: 'var(--text-primary)',
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}>
+                  {pendingQueryText}
+                </div>
+              </div>
+            )}
+
+            {/* RAG Chunks 区（紫色边框） */}
+            {pendingRAGChunks.length > 0 && (
+              <div style={{
+                border: '1px solid rgba(167,139,250,0.35)',
+                borderRadius: 6,
+                padding: '6px 10px',
+                background: 'rgba(167,139,250,0.04)',
+              }}>
+                <div style={{
+                  fontSize: 9,
+                  color: 'rgba(167,139,250,0.7)',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  marginBottom: 4,
+                }}>
+                  历史召回 ({pendingRAGChunks.length} 条)
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  {pendingRAGChunks.map((chunk, index) => (
+                    <div key={chunk.id} style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 6,
+                      fontSize: 10,
+                      color: 'var(--text-secondary)',
+                    }}>
+                      <span style={{
+                        color: 'rgba(167,139,250,0.7)',
+                        fontFamily: "'JetBrains Mono', monospace",
+                        flexShrink: 0,
+                      }}>
+                        [{index + 1}]
+                      </span>
+                      <span style={{
+                        color: chunk.chunkType === 'answer' ? 'var(--text-secondary)' :
+                               chunk.chunkType === 'query' ? 'rgba(74,142,255,0.8)' :
+                               'rgba(74,222,128,0.7)',
+                        flexShrink: 0,
+                      }}>
+                        {chunk.chunkType === 'answer' ? '回答' : chunk.chunkType === 'query' ? '问题' : '工具'}
+                      </span>
+                      <span style={{
+                        color: 'rgba(167,139,250,0.6)',
+                        fontFamily: "'JetBrains Mono', monospace",
+                        flexShrink: 0,
+                      }}>
+                        {(chunk.score * 100).toFixed(0)}%
+                      </span>
+                      <span style={{
+                        color: 'var(--text-muted)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {chunk.content.length > 60 ? chunk.content.substring(0, 60) + '…' : chunk.content}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
