@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useRAGContext, type RAGContextItem } from '@/hooks/useRAGContext';
 
 // RAG Context 条组件

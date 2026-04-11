@@ -6,12 +6,17 @@ import { useTaskStore } from '../../stores/useTaskStore';
 
 // ── Props ────────────────────────────────────────────────────────────────────
 export interface NodeDetailModalProps {
-  nodeType: 'tool' | 'summary';
+  nodeType: 'tool' | 'summary' | 'rag';
   nodeLabel: string;
   nodeId: string;
   nodeStatus?: DAGNode['status'];
   args?: Record<string, unknown> | null;      // tool 节点
   summaryContent?: string;                    // summary 节点
+  /** RAG 节点专属字段 */
+  ragContent?: string;
+  ragScore?: number;
+  ragSourceSessionId?: string;
+  ragSourceSessionTitle?: string;
   onClose: () => void;
 }
 
@@ -32,6 +37,15 @@ function SummaryIcon() {
       <polyline points="14 2 14 8 20 8" />
       <line x1="16" y1="13" x2="8" y2="13" />
       <line x1="16" y1="17" x2="8" y2="17" />
+    </svg>
+  );
+}
+function RAGIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="#a78bfa" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
     </svg>
   );
 }
@@ -95,7 +109,9 @@ function useFocusTrap(ref: React.RefObject<HTMLDivElement | null>, active: boole
 // ── 主组件 ────────────────────────────────────────────────────────────────────
 export function NodeDetailModal({
   nodeType, nodeLabel, nodeId, nodeStatus,
-  args, summaryContent: initialSummary, onClose,
+  args, summaryContent: initialSummary,
+  ragContent, ragScore, ragSourceSessionId, ragSourceSessionTitle,
+  onClose,
 }: NodeDetailModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
   useFocusTrap(overlayRef, true);
@@ -153,24 +169,28 @@ export function NodeDetailModal({
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '12px 16px',
-          background: 'var(--bg-bar)',
+          background: nodeType === 'rag' ? 'rgba(167,139,250,0.08)' : 'var(--bg-bar)',
           borderBottom: '1px solid var(--border)',
           flexShrink: 0,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{
               width: 32, height: 32, borderRadius: 8,
-              background: nodeType === 'summary' ? 'var(--success-bg)' : 'rgba(74,142,255,0.12)',
+              background: nodeType === 'summary' ? 'var(--success-bg)'
+                : nodeType === 'rag' ? 'rgba(167,139,250,0.15)'
+                : 'rgba(74,142,255,0.12)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              {nodeType === 'summary' ? <SummaryIcon /> : <ToolIcon />}
+              {nodeType === 'summary' ? <SummaryIcon /> : nodeType === 'rag' ? <RAGIcon /> : <ToolIcon />}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <div id="modal-title" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', fontFamily: "'JetBrains Mono', monospace" }}>
-                {nodeType === 'summary' ? '总结' : `工具: ${nodeLabel}`}
+                {nodeType === 'summary' ? '总结' : nodeType === 'rag' ? 'RAG 检索内容' : `工具: ${nodeLabel}`}
               </div>
               <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: "'JetBrains Mono', monospace" }}>
-                {nodeType === 'summary' ? `来自 ${nodeId.replace('_summary', '')}` : nodeId}
+                {nodeType === 'summary' ? `来自 ${nodeId.replace('_summary', '')}`
+                  : nodeType === 'rag' ? `相似度 ${ragScore != null ? Math.round(ragScore * 100) : 0}%`
+                  : nodeId}
               </div>
             </div>
           </div>
@@ -243,6 +263,76 @@ export function NodeDetailModal({
             >
               {liveSummaryContent}
             </ReactMarkdown>
+          )}
+
+          {/* RAG 节点内容 */}
+          {nodeType === 'rag' && ragContent && (
+            <>
+              {/* 元信息条 */}
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', padding: '8px 12px', background: 'rgba(167,139,250,0.06)', borderRadius: 8, border: '1px solid rgba(167,139,250,0.2)' }}>
+                {ragScore != null && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>相似度</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#a78bfa', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {Math.round(ragScore * 100)}%
+                    </span>
+                  </div>
+                )}
+                {ragSourceSessionTitle && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>来源</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {ragSourceSessionTitle}
+                    </span>
+                  </div>
+                )}
+                {ragSourceSessionId && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>会话ID</span>
+                    <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {ragSourceSessionId.slice(0, 8)}...
+                    </span>
+                  </div>
+                )}
+              </div>
+              {/* 内容 */}
+              <div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                  检索内容
+                </div>
+                <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 8, padding: '10px 12px', border: '1px solid rgba(167,139,250,0.15)' }}>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h1: ({ children }) => <h1 style={markdownStyles.h1}>{children}</h1>,
+                      h2: ({ children }) => <h2 style={markdownStyles.h2}>{children}</h2>,
+                      h3: ({ children }) => <h3 style={markdownStyles.h3}>{children}</h3>,
+                      p: ({ children }) => <p style={markdownStyles.p}>{children}</p>,
+                      ul: ({ children }) => <ul style={markdownStyles.ul}>{children}</ul>,
+                      ol: ({ children }) => <ol style={markdownStyles.ol}>{children}</ol>,
+                      li: ({ children }) => <li style={markdownStyles.li}>{children}</li>,
+                      code: ({ className, children, ...props }) => {
+                        const isBlock = className?.startsWith('language-');
+                        return isBlock
+                          ? <code style={markdownStyles['pre code']} className={className} {...props}>{children}</code>
+                          : <code style={markdownStyles.code} {...props}>{children}</code>;
+                      },
+                      pre: ({ children }) => <pre style={markdownStyles.pre}>{children}</pre>,
+                      blockquote: ({ children }) => <blockquote style={markdownStyles.blockquote}>{children}</blockquote>,
+                      table: ({ children }) => <table style={markdownStyles.table}>{children}</table>,
+                      th: ({ children }) => <th style={markdownStyles.th}>{children}</th>,
+                      td: ({ children }) => <td style={markdownStyles.td}>{children}</td>,
+                      a: ({ children, href }) => <a style={markdownStyles.a} href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
+                      strong: ({ children }) => <strong style={markdownStyles.strong}>{children}</strong>,
+                      em: ({ children }) => <em style={markdownStyles.em}>{children}</em>,
+                      hr: () => <hr style={markdownStyles.hr} />,
+                    }}
+                  >
+                    {ragContent}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>

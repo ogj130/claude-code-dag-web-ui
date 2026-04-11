@@ -120,7 +120,7 @@ function getToolAccentColor(label: string): string {
 
 interface DAGNodeProps {
   data: DAGNodeType & {
-    onOpenDetail?: (node: Pick<DAGNodeType, 'id' | 'type' | 'label' | 'status' | 'args' | 'summaryContent'>) => void;
+    onOpenDetail?: (node: Pick<DAGNodeType, 'id' | 'type' | 'label' | 'status' | 'args' | 'summaryContent' | 'content' | 'score' | 'sourceSessionId' | 'sourceSessionTitle'>) => void;
     onToggleCollapse?: (queryId: string) => void;
     onToggleGroup?: (groupId: string) => void;
     isCollapsed?: boolean;
@@ -132,7 +132,7 @@ interface DAGNodeProps {
     /** 容器模式下固定子节点宽度 */
     containerWidth?: number;
   };
-  onOpenDetail?: (node: Pick<DAGNodeType, 'id' | 'type' | 'label' | 'status' | 'args' | 'summaryContent'>) => void;
+  onOpenDetail?: (node: Pick<DAGNodeType, 'id' | 'type' | 'label' | 'status' | 'args' | 'summaryContent' | 'content' | 'score' | 'sourceSessionId' | 'sourceSessionTitle'>) => void;
 }
 
 function DAGNodeInner({ data, onOpenDetail }: DAGNodeProps) {
@@ -161,6 +161,10 @@ function DAGNodeInner({ data, onOpenDetail }: DAGNodeProps) {
       status: data.status,
       args: data.args,
       summaryContent: data.summaryContent,
+      content: data.content,
+      score: data.score,
+      sourceSessionId: data.sourceSessionId,
+      sourceSessionTitle: data.sourceSessionTitle,
     });
   };
 
@@ -352,23 +356,23 @@ function DAGNodeInner({ data, onOpenDetail }: DAGNodeProps) {
         {STATUS_LABEL[data.status] ?? '等待'}
       </div>
 
-      {/* 详情按钮（工具节点+有参数 / 总结节点+有内容） */}
-      {((data.type === 'tool' && hasArgs) || (data.type === 'summary' && data.summaryContent)) && (
+      {/* 详情按钮（工具节点+有参数 / 总结节点+有内容 / RAG节点始终可点击） */}
+      {((data.type === 'tool' && hasArgs) || (data.type === 'summary' && data.summaryContent) || data.type === 'rag') && (
         <button
           onClick={handleOpenDetail}
           style={{
             marginTop: 6,
             background: 'none', border: 'none', padding: 0,
             cursor: 'pointer', fontSize: 10,
-            color: data.type === 'summary' ? 'var(--success)' : 'var(--accent-dim)',
+            color: data.type === 'summary' ? 'var(--success)' : (data.type === 'rag' ? '#a78bfa' : 'var(--accent-dim)'),
             fontFamily: 'monospace', transition: 'color 0.15s',
             display: 'flex', alignItems: 'center', gap: 3,
           }}
-          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'}
-          onMouseLeave={e => e.currentTarget.style.color = data.type === 'summary' ? 'var(--success)' : 'var(--accent-dim)'}
+          onMouseEnter={e => e.currentTarget.style.color = data.type === 'rag' ? '#c4b5fd' : 'var(--accent)'}
+          onMouseLeave={e => e.currentTarget.style.color = data.type === 'summary' ? 'var(--success)' : (data.type === 'rag' ? '#a78bfa' : 'var(--accent-dim)')}
         >
           <span>▶</span>
-          {data.type === 'tool' ? '参数' : '查看总结'}
+          {data.type === 'tool' ? '参数' : data.type === 'rag' ? '查看内容' : '查看总结'}
         </button>
       )}
 

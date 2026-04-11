@@ -15,6 +15,11 @@ import { NODE_LIMIT } from '../../utils/memoryManager';
 import type { Node, Edge, OnNodesChange, OnEdgesChange, NodeMouseHandler } from '@xyflow/react';
 import type { DAGNode } from '../../types/events';
 
+// RAG 节点相关常量
+const RAG_NODE_H = 60;       // RAG 节点高度
+const RAG_OFFSET_X = -200;    // RAG 节点相对 query 的 X 偏移（左侧）
+const RAG_VERTICAL_GAP = 70;  // 多个 RAG 节点之间的垂直间距
+
 // 模块级 ref：存储 ReactFlow 实例的 fitView，跨 render 稳定
 let fitViewInstance: ((options?: { padding: number; duration: number; nodes?: Node[] }) => void) | null = null;
 
@@ -34,12 +39,17 @@ export function DAGCanvas({ style }: Props) {
 
   interface ModalState {
     open: boolean;
-    nodeType: 'tool' | 'summary';
+    nodeType: 'tool' | 'summary' | 'rag';
     nodeId: string;
     nodeLabel: string;
     nodeStatus?: DAGNode['status'];
     args?: Record<string, unknown> | null;
     summaryContent?: string;
+    /** RAG 节点专属字段 */
+    ragContent?: string;
+    ragScore?: number;
+    ragSourceSessionId?: string;
+    ragSourceSessionTitle?: string;
   }
 
   const [modal, setModal] = useState<ModalState>({
@@ -49,17 +59,23 @@ export function DAGCanvas({ style }: Props) {
     nodeLabel: '',
   });
 
-  const handleOpenDetail = useCallback((node: Pick<DAGNode, 'id' | 'type' | 'label' | 'status' | 'args' | 'summaryContent'>) => {
+  const handleOpenDetail = useCallback((node: Pick<DAGNode, 'id' | 'type' | 'label' | 'status' | 'args' | 'summaryContent' | 'content' | 'score' | 'sourceSessionId' | 'sourceSessionTitle'>) => {
+    const dagNode = storeNodes.get(node.id);
+    const isRag = dagNode?.type === 'rag';
     setModal({
       open: true,
-      nodeType: node.type as 'tool' | 'summary',
+      nodeType: isRag ? 'rag' : (node.type as 'tool' | 'summary'),
       nodeId: node.id,
       nodeLabel: node.label,
       nodeStatus: node.status,
       args: node.args as Record<string, unknown> | null,
       summaryContent: node.summaryContent,
+      ragContent: isRag ? dagNode.content : undefined,
+      ragScore: isRag ? dagNode.score : undefined,
+      ragSourceSessionId: isRag ? dagNode.sourceSessionId : undefined,
+      ragSourceSessionTitle: isRag ? dagNode.sourceSessionTitle : undefined,
     });
-  }, []);
+  }, [storeNodes]);
 
   // 折叠状态：直接从 store 读取（query_start 时自动设置）
   const collapsedQueryIds = collapsedDagQueryIds;
@@ -275,6 +291,56 @@ export function DAGCanvas({ style }: Props) {
     return result.length > 0 ? result : filteredFlowNodes;
   }, [filteredFlowNodes, groupedToolGroups, collapsedQueryIds, storeNodes]);
 
+  // RAG 节点布局计算：按 query 分组，垂直堆叠在 query 左侧
+  const ragNodePositions = useMemo(() => {
+    const ragNodes = filteredFlowNodes.filter(n => (n.data as DAGNode).type === 'rag');
+    const ragByQuery = new Map<string, { node: Node; index: number; count: number }[]>();
+
+    ragNodes.forEach((n) => {
+      const dag = n.data as DAGNode;
+      const queryId = dag.parentId ?? '';
+      if (!queryId) return;
+      const list = ragByQuery.get(queryId) ?? [];
+      list.push({ node: n, index: list.length, count: 0 });
+      ragByQuery.set(queryId, list);
+    });
+
+    // 预计算每组数量
+    for (const [, items] of ragByQuery) {
+      items.forEach(item => { item.count = items.length; });
+    }
+
+    // 返回 { nodeId -> { x, y } }
+    const positions = new Map<string, { x: number; y: number }>();
+    for (const [queryId, items] of ragByQuery) {
+      // 找到对应 query 节点的位置（在 positionedNodes 中的位置，后面会合并）
+      const queryNode = positionedNodes.find(n => n.id === queryId);
+      if (!queryNode) continue;
+      const baseX = queryNode.position.x + RAG_OFFSET_X;
+      const totalHeight = items.length * (RAG_NODE_H + RAG_VERTICAL_GAP) - RAG_VERTICAL_GAP;
+      const startY = queryNode.position.y + (RAG_NODE_H + RAG_VERTICAL_GAP) / 2 - totalHeight / 2;
+
+      items.forEach(({ node, index }) => {
+        positions.set(node.id, {
+          x: baseX,
+          y: startY + index * (RAG_NODE_H + RAG_VERTICAL_GAP),
+        });
+      });
+    }
+    return positions;
+  }, [filteredFlowNodes, positionedNodes]);
+
+  // 应用 RAG 节点位置到 positionedNodes
+  const positionedNodesWithRAG = useMemo(() => {
+    return positionedNodes.map(n => {
+      const pos = ragNodePositions.get(n.id);
+      if (pos) {
+        return { ...n, position: pos };
+      }
+      return n;
+    });
+  }, [positionedNodes, ragNodePositions]);
+
   // ── 碰撞检测 + 自动推挤优化 ─────────────────────────────
   // 在 positionedNodes 变化后立即检测重叠，若有重叠则修正位置
   const NODE_W = 200;   // 节点宽度
@@ -282,7 +348,7 @@ export function DAGCanvas({ style }: Props) {
   const MIN_Y_GAP = 40; // 最小 Y 间距
 
   const overlapOptimizedNodes = useMemo(() => {
-    const nodes = positionedNodes;
+    const nodes = positionedNodesWithRAG;
 
     // 第一遍：按 (x, y) 分桶，同桶内检测碰撞
     // 用 Map<yBucket, Node[]>，yBucket = floor(y / (NODE_H + MIN_Y_GAP))
@@ -323,7 +389,7 @@ export function DAGCanvas({ style }: Props) {
     }
 
     // 如果没有任何调整，直接返回原节点
-    if (yShifts.size === 0) return positionedNodes;
+    if (yShifts.size === 0) return positionedNodesWithRAG;
 
     // 应用调整：被调整的节点后续节点也顺延
     const shifts = new Map<string, number>();
@@ -431,18 +497,35 @@ export function DAGCanvas({ style }: Props) {
       }
     }
 
+    const source = n.parentId;
+
     // summary 的边处理
     if (n.type === 'summary') {
-      const parentIsEndTool = storeNodes.has(n.parentId) && storeNodes.get(n.parentId)!.type === 'tool';
+      const parentIsEndTool = storeNodes.has(source) && storeNodes.get(source)!.type === 'tool';
       if (parentIsEndTool) {
-        edges.push({ id: `${n.parentId}-${n.id}`, source: n.parentId, target: n.id, style: { stroke: 'var(--success)', strokeWidth: 1.5 } });
+        edges.push({ id: `${source}-${n.id}`, source, target: n.id, style: { stroke: 'var(--success)', strokeWidth: 1.5 } });
         continue;
       }
       const hasEndTools = (n.endToolIds?.length ?? 0) > 0;
       if (hasEndTools) continue;
     }
 
-    const source = n.parentId;
+    // RAG 节点的紫色虚线边
+    if (n.type === 'rag') {
+      edges.push({
+        id: `${source}-${n.id}`,
+        source,
+        target: n.id,
+        style: {
+          stroke: '#a78bfa',
+          strokeWidth: 1.5,
+          strokeDasharray: '8 4',
+        },
+        className: 'rag-edge',
+      });
+      continue;
+    }
+
     const parentIsEndTool = storeNodes.has(source) && storeNodes.get(source)!.type === 'tool';
     edges.push({
       id: `${source}-${n.id}`,
@@ -533,6 +616,19 @@ export function DAGCanvas({ style }: Props) {
       backgroundSize: '24px 24px',
       ...style,
     }}>
+      <style>{`
+        /* RAG 边的紫色虚线 + 流动动画 */
+        .rag-edge path {
+          stroke: #a78bfa;
+          stroke-dasharray: 8 4;
+          stroke-width: 1.5;
+          animation: rag-flow 1.5s linear infinite;
+        }
+        @keyframes rag-flow {
+          from { stroke-dashoffset: 24; }
+          to { stroke-dashoffset: 0; }
+        }
+      `}</style>
       <div style={{
         padding: '10px 14px',
         borderBottom: '1px solid var(--border)',
@@ -596,6 +692,10 @@ export function DAGCanvas({ style }: Props) {
             nodeStatus={modal.nodeStatus}
             args={modal.args}
             summaryContent={modal.summaryContent}
+            ragContent={modal.ragContent}
+            ragScore={modal.ragScore}
+            ragSourceSessionId={modal.ragSourceSessionId}
+            ragSourceSessionTitle={modal.ragSourceSessionTitle}
             onClose={() => setModal(m => ({ ...m, open: false }))}
           />
         )}
