@@ -5,6 +5,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import '@xterm/xterm/css/xterm.css';
 import { useTaskStore } from '../../stores/useTaskStore';
+import { useRAGContext } from '../../hooks/useRAGContext';
 import { MarkdownCard } from './MarkdownCard';
 import { LiveCard } from './LiveCard';
 import { ToolCards } from './ToolCards';
@@ -289,6 +290,8 @@ export function TerminalView({ theme, onInput, style }: Props) {
   }, [error]);
 
   // 外部文本框按 Enter 时发送
+  const { getPromptContext } = useRAGContext();
+
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return;
     const text = (inputValue ?? '').trim();
@@ -309,11 +312,18 @@ export function TerminalView({ theme, onInput, style }: Props) {
     // 回显用户输入（换行 + 提示符）
     term.writeln(`\n\x1b[36m›\x1b[0m \x1b[90m${text}\x1b[0m`);
 
+    // 获取 RAG 上下文并注入到 prompt
+    const ragContext = getPromptContext();
+    const finalText = ragContext ? `${ragContext}用户问题：${text}` : text;
+
     // 发送消息（出错时回显提示）
     try {
-      const sent = onInput?.(text);
+      const sent = onInput?.(finalText);
       if (sent === false || sent === undefined) {
         term.writeln('\x1b[33m⚠ 发送失败，请检查连接状态\x1b[0m');
+      } else if (ragContext) {
+        // RAG 上下文已注入，发送后清除
+        useRAGContext.getState().clearAll();
       }
     } catch (err) {
       term.writeln(`\x1b[31m✗ 发送异常: ${String(err)}\x1b[0m`);

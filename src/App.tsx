@@ -13,30 +13,38 @@ import { HistoryPanel } from './components/HistoryPanel';
 import { ShortcutHelp } from './components/ShortcutHelp';
 import { ExecutionAnalytics } from './components/ExecutionAnalytics';
 import { TokenAnalytics } from './components/TokenAnalytics';
+import { RAGRetrievalModal } from './components/RAGRetrievalModal';
+import { RAGContextBar } from './components/RAGContextBar';
 import { useSessionStore } from './stores/useSessionStore';
 import { useTaskStore, type MarkdownCardData } from './stores/useTaskStore';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useTheme } from './hooks/useTheme';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { appendErrorLog } from './utils/errorLogger';
-import { getQueriesBySession, loadQueriesFromShards } from './stores/queryStorage';
-import { getSession } from './stores/sessionStorage';
+import { getQueriesBySession } from './stores/queryStorage';
 import type { SearchResult } from './stores/searchIndex';
-import type { DBQuery } from './types/storage';
+import type { QueryRecord } from './lib/db';
 import './styles/themes.css';
 
 /**
- * 从 IndexedDB 查询记录转换为 MarkdownCardData 格式
+ * 从 QueryRecord 转换为 MarkdownCardData 格式
  */
-function convertQueryToCard(query: DBQuery): MarkdownCardData {
+function convertQueryToCard(q: QueryRecord): MarkdownCardData {
+  let summary: string | undefined;
+  let status: string | undefined;
+  try {
+    const meta = q.metadata ? JSON.parse(q.metadata) : {};
+    summary = meta.answer || undefined;
+    status = meta.status;
+  } catch {}
   return {
-    id: `card_${query.createdAt}_${query.id}`,
-    queryId: query.id,
-    timestamp: query.createdAt,
-    query: query.question,
-    analysis: '', // 从 DAG 分析中获取（暂时为空）
-    summary: query.answer || query.status === 'error' ? `状态: ${query.status}` : undefined,
-    tokenUsage: query.tokenUsage,
+    id: `card_${q.id}`,
+    queryId: q.id,
+    timestamp: q.timestamp,
+    query: q.query,
+    analysis: q.analysis || '',
+    summary: summary || (status === 'error' ? `状态: ${status}` : undefined),
+    tokenUsage: q.tokenCount,
   };
 }
 
@@ -45,20 +53,15 @@ function convertQueryToCard(query: DBQuery): MarkdownCardData {
  */
 async function loadSessionCards(sessionId: string): Promise<MarkdownCardData[]> {
   try {
-    const session = await getSession(sessionId);
-    if (!session) return [];
-
-    let queries;
-    if (session.isSharded) {
-      queries = await loadQueriesFromShards(sessionId);
-    } else {
-      const result = await getQueriesBySession(sessionId, { page: 1, pageSize: 50 });
-      queries = result.items;
-    }
-
+    const result = await getQueriesBySession(sessionId, { page: 1, pageSize: 50 });
     // 只返回已完成的查询
-    return queries
-      .filter(q => q.status === 'success' || q.status === 'error')
+    return result.items
+      .filter(q => {
+        try {
+          const meta = q.metadata ? JSON.parse(q.metadata) : {};
+          return meta.status === 'success' || meta.status === 'error';
+        } catch { return false; }
+      })
       .map(convertQueryToCard);
   } catch (error) {
     console.error('[App] Failed to load session cards:', error);
@@ -73,10 +76,12 @@ export function App() {
   } = useTheme();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isThemeSettingsOpen, setIsThemeSettingsOpen] = useState(false);
+  const [themeSettingsTab, setThemeSettingsTab] = useState<'theme' | 'embedding'>('theme');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isShortcutHelpOpen, setIsShortcutHelpOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isTokenAnalyticsOpen, setIsTokenAnalyticsOpen] = useState(false);
+  const [isRAGOpen, setIsRAGOpen] = useState(false);
 
   // 响应式布局：监听窗口宽度
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -119,6 +124,7 @@ export function App() {
       // 关闭所有弹窗（按优先级）
       if (isShortcutHelpOpen) { setIsShortcutHelpOpen(false); return; }
       if (isHistoryOpen) { setIsHistoryOpen(false); return; }
+      if (isRAGOpen) { setIsRAGOpen(false); return; }
       if (isAnalyticsOpen) { setIsAnalyticsOpen(false); return; }
       if (isTokenAnalyticsOpen) { setIsTokenAnalyticsOpen(false); return; }
       if (isSearchOpen) { setIsSearchOpen(false); return; }
@@ -245,9 +251,10 @@ export function App() {
         onThemeChange={(t) => setMode(t)}
         onNewSession={handleNewSession}
         onSwitchSession={handleSwitchSession}
-        onOpenThemeSettings={() => setIsThemeSettingsOpen(true)}
+        onOpenThemeSettings={() => { setThemeSettingsTab('theme'); setIsThemeSettingsOpen(true); }}
         onOpenAnalytics={() => setIsAnalyticsOpen(prev => !prev)}
         onOpenTokenAnalytics={() => setIsTokenAnalyticsOpen(prev => !prev)}
+        onOpenRAG={() => setIsRAGOpen(prev => !prev)}
       />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {renderMainContent()}
@@ -259,6 +266,8 @@ export function App() {
       />
       <ThemeSettings
         isOpen={isThemeSettingsOpen}
+        activeTab={themeSettingsTab}
+        onTabChange={tab => { setThemeSettingsTab(tab); }}
         onClose={() => setIsThemeSettingsOpen(false)}
         mode={mode}
         accent={accent}
@@ -281,6 +290,16 @@ export function App() {
       <TokenAnalytics
         isOpen={isTokenAnalyticsOpen}
         onClose={() => setIsTokenAnalyticsOpen(false)}
+      />
+      <RAGContextBar />
+      <RAGRetrievalModal
+        isOpen={isRAGOpen}
+        onClose={() => setIsRAGOpen(false)}
+        onOpenSettings={(tab) => {
+          setThemeSettingsTab(tab ?? 'embedding');
+          setIsRAGOpen(false);
+          setIsThemeSettingsOpen(true);
+        }}
       />
       <ShortcutHelp
         isOpen={isShortcutHelpOpen}
