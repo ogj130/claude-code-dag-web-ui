@@ -22,6 +22,15 @@ export interface CurrentCardData {
   timestamp: number;
   summary?: string;    // 总结到来时追加
   isCollapsed?: boolean;  // 是否折叠（发送新问题时，前一个进行中的卡片标记为折叠）
+  /** RAG 检索结果（来自 user_input_sent JSON payload） */
+  ragChunks?: Array<{
+    id: string;
+    content: string;
+    score: number;
+    sourceSessionId: string;
+    sourceSessionTitle: string;
+    timestamp: number;
+  }>;
 }
 
 interface TaskState {
@@ -51,6 +60,16 @@ interface TaskState {
   groupingEnabled: boolean;  // 节点分组开关
   expandedGroupIds: Set<string>;  // 已展开的分组 ID 集合
   lastTokenUsage: number;  // 最近一次查询的 Token 消耗
+  /** 待添加到 DAG 的 RAG 检索结果（下次 query_start 时消费） */
+  pendingRAGItems: Array<{
+    id: string;
+    content: string;
+    summary: string;
+    score: number;
+    sourceSessionId: string;
+    sourceSessionTitle: string;
+    timestamp: number;
+  }>;
 
   handleEvent: (event: ClaudeEvent) => void;
   addTerminalLine: (line: string) => void;
@@ -76,6 +95,15 @@ interface TaskState {
     sourceSessionTitle: string;
     timestamp: number;
   }>) => void;  // 添加 RAG 节点
+  setPendingRAGItems: (items: Array<{
+    id: string;
+    content: string;
+    summary: string;
+    score: number;
+    sourceSessionId: string;
+    sourceSessionTitle: string;
+    timestamp: number;
+  }>) => void;  // 设置待消费的 RAG 项目
   reset: () => void;
 }
 
@@ -155,6 +183,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   groupingEnabled: true,  // 默认开启节点分组
   expandedGroupIds: new Set(),  // 默认全部折叠
   lastTokenUsage: 0,
+  pendingRAGItems: [],
 
   handleEvent: (event: ClaudeEvent) => {
     if (event.type === 'summary_chunk') {
@@ -289,34 +318,66 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         break;
       }
       case 'user_input_sent': {
+        // ── 尝试解析 JSON 格式（query + ragChunks）─────────────
+        let queryText = event.text;
+        let ragChunks: NonNullable<CurrentCardData['ragChunks']> = [];
+
+        try {
+          const parsed = JSON.parse(event.text);
+          if (parsed.query !== undefined && Array.isArray(parsed.ragChunks)) {
+            queryText = String(parsed.query ?? '');
+            ragChunks = parsed.ragChunks.map((chunk: { id: string; content: string; score: number; sourceSessionId: string; sourceSessionTitle: string; timestamp: number }) => ({
+              id: chunk.id,
+              content: chunk.content,
+              score: chunk.score,
+              sourceSessionId: chunk.sourceSessionId,
+              sourceSessionTitle: chunk.sourceSessionTitle,
+              timestamp: chunk.timestamp,
+            }));
+          }
+        } catch {
+          // 非 JSON 格式，保持原 text 作为普通 query
+        }
+
         const newNodesU = new Map(nodes);
         const qNodeU = newNodesU.get(event.queryId);
         if (qNodeU) {
-          newNodesU.set(event.queryId, { ...qNodeU, label: event.text ?? '' });
+          newNodesU.set(event.queryId, { ...qNodeU, label: queryText });
         }
 
-        // 叠起前一个已完成的卡片（发送新问题时，前一个问题自动折叠）
+        // 叠起前一个已完成的卡片
         const newCollapsedCards = new Set(get().collapsedCardIds);
-
-        // 如果前一个问题已完成在 markdownCards 中，折叠其 queryId
         const allCards = get().markdownCards;
         if (allCards.length > 0) {
           newCollapsedCards.add(allCards[allCards.length - 1].queryId);
         }
 
-        // 创建进行中的问答卡片（实时显示 query → tools → 状态 → 总结）
-        // 如果前一个问题还在 currentCard 状态，存储为 previousCard 以便后续处理
         const prevCurrentCard = get().currentCard;
         const newPreviousCard = prevCurrentCard ?? null;
         const newCurrentCard: CurrentCardData = {
           queryId: event.queryId,
-          query: event.text ?? '',
+          query: queryText,
           timestamp: Date.now(),
+          ragChunks: ragChunks.length > 0 ? ragChunks : undefined,
         };
+
+        // ── 设置 pendingRAGItems（供 query_start 消费，渲染 DAG RAG 节点）─────────
+        if (ragChunks.length > 0) {
+          get().setPendingRAGItems(ragChunks.map(chunk => ({
+            id: chunk.id,
+            content: chunk.content,
+            summary: chunk.content.slice(0, 100),
+            score: chunk.score,
+            sourceSessionId: chunk.sourceSessionId,
+            sourceSessionTitle: chunk.sourceSessionTitle,
+            timestamp: chunk.timestamp,
+          })));
+        }
+
         set({
           currentQueryId: event.queryId,
           isRunning: true,
-          pendingQuery: event.text ?? '',
+          pendingQuery: queryText,
           nodes: newNodesU,
           currentCard: newCurrentCard,
           previousCard: newPreviousCard,
@@ -337,6 +398,24 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         };
         newNodesQ.set(event.queryId, queryNode);
 
+        // ── 自动添加 RAG 节点（来自 pendingRAGItems）──────────────
+        const pendingItems = get().pendingRAGItems;
+        pendingItems.forEach((item, index) => {
+          const ragNodeId = `rag_${event.queryId}_${index}`;
+          newNodesQ.set(ragNodeId, {
+            id: ragNodeId,
+            label: 'RAG',
+            status: 'completed',
+            type: 'rag',
+            parentId: event.queryId,
+            content: item.content,
+            score: item.score,
+            sourceSessionId: item.sourceSessionId,
+            sourceSessionTitle: item.sourceSessionTitle,
+            timestamp: item.timestamp,
+          });
+        });
+
         // 自动折叠前一个已完成的 query（DAG）
         const prevQueryId = get().lastCompletedQueryId;
         const newCollapsedDagQueryIds = new Set(get().collapsedDagQueryIds);
@@ -352,7 +431,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           currentQueryId: event.queryId,
           collapsedDagQueryIds: newCollapsedDagQueryIds,
           lastCompletedQueryId,
-          isRunning: true
+          isRunning: true,
+          pendingRAGItems: [],  // 消费后清除
         });
         break;
       }
@@ -690,6 +770,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     });
     set({ nodes: newNodes });
   },
+  /** 设置待消费的 RAG 项目，下次 query_start 时自动添加为 DAG 节点 */
+  setPendingRAGItems: (items: TaskState['pendingRAGItems']) => {
+    set({ pendingRAGItems: items });
+  },
 
   reset: () => {
     set({
@@ -718,6 +802,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       previousCard: null,
       groupingEnabled: true,
       expandedGroupIds: new Set(),
+      pendingRAGItems: [],
     });
   },
 }));
