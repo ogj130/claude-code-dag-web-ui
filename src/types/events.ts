@@ -88,3 +88,16 @@ export type WSClientMessage =
   | { type: 'start_session'; sessionId: string; projectPath: string; prompt?: string }
   | { type: 'send_input'; sessionId: string; input: string }
   | { type: 'kill_session'; sessionId: string };
+
+/**
+ * RAG 检索结果的数据结构
+ * 用于 user_input_sent 事件中的 ragChunks 字段
+ */
+export interface RAGChunk {
+  id: string;
+  content: string;
+  score: number;
+  sourceSessionId: string;
+  sourceSessionTitle: string;
+  timestamp: number;
+}
