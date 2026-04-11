@@ -2,6 +2,7 @@ import React, { memo, useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CardToolTimeline } from './CardToolTimeline';
+import type { RAGChunk } from '../../types/events';
 
 export interface MarkdownCardData {
   id: string;
@@ -12,6 +13,7 @@ export interface MarkdownCardData {
   summary?: string;       // 当前显示的总结（流式开始时为流式内容，最终为完整内容）
   completeSummary?: string; // 完整总结（用于流式补完动画：summary 先显示流式内容，再动画补完到 completeSummary）
   tokenUsage?: number;    // 单次查询 Token 消耗
+  ragChunks?: RAGChunk[]; // 历史召回的 RAG chunks
 }
 
 interface MarkdownCardProps {
@@ -210,6 +212,68 @@ function MarkdownCardInner({ card, defaultAnalysisOpen = false, defaultCollapsed
               <span style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.6, wordBreak: 'break-word' }}>
                 {card.query}
               </span>
+            </div>
+          )}
+
+          {/* RAG Chunks 列表（如果存在） */}
+          {card.ragChunks && card.ragChunks.length > 0 && (
+            <div style={{
+              border: '1px solid rgba(167,139,250,0.35)',
+              borderRadius: 6,
+              padding: '6px 10px',
+              margin: '0 12px 8px',
+              background: 'rgba(167,139,250,0.04)',
+            }}>
+              <div style={{
+                fontSize: 9,
+                color: 'rgba(167,139,250,0.7)',
+                fontFamily: "'JetBrains Mono', monospace",
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                marginBottom: 4,
+              }}>
+                历史召回 ({card.ragChunks.length} 条)
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {card.ragChunks.map((chunk, index) => (
+                  <div
+                    key={chunk.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 6,
+                      fontSize: 10,
+                      color: 'var(--text-secondary)',
+                      cursor: 'default',
+                      padding: '2px 4px',
+                      borderRadius: 4,
+                    }}
+                  >
+                    <span style={{
+                      color: 'rgba(167,139,250,0.7)',
+                      fontFamily: "'JetBrains Mono', monospace",
+                      flexShrink: 0,
+                    }}>
+                      [{index + 1}]
+                    </span>
+                    <span style={{
+                      color: 'rgba(167,139,250,0.6)',
+                      fontFamily: "'JetBrains Mono', monospace",
+                      flexShrink: 0,
+                    }}>
+                      {(chunk.score * 100).toFixed(0)}%
+                    </span>
+                    <span style={{
+                      color: 'var(--text-muted)',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {chunk.content.length > 60 ? chunk.content.substring(0, 60) + '…' : chunk.content}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
