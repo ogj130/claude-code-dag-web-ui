@@ -4,7 +4,7 @@ export interface DAGNode {
   id: string;
   label: string;
   status: NodeStatus;
-  type: 'agent' | 'tool' | 'query' | 'summary';
+  type: 'agent' | 'tool' | 'query' | 'summary' | 'rag';
   parentId?: string;
   startTime?: number;
   endTime?: number;
@@ -13,6 +13,16 @@ export interface DAGNode {
   endToolIds?: string[];   // 该 summary 的所有 endTool ID（多边汇聚用）
   /** 工具节点：当前交互提示文字 */
   toolMessage?: string;
+  /** RAG 节点：检索到的 chunk 内容 */
+  content?: string;
+  /** RAG 节点：相似度分数 */
+  score?: number;
+  /** RAG 节点：来源会话 ID */
+  sourceSessionId?: string;
+  /** RAG 节点：来源会话标题 */
+  sourceSessionTitle?: string;
+  /** RAG 节点：时间戳 */
+  timestamp?: number;
   [key: string]: unknown;
 }
 

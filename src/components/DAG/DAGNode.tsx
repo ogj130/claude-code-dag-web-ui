@@ -65,6 +65,15 @@ function SummarySvgIcon() {
     </svg>
   );
 }
+function RAGSvgIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+    </svg>
+  );
+}
 
 const statusStyle: Record<string, React.CSSProperties> = {
   pending: { borderColor: 'var(--dag-node-border)', opacity: 0.7 },
@@ -95,6 +104,14 @@ const TOOL_ACCENT_COLOR: Record<string, string> = {
   Search: '#a78bfa',
   Write: '#f472b6',
   Grep: '#fb923c',
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  agent: '#3b82f6',
+  query: '#22c55e',
+  tool: '#f59e0b',
+  summary: '#ec4899',
+  rag: '#a78bfa',
 };
 
 function getToolAccentColor(label: string): string {
@@ -130,6 +147,8 @@ function DAGNodeInner({ data, onOpenDetail }: DAGNodeProps) {
 
   // Summary 节点固定宽度，防止 Markdown 内容撑大节点
   const isSummaryNode = data.type === 'summary';
+  // RAG 节点虚线边框（外部引入节点）
+  const isRAGNode = data.type === 'rag';
   // 容器模式下固定子节点宽度
   const fixedWidth = data.containerWidth;
 
@@ -245,8 +264,12 @@ function DAGNodeInner({ data, onOpenDetail }: DAGNodeProps) {
 
   return (
     <div style={{
-      background: 'var(--dag-node, var(--bg-card))',
-      border: '1.5px solid',
+      background: isRAGNode
+        ? 'linear-gradient(135deg, rgba(167, 139, 250, 0.08) 0%, var(--dag-node, var(--bg-card)) 100%)'
+        : 'var(--dag-node, var(--bg-card))',
+      border: isRAGNode
+        ? '2px dashed rgba(167, 139, 250, 0.4)'
+        : '1.5px solid',
       borderRadius: 10, padding: '10px 14px',
       position: 'relative',  // 给折叠图标提供定位上下文
       width: isSummaryNode ? 280 : fixedWidth,
@@ -300,12 +323,13 @@ function DAGNodeInner({ data, onOpenDetail }: DAGNodeProps) {
       {/* 图标 */}
       <div style={{
         display: 'flex', justifyContent: 'center',
-        color: STATUS_COLOR[data.status] ?? 'var(--text-dim)',
+        color: TYPE_COLORS[data.type] ?? STATUS_COLOR[data.status] ?? 'var(--text-dim)',
         marginBottom: 5,
       }}>
         {data.type === 'agent' ? <AgentSvgIcon /> :
          data.type === 'query' ? <QuerySvgIcon /> :
          data.type === 'summary' ? <SummarySvgIcon /> :
+         data.type === 'rag' ? <RAGSvgIcon /> :
          <ToolSvgIcon />}
       </div>
 

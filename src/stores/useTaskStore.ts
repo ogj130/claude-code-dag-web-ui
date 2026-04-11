@@ -67,6 +67,15 @@ interface TaskState {
   toggleGrouping: () => void;  // 切换节点分组开关
   toggleGroupExpand: (groupId: string) => void;  // 切换分组展开/折叠
   collapseAllGroups: () => void;  // 折叠全部工具分组
+  addRAGNodes: (queryId: string, ragItems: Array<{
+    id: string;
+    content: string;
+    summary: string;
+    score: number;
+    sourceSessionId: string;
+    sourceSessionTitle: string;
+    timestamp: number;
+  }>) => void;  // 添加 RAG 节点
   reset: () => void;
 }
 
@@ -651,6 +660,35 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   collapseAllGroups: () => {
     set({ expandedGroupIds: new Set() });
+  },
+
+  // 添加 RAG 节点
+  addRAGNodes: (queryId: string, ragItems: Array<{
+    id: string;
+    content: string;
+    summary: string;
+    score: number;
+    sourceSessionId: string;
+    sourceSessionTitle: string;
+    timestamp: number;
+  }>) => {
+    const newNodes = new Map(get().nodes);
+    ragItems.forEach((item, index) => {
+      const ragNodeId = `rag_${queryId}_${index}`;
+      newNodes.set(ragNodeId, {
+        id: ragNodeId,
+        label: 'RAG',
+        status: 'completed',
+        type: 'rag',
+        parentId: queryId,
+        content: item.content,
+        score: item.score,
+        sourceSessionId: item.sourceSessionId,
+        sourceSessionTitle: item.sourceSessionTitle,
+        timestamp: item.timestamp,
+      });
+    });
+    set({ nodes: newNodes });
   },
 
   reset: () => {
