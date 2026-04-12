@@ -33,6 +33,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
       - name: Install dependencies
         run: npm config set registry https://registry.npmjs.org && npm ci
@@ -52,6 +53,7 @@ jobs:
         with:
           node-version: '24'
           cache: 'npm'
+          cache-dependency-path: package-lock.json
 
       - name: Install frontend dependencies
         run: npm config set registry https://registry.npmjs.org && npm ci
