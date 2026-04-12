@@ -88,7 +88,7 @@ async function callWithProvider(
       const vectors = await Promise.all(
         texts.map(text =>
           client.embeddings.create({ input: text, model })
-            .then(r => r.data[0].embedding as number[])
+            .then((r: { data: Array<{ embedding: number[] }> }) => r.data[0].embedding as number[])
         )
       );
       return vectors;
@@ -101,7 +101,7 @@ async function callWithProvider(
       const input = texts.length === 1 ? texts[0] : texts;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response = await client.embeddings.create({ input, model } as any);
-      return response.data.map(d => d.embedding as number[]);
+      return response.data.map((d: { embedding: number[] }) => d.embedding as number[]);
     }
   }
 }
