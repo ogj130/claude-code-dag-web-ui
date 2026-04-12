@@ -51,15 +51,8 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Install frontend dependencies (debug)
-        run: |
-          pwd && ls -la
-          cat package.json | grep openai
-          echo "--- npm ci verbose ---"
-          npm ci --prefer-offline=false --verbose 2>&1 | tail -50
-          echo "--- after npm ci ---"
-          ls node_modules 2>/dev/null | wc -l
-          ls node_modules/openai 2>/dev/null && echo "FOUND" || echo "NOT FOUND"
+      - name: Install frontend dependencies
+        run: npm ci
 
       - name: Build frontend
         run: npm run build
@@ -94,7 +87,7 @@ jobs:
 
       - name: Install Electron dependencies
         working-directory: electron
-        run: npm config set registry https://registry.npmjs.org && npm ci
+        run: npm install
 
       - name: Set version from workflow input
         if: github.event_name == 'workflow_dispatch'
