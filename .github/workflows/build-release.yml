@@ -8,7 +8,6 @@ on:
       - 'docs/**'
       - 'LICENSE'
       - '.gitignore'
-      - '.github/**'
   workflow_dispatch:
     inputs:
       version_tag:
@@ -23,7 +22,26 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
   build-frontend:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -168,11 +186,16 @@ jobs:
             **${{ github.event.inputs.version_tag }}**
 
             ### 功能
-            - 🔥 DAG 执行图可视化
+            - 🔥 DAG 执行图可视化（节点折叠/展开）
             - 💻 终端 + 工具卡片合并视图
             - 📝 流式总结逐字补完动画
             - 🌙 暗黑/明亮模式
             - ⚡ WebSocket 实时通信
+            - 🗂️ 多会话管理 + FIFO 自动淘汰
+            - 🔒 隐私模式（完全离线）
+            - 📊 Token 消耗趋势统计
+            - 🛠️ 执行分析（工具分布、错误率趋势）
+            - 🔍 RAG 智能检索（历史问答召回）
             - 🌍 跨平台支持（Windows、macOS、Linux）
 
           files: |
