@@ -31,6 +31,7 @@ export interface QueryRecord {
   timestamp: number;       // 提问时间
   tokenCount: number;      // 本次 Token 消耗
   toolCount: number;       // 工具调用次数
+  projectPath?: string;    // 工作路径（用于按路径过滤统计）
   // 扩展字段（JSON 序列化）
   metadata?: string;        // JSON.stringify({ ... }) 后存储
 }
@@ -46,10 +47,12 @@ class CCDatabase extends Dexie {
   constructor() {
     super('CCWebDB');
 
-    this.version(1).stores({
+    this.version(2).stores({
       // & 表示主键（复合索引需在 Schema 中声明）
       sessions: '&id, updatedAt, createdAt, projectPath',
-      queries: '&id, sessionId, timestamp, tokenCount',
+      // 字段必须在 Schema 中声明才会被 Dexie 持久化
+      // projectPath 用于按工作路径过滤统计
+      queries: '&id, sessionId, timestamp, tokenCount, query, summary, projectPath',
     });
   }
 }
