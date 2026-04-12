@@ -9,11 +9,13 @@ import { getHotToolRanking, type HotToolEntry, type TimeRange } from '@/utils/ex
 interface ToolRankingProps {
   /** 时间范围 */
   timeRange?: TimeRange;
+  /** 工作路径（用于按路径过滤） */
+  workspacePath?: string;
   /** 面板样式 */
   style?: React.CSSProperties;
 }
 
-export function ToolRanking({ timeRange = 'all', style }: ToolRankingProps) {
+export function ToolRanking({ timeRange = 'all', workspacePath, style }: ToolRankingProps) {
   const [ranking, setRanking] = useState<HotToolEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +26,7 @@ export function ToolRanking({ timeRange = 'all', style }: ToolRankingProps) {
     setError(null);
 
     try {
-      const data = await getHotToolRanking(10, timeRange);
+      const data = await getHotToolRanking(10, timeRange, workspacePath);
       setRanking(data);
     } catch (err) {
       console.error('[ToolRanking] Failed to load data:', err);
@@ -32,7 +34,7 @@ export function ToolRanking({ timeRange = 'all', style }: ToolRankingProps) {
     } finally {
       setLoading(false);
     }
-  }, [timeRange]);
+  }, [timeRange, workspacePath]);
 
   useEffect(() => {
     loadData();

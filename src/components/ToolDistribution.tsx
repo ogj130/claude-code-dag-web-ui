@@ -37,11 +37,13 @@ const COLORS = [
 interface ToolDistributionProps {
   /** 时间范围 */
   timeRange?: TimeRange;
+  /** 工作路径（用于按路径过滤） */
+  workspacePath?: string;
   /** 面板样式 */
   style?: React.CSSProperties;
 }
 
-export function ToolDistribution({ timeRange = 'all', style }: ToolDistributionProps) {
+export function ToolDistribution({ timeRange = 'all', workspacePath, style }: ToolDistributionProps) {
   const [distribution, setDistribution] = useState<ToolDistributionData[]>([]);
   const [responseTime, setResponseTime] = useState<AverageResponseTime[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,8 +56,8 @@ export function ToolDistribution({ timeRange = 'all', style }: ToolDistributionP
 
     try {
       const [dist, avgTime] = await Promise.all([
-        getToolDistribution(timeRange),
-        getAverageResponseTime(timeRange),
+        getToolDistribution(timeRange, workspacePath),
+        getAverageResponseTime(timeRange, workspacePath),
       ]);
 
       setDistribution(dist);

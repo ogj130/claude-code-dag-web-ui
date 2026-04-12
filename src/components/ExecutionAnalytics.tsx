@@ -12,6 +12,7 @@ import {
   getExecutionSummary,
   type TimeRange,
 } from '@/utils/executionStats';
+import { useSessionStore } from '@/stores/useSessionStore';
 
 // 时间范围选项
 const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
@@ -27,7 +28,85 @@ interface ExecutionAnalyticsProps {
   onClose?: () => void;
 }
 
+// ---------------------------------------------------------------------------
+// 子组件
+// ---------------------------------------------------------------------------
+
+/** 骨架屏组件 */
+function SummaryCardSkeleton() {
+  return (
+    <div
+      style={{
+        backgroundColor: 'var(--bg-card)',
+        borderRadius: 8,
+        padding: '10px 12px',
+        border: '1px solid var(--border)',
+        textAlign: 'center',
+      }}
+    >
+      <div
+        style={{
+          height: 22,
+          background:
+            'linear-gradient(90deg, var(--bg-input) 25%, var(--border) 50%, var(--bg-input) 75%)',
+          backgroundSize: '200% 100%',
+          animation: 'shimmer 1.5s infinite',
+          borderRadius: 4,
+          marginBottom: 4,
+        }}
+      />
+      <div
+        style={{
+          height: 10,
+          width: '60%',
+          margin: '0 auto',
+          background: 'var(--bg-input)',
+          borderRadius: 4,
+        }}
+      />
+    </div>
+  );
+}
+
+/** 空状态组件 */
+function EmptyState() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '48px 24px',
+        color: 'var(--text-dim)',
+        gap: 12,
+      }}
+    >
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+        <rect x="8" y="12" width="32" height="28" rx="3" stroke="currentColor" strokeWidth="2" fill="none" />
+        <path d="M8 20h32" stroke="currentColor" strokeWidth="2" />
+        <path d="M16 8v8M32 8v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <circle cx="24" cy="32" r="6" stroke="currentColor" strokeWidth="2" fill="none" />
+        <path d="M24 29v3l2 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+      <div style={{ fontSize: 13, fontWeight: 600 }}>暂无执行数据</div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
+        在此工作路径下发送消息后即可查看执行统计
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 主组件
+// ---------------------------------------------------------------------------
+
 export function ExecutionAnalytics({ isOpen = true, onClose }: ExecutionAnalyticsProps) {
+  const sessions = useSessionStore(s => s.sessions);
+  const activeSessionId = useSessionStore(s => s.activeSessionId);
+  const currentSession = sessions.find(s => s.id === activeSessionId);
+  const workspacePath = currentSession?.projectPath;
+
   const [timeRange, setTimeRange] = useState<TimeRange>(7);
   const [summary, setSummary] = useState<{
     totalCalls: number;
@@ -42,14 +121,14 @@ export function ExecutionAnalytics({ isOpen = true, onClose }: ExecutionAnalytic
   // 加载摘要数据
   const loadSummary = useCallback(async () => {
     try {
-      const data = await getExecutionSummary(timeRange);
+      const data = await getExecutionSummary(timeRange, workspacePath);
       setSummary(data);
     } catch (err) {
       console.error('[ExecutionAnalytics] Failed to load summary:', err);
     } finally {
       setLoading(false);
     }
-  }, [timeRange]);
+  }, [timeRange, workspacePath]);
 
   useEffect(() => {
     if (isOpen) {
@@ -58,98 +137,388 @@ export function ExecutionAnalytics({ isOpen = true, onClose }: ExecutionAnalytic
     }
   }, [isOpen, timeRange, loadSummary]);
 
+  // ESC 键关闭
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
+  const hasData = !loading && summary && summary.totalCalls > 0;
+
   return (
-    // 背景遮罩层
-    <div style={overlayStyle} onClick={onClose}>
-      {/* 内容面板 */}
-      <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-        {/* 标题栏 */}
-        <div style={headerStyle}>
-          <div style={titleStyle}>执行分析</div>
-          <div style={headerRightStyle}>
-            {/* 时间范围选择器 */}
-            <div style={timeRangeContainerStyle}>
-              {TIME_RANGE_OPTIONS.map((option) => (
+    <>
+      <style>{`
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.95) translateY(-8px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .analytics-overlay {
+          animation: fadeIn 0.2s ease-out;
+        }
+        .analytics-modal {
+          animation: scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .summary-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .close-btn:hover {
+          color: var(--text-primary) !important;
+          background: var(--bg-input) !important;
+        }
+        .time-btn:hover:not(.active) {
+          background: var(--bg-input) !important;
+        }
+      `}</style>
+
+      {/* 背景遮罩层 */}
+      <div
+        className="analytics-overlay"
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(4px)',
+          WebkitBackdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+        }}
+      >
+        {/* 内容面板 */}
+        <div
+          className="analytics-modal"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: 'var(--bg-root)',
+            borderRadius: 14,
+            border: '1px solid var(--border)',
+            width: '90%',
+            maxWidth: 940,
+            maxHeight: '85vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+          }}
+        >
+          {/* 标题栏 */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '14px 16px',
+              borderBottom: '1px solid var(--border)',
+              backgroundColor: 'var(--bg-card)',
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 600,
+                fontSize: 15,
+                color: 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <rect x="2" y="2" width="5" height="5" rx="1" fill="var(--accent)" />
+                <rect x="9" y="2" width="5" height="5" rx="1" fill="var(--accent)" opacity="0.5" />
+                <rect x="2" y="9" width="5" height="5" rx="1" fill="var(--accent)" opacity="0.5" />
+                <rect x="9" y="9" width="5" height="5" rx="1" fill="var(--accent)" />
+              </svg>
+              执行分析
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              {/* 时间范围选择器 */}
+              <div
+                style={{
+                  display: 'flex',
+                  backgroundColor: 'var(--bg-input)',
+                  borderRadius: 6,
+                  padding: 2,
+                  gap: 2,
+                }}
+              >
+                {TIME_RANGE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setTimeRange(option.value)}
+                    className={`time-btn ${timeRange === option.value ? 'active' : ''}`}
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: 12,
+                      border: 'none',
+                      borderRadius: 4,
+                      backgroundColor: timeRange === option.value ? 'var(--accent)' : 'transparent',
+                      color: timeRange === option.value ? '#fff' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      fontWeight: timeRange === option.value ? 600 : 400,
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              {onClose && (
                 <button
-                  key={option.value}
-                  onClick={() => setTimeRange(option.value)}
+                  onClick={onClose}
+                  className="close-btn"
                   style={{
-                    ...timeRangeButtonStyle,
-                    ...(timeRange === option.value
-                      ? timeRangeButtonActiveStyle
-                      : {}),
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-dim)',
+                    cursor: 'pointer',
+                    padding: 4,
+                    borderRadius: 4,
+                    fontSize: 16,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.15s',
                   }}
+                  title="关闭 (ESC)"
                 >
-                  {option.label}
+                  ✕
                 </button>
+              )}
+            </div>
+          </div>
+
+          {/* 统计摘要 */}
+          {loading ? (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(6, 1fr)',
+                gap: 8,
+                padding: 12,
+                borderBottom: '1px solid var(--border)',
+                flexShrink: 0,
+              }}
+            >
+              {Array.from({ length: 6 }).map((_, i) => (
+                <SummaryCardSkeleton key={i} />
               ))}
             </div>
-            {/* 关闭按钮 */}
-            {onClose && (
-              <button onClick={onClose} style={closeButtonStyle}>
-                ✕
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* 统计摘要 */}
-        <div style={summaryContainerStyle}>
-          <div style={summaryCardStyle}>
-            <div style={summaryValueStyle}>{loading ? '-' : summary?.totalCalls ?? 0}</div>
-            <div style={summaryLabelStyle}>总调用次数</div>
-          </div>
-          <div style={summaryCardStyle}>
-            <div style={{ ...summaryValueStyle, color: 'var(--color-success)' }}>
-              {loading ? '-' : summary?.successCalls ?? 0}
+          ) : !hasData ? (
+            <div style={{ borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+              <EmptyState />
             </div>
-            <div style={summaryLabelStyle}>成功调用</div>
-          </div>
-          <div style={summaryCardStyle}>
-            <div style={{ ...summaryValueStyle, color: 'var(--color-error)' }}>
-              {loading ? '-' : summary?.errorCalls ?? 0}
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(6, 1fr)',
+                gap: 8,
+                padding: 12,
+                borderBottom: '1px solid var(--border)',
+                flexShrink: 0,
+              }}
+            >
+              <div
+                className="summary-card"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  border: '1px solid var(--border)',
+                  textAlign: 'center',
+                  transition: 'all 0.2s',
+                  cursor: 'default',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    marginBottom: 2,
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {summary?.totalCalls ?? 0}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>总调用次数</div>
+              </div>
+              <div
+                className="summary-card"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  border: '1px solid var(--border)',
+                  textAlign: 'center',
+                  transition: 'all 0.2s',
+                  cursor: 'default',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: '#4ade80',
+                    marginBottom: 2,
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {summary?.successCalls ?? 0}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>成功调用</div>
+              </div>
+              <div
+                className="summary-card"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  border: '1px solid var(--border)',
+                  textAlign: 'center',
+                  transition: 'all 0.2s',
+                  cursor: 'default',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: '#f87171',
+                    marginBottom: 2,
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {summary?.errorCalls ?? 0}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>失败调用</div>
+              </div>
+              <div
+                className="summary-card"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  border: '1px solid var(--border)',
+                  textAlign: 'center',
+                  transition: 'all 0.2s',
+                  cursor: 'default',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: 'var(--accent)',
+                    marginBottom: 2,
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {summary?.errorRate ?? 0}%
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>错误率</div>
+              </div>
+              <div
+                className="summary-card"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  border: '1px solid var(--border)',
+                  textAlign: 'center',
+                  transition: 'all 0.2s',
+                  cursor: 'default',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    marginBottom: 2,
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {formatDuration(summary?.avgDuration ?? 0)}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>平均耗时</div>
+              </div>
+              <div
+                className="summary-card"
+                style={{
+                  backgroundColor: 'var(--bg-card)',
+                  borderRadius: 8,
+                  padding: '10px 12px',
+                  border: '1px solid var(--border)',
+                  textAlign: 'center',
+                  transition: 'all 0.2s',
+                  cursor: 'default',
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    marginBottom: 2,
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}
+                >
+                  {summary?.uniqueTools ?? 0}
+                </div>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>工具种类</div>
+              </div>
             </div>
-            <div style={summaryLabelStyle}>失败调用</div>
-          </div>
-          <div style={summaryCardStyle}>
-            <div style={{ ...summaryValueStyle, color: 'var(--accent)' }}>
-              {loading ? '-' : `${summary?.errorRate ?? 0}%`}
-            </div>
-            <div style={summaryLabelStyle}>错误率</div>
-          </div>
-          <div style={summaryCardStyle}>
-            <div style={summaryValueStyle}>
-              {loading ? '-' : formatDuration(summary?.avgDuration ?? 0)}
-            </div>
-            <div style={summaryLabelStyle}>平均耗时</div>
-          </div>
-          <div style={summaryCardStyle}>
-            <div style={summaryValueStyle}>{loading ? '-' : summary?.uniqueTools ?? 0}</div>
-            <div style={summaryLabelStyle}>工具种类</div>
-          </div>
-        </div>
+          )}
 
-        {/* 图表区域 */}
-        <div style={chartsContainerStyle}>
-          {/* 工具分布 */}
-          <div style={chartPanelStyle}>
-            <ToolDistribution timeRange={timeRange} style={{ height: '100%' }} />
-          </div>
+          {/* 图表区域 */}
+          {hasData && (
+            <>
+              <div
+                style={{
+                  display: 'flex',
+                  flex: 1,
+                  minHeight: 0,
+                  borderBottom: '1px solid var(--border)',
+                }}
+              >
+                <div
+                  style={{ flex: 1, minWidth: 0, borderRight: '1px solid var(--border)', overflow: 'auto' }}
+                >
+                  <ToolDistribution timeRange={timeRange} workspacePath={workspacePath} style={{ height: '100%' }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0, overflow: 'auto' }}>
+                  <ToolRanking timeRange={timeRange} workspacePath={workspacePath} style={{ height: '100%' }} />
+                </div>
+              </div>
 
-          {/* 工具排行 */}
-          <div style={chartPanelStyle}>
-            <ToolRanking timeRange={timeRange} style={{ height: '100%' }} />
-          </div>
-        </div>
-
-        {/* 底部：错误率趋势 */}
-        <div style={bottomChartStyle}>
-          <ErrorRateTrendChart timeRange={timeRange} />
+              {/* 底部：错误率趋势 */}
+              <div style={{ height: 280, overflow: 'auto', flexShrink: 0 }}>
+                <ErrorRateTrendChart timeRange={timeRange} workspacePath={workspacePath} />
+              </div>
+            </>
+          )}
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -159,140 +528,3 @@ function formatDuration(ms: number): string {
   if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
   return `${(ms / 60000).toFixed(1)}min`;
 }
-
-// 模态框样式
-const overlayStyle: React.CSSProperties = {
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  background: 'rgba(0,0,0,0.5)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 1000,
-};
-
-const modalStyle: React.CSSProperties = {
-  background: 'var(--bg-root)',
-  borderRadius: 12,
-  border: '1px solid var(--border)',
-  width: '90%',
-  maxWidth: 900,
-  maxHeight: '85vh',
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'hidden',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-};
-
-const headerStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '14px 16px',
-  borderBottom: '1px solid var(--border)',
-  backgroundColor: 'var(--bg-card)',
-  flexShrink: 0,
-};
-
-const titleStyle: React.CSSProperties = {
-  fontWeight: 600,
-  fontSize: 15,
-  color: 'var(--text-primary)',
-};
-
-const headerRightStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 12,
-};
-
-const timeRangeContainerStyle: React.CSSProperties = {
-  display: 'flex',
-  backgroundColor: 'var(--bg-input)',
-  borderRadius: 6,
-  padding: 2,
-  gap: 2,
-};
-
-const timeRangeButtonStyle: React.CSSProperties = {
-  padding: '4px 10px',
-  fontSize: 12,
-  border: 'none',
-  borderRadius: 4,
-  backgroundColor: 'transparent',
-  color: 'var(--text-secondary)',
-  cursor: 'pointer',
-  transition: 'all 0.15s',
-};
-
-const timeRangeButtonActiveStyle: React.CSSProperties = {
-  backgroundColor: 'var(--accent)',
-  color: '#fff',
-};
-
-const closeButtonStyle: React.CSSProperties = {
-  background: 'transparent',
-  border: 'none',
-  color: 'var(--text-dim)',
-  cursor: 'pointer',
-  padding: 4,
-  borderRadius: 4,
-  fontSize: 16,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  transition: 'all 0.15s',
-};
-
-const summaryContainerStyle: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(6, 1fr)',
-  gap: 8,
-  padding: 12,
-  borderBottom: '1px solid var(--border)',
-  flexShrink: 0,
-};
-
-const summaryCardStyle: React.CSSProperties = {
-  backgroundColor: 'var(--bg-card)',
-  borderRadius: 8,
-  padding: '10px 12px',
-  border: '1px solid var(--border)',
-  textAlign: 'center',
-};
-
-const summaryValueStyle: React.CSSProperties = {
-  fontSize: 18,
-  fontWeight: 700,
-  color: 'var(--text-primary)',
-  marginBottom: 2,
-  fontFamily: "'JetBrains Mono', monospace",
-};
-
-const summaryLabelStyle: React.CSSProperties = {
-  fontSize: 10,
-  color: 'var(--text-muted)',
-};
-
-const chartsContainerStyle: React.CSSProperties = {
-  display: 'flex',
-  flex: 1,
-  minHeight: 0,
-  borderBottom: '1px solid var(--border)',
-};
-
-const chartPanelStyle: React.CSSProperties = {
-  flex: 1,
-  minWidth: 0,
-  borderRight: '1px solid var(--border)',
-  overflow: 'auto',
-};
-
-const bottomChartStyle: React.CSSProperties = {
-  height: 280,
-  overflow: 'auto',
-  flexShrink: 0,
-};
