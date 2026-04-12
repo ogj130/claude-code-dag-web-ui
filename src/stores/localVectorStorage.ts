@@ -81,7 +81,7 @@ class VectorDB extends Dexie {
 
   constructor() {
     super('cc-web-vector');
-    this.version(1).stores({
+    this.version(10).stores({
       chunks: '++id, chunkType, sessionId, queryId, workspacePath, timestamp',
     });
   }
@@ -456,40 +456,50 @@ export async function syncSessionToVector(sessionId: string, workspacePath: stri
   const { getQuery } = await import('@/stores/queryStorage');
   const queries = await db.queries.where('sessionId').equals(sessionId).toArray() as QueryRecord[];
 
-  let count = 0;
+  let indexedCount = 0; // 总 chunk 数（query + answer）
+  let answerChunkCount = 0;
   for (const q of queries) {
     // 用 getQuery 解密+解压缩，获取原始文本
     const fullQuery = await getQuery(q.id);
     if (!fullQuery?.query) continue;
     try {
+      // 索引 Query chunk
       await indexQueryChunk(sessionId, q.id, workspacePath, fullQuery.query, {
         sessionTitle: (q as { sessionTitle?: string }).sessionTitle,
       });
-      count++;
+      indexedCount++;
+
+      // 索引 Answer chunk（如果有）
+      if (fullQuery.summary) {
+        const ids = await indexAnswerChunks(sessionId, q.id, workspacePath, fullQuery.summary, {
+          sessionTitle: (q as { sessionTitle?: string }).sessionTitle,
+          parentQuery: fullQuery.query,
+        });
+        answerChunkCount += ids.length;
+        indexedCount += ids.length;
+      }
     } catch {
       // 跳过向量化失败的单条
     }
   }
 
-  // 标记该会话已索引
-  if (count > 0) {
-    markSessionIndexed(sessionId, workspacePath, count);
-  }
-  return count;
+  console.info(`[VectorStorage] Indexed session ${sessionId}: ${indexedCount - answerChunkCount} queries + ${answerChunkCount} answer chunks`);
+  return indexedCount;
 }
 
-// ── 索引状态管理（持久化） ──────────────────────────────────────────────────
+// ── 索引状态管理（持久化）──────────────────────────────────────────────────
 
-interface IndexedSession {
-  sessionId: string;
+// 索引状态按工作路径组织，同一工作路径下的所有会话共享一个索引记录
+interface IndexedWorkspace {
   workspacePath: string;
   indexedAt: number;
-  queryCount: number;
+  chunkCount: number; // 该工作路径下的总 chunk 数
+  sessionCount: number; // 已索引的会话数
 }
 
-const INDEX_STATE_KEY = 'rag_indexed_sessions';
+const INDEX_STATE_KEY = 'rag_indexed_workspaces';
 
-function _getIndexedSessions(): IndexedSession[] {
+function _getIndexedWorkspaces(): IndexedWorkspace[] {
   try {
     const raw = localStorage.getItem(INDEX_STATE_KEY);
     return raw ? JSON.parse(raw) : [];
@@ -498,18 +508,70 @@ function _getIndexedSessions(): IndexedSession[] {
   }
 }
 
-function _saveIndexedSessions(sessions: IndexedSession[]): void {
-  localStorage.setItem(INDEX_STATE_KEY, JSON.stringify(sessions));
+function _saveIndexedWorkspaces(workspaces: IndexedWorkspace[]): void {
+  localStorage.setItem(INDEX_STATE_KEY, JSON.stringify(workspaces));
 }
 
-export function getIndexedSessions(): IndexedSession[] {
-  return _getIndexedSessions();
+export function getIndexedSessions(): Array<{
+  sessionId: string;
+  workspacePath: string;
+  indexedAt: number;
+  queryCount: number;
+}> {
+  // 兼容旧接口：返回空数组，UI 使用 getIndexedWorkspaces
+  return [];
 }
 
-export function markSessionIndexed(sessionId: string, workspacePath: string, queryCount: number): void {
-  const sessions = _getIndexedSessions().filter(s => s.sessionId !== sessionId);
-  sessions.push({ sessionId, workspacePath, indexedAt: Date.now(), queryCount });
-  _saveIndexedSessions(sessions);
+export function getIndexedWorkspaces(): IndexedWorkspace[] {
+  return _getIndexedWorkspaces();
+}
+
+/**
+ * 标记工作路径已索引（合并更新）
+ */
+export function markWorkspaceIndexed(workspacePath: string, chunkCount: number, sessionCount: number): void {
+  const workspaces = _getIndexedWorkspaces().filter(w => w.workspacePath !== workspacePath);
+  workspaces.push({ workspacePath, indexedAt: Date.now(), chunkCount, sessionCount });
+  _saveIndexedWorkspaces(workspaces);
+}
+
+/**
+ * 同步指定工作路径下的所有会话到向量库
+ *
+ * 1. 获取该工作路径的所有会话
+ * 2. 遍历每个会话，索引其 query 和 answer chunks
+ * 3. 汇总 chunk 数，标记工作路径为已索引
+ */
+export async function syncWorkspaceToVector(workspacePath: string): Promise<number> {
+  const { db } = await import('@/lib/db');
+
+  // 获取该工作路径的所有会话
+  const sessions = await db.sessions.toArray();
+  const pathSessions = sessions.filter(s => (s.projectPath || 'Default') === workspacePath);
+
+  if (pathSessions.length === 0) {
+    console.info(`[VectorStorage] No sessions found for workspace: ${workspacePath}`);
+    return 0;
+  }
+
+  let totalChunks = 0;
+  let indexedSessionCount = 0;
+
+  for (const session of pathSessions) {
+    const count = await syncSessionToVector(session.id, workspacePath);
+    if (count > 0) {
+      totalChunks += count;
+      indexedSessionCount++;
+    }
+  }
+
+  // 标记工作路径为已索引
+  if (totalChunks > 0) {
+    markWorkspaceIndexed(workspacePath, totalChunks, indexedSessionCount);
+    console.info(`[VectorStorage] Indexed workspace ${workspacePath}: ${indexedSessionCount} sessions, ${totalChunks} chunks`);
+  }
+
+  return totalChunks;
 }
 
 // ── 内部 ──────────────────────────────────────────────────────────────────

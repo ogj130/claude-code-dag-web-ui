@@ -14,9 +14,10 @@ interface Props {
   onOpenThemeSettings: () => void;
   onOpenAnalytics?: () => void;
   onOpenTokenAnalytics?: () => void;
+  onOpenRAG?: () => void;
 }
 
-export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, onOpenThemeSettings, onOpenAnalytics, onOpenTokenAnalytics }: Props) {
+export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, onOpenThemeSettings, onOpenAnalytics, onOpenTokenAnalytics, onOpenRAG }: Props) {
   const { addSession } = useSessionStore();
   const { groupingEnabled, toggleGrouping } = useTaskStore();
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
@@ -167,6 +168,23 @@ export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, o
             <path d="M4 4l16 16M20 4L4 20" />
           </svg>
           Token 统计
+        </button>
+        <button
+          onClick={onOpenRAG}
+          style={{
+            background: 'transparent', color: 'var(--text-muted)',
+            border: '1px solid var(--border)', padding: '6px 12px',
+            borderRadius: 6, fontSize: 12, cursor: 'pointer',
+            fontFamily: 'inherit', transition: 'all 0.2s',
+            display: 'flex', alignItems: 'center', gap: 5,
+          }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth={1.8}
+            strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+          RAG 检索
         </button>
         <button
           onClick={onOpenThemeSettings}

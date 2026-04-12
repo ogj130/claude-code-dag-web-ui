@@ -160,10 +160,12 @@ function StatCard({
 // ---------------------------------------------------------------------------
 
 export function TokenAnalytics({ isOpen, onClose }: TokenAnalyticsProps) {
+  console.info('[TokenAnalytics] render, isOpen:', isOpen);
   const sessions = useSessionStore(s => s.sessions);
   const activeSessionId = useSessionStore(s => s.activeSessionId);
   const currentSession = sessions.find(s => s.id === activeSessionId);
   const workspacePath = currentSession?.projectPath;
+  console.info('[TokenAnalytics] workspacePath:', workspacePath, 'activeSessionId:', activeSessionId);
 
   const [overallStats, setOverallStats] = useState<{
     totalTokens: number;
@@ -205,10 +207,11 @@ export function TokenAnalytics({ isOpen, onClose }: TokenAnalyticsProps) {
   }, [trendDays, workspacePath]);
 
   useEffect(() => {
+    console.info('[TokenAnalytics] useEffect fired, isOpen:', isOpen, 'workspacePath:', workspacePath);
     if (isOpen) {
       loadStats();
     }
-  }, [isOpen, trendDays, loadStats]);
+  }, [isOpen, trendDays, workspacePath, loadStats]);
 
   // ESC 键关闭
   useEffect(() => {

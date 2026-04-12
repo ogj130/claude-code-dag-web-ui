@@ -85,11 +85,15 @@ export async function saveConfig(config: Omit<EmbeddingConfig, 'id' | 'createdAt
     lastTestedAt: config.lastTestedAt, lastTestLatency: config.lastTestLatency,
     lastTestDimension: config.lastTestDimension,
   };
-  if (stored.isDefault === 1) {
-    await edb.configs.where('isDefault').equals(1).modify({ isDefault: 0 });
-  }
-  await edb.configs.add(stored);
-  return { id, ...config, createdAt: now, updatedAt: now };
+
+  await edb.transaction('rw', edb.configs, async () => {
+    if (stored.isDefault === 1) {
+      await edb.configs.where('isDefault').equals(1).modify({ isDefault: 0 });
+    }
+    await edb.configs.add(stored);
+  });
+
+  return toPublic(stored);
 }
 
 export async function updateConfig(id: string, updates: Partial<Omit<EmbeddingConfig, 'id' | 'createdAt'>>): Promise<void> {
@@ -115,8 +119,10 @@ export async function deleteConfig(id: string): Promise<void> {
 }
 
 export async function setDefaultConfig(id: string): Promise<void> {
-  await edb.configs.where('isDefault').equals(1).modify({ isDefault: 0 });
-  await edb.configs.update(id, { isDefault: 1, updatedAt: Date.now() });
+  await edb.transaction('rw', edb.configs, async () => {
+    await edb.configs.where('isDefault').equals(1).modify({ isDefault: 0 });
+    await edb.configs.update(id, { isDefault: 1, updatedAt: Date.now() });
+  });
 }
 
 /** 仅供测试使用 */

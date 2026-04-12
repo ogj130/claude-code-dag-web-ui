@@ -10,6 +10,8 @@ import type {
   PaginatedResult,
   PaginationParams,
 } from '@/types/storage';
+import { encryptField, decryptField } from '@/utils/encryption';
+import { isPrivacyModeEnabled } from './useSessionStore';
 
 /** 默认分页参数 */
 const DEFAULT_PAGINATION: PaginationParams = {
@@ -31,9 +33,17 @@ function generateId(): string {
  */
 export async function createSession(input: CreateSessionInput): Promise<DBSession> {
   const now = Date.now();
+  const privacyMode = isPrivacyModeEnabled();
+
+  // 隐私模式下加密标题
+  const title = privacyMode && input.title
+    ? encryptField(input.title)
+    : (input.title ?? '');
+
+  const { title: _rawTitle, ...restInput } = input;
   const session: DBSession = {
     id: generateId(),
-    title: input.title,
+    title,
     createdAt: now,
     updatedAt: now,
     queryCount: 0,
@@ -41,10 +51,11 @@ export async function createSession(input: CreateSessionInput): Promise<DBSessio
     tags: input.tags ?? [],
     summary: '',
     status: 'active',
+    ...restInput,
   };
 
   await db.sessions.add(session);
-  console.info('[SessionStorage] Created session:', session.id);
+  console.info('[SessionStorage] Created session:', session.id, privacyMode ? '(encrypted)' : '(plain)');
   return session;
 }
 
@@ -54,7 +65,23 @@ export async function createSession(input: CreateSessionInput): Promise<DBSessio
  * @returns Session 或 undefined
  */
 export async function getSession(id: string): Promise<DBSession | undefined> {
-  return db.sessions.get(id);
+  const session = await db.sessions.get(id);
+  if (!session) return undefined;
+
+  // 隐私模式下尝试解密标题和摘要（非隐私模式也解密历史加密数据）
+  let title = session.title;
+  let summary = session.summary;
+
+  const decryptedTitle = decryptField(title);
+  if (decryptedTitle) title = decryptedTitle;
+  const decryptedSummary = decryptField(summary ?? '');
+  if (decryptedSummary) summary = decryptedSummary;
+
+  return {
+    ...session,
+    title: title ?? '',
+    summary: summary ?? '',
+  };
 }
 
 /**
@@ -71,14 +98,17 @@ export async function updateSession(
     updatedAt: Date.now(),
   };
 
+  const privacyMode = isPrivacyModeEnabled();
+
+  // 隐私模式下加密敏感字段
   if (input.title !== undefined) {
-    updates.title = input.title;
+    updates.title = privacyMode ? encryptField(input.title) : input.title;
+  }
+  if (input.summary !== undefined) {
+    updates.summary = privacyMode ? encryptField(input.summary) : input.summary;
   }
   if (input.tags !== undefined) {
     updates.tags = input.tags;
-  }
-  if (input.summary !== undefined) {
-    updates.summary = input.summary;
   }
   if (input.status !== undefined) {
     updates.status = input.status;
@@ -103,8 +133,8 @@ export async function updateSession(
   }
 
   await db.sessions.update(id, updates);
-  console.info('[SessionStorage] Updated session:', id);
-  return db.sessions.get(id);
+  console.info('[SessionStorage] Updated session:', id, privacyMode ? '(encrypted sensitive fields)' : '');
+  return getSession(id);
 }
 
 /**
@@ -152,12 +182,34 @@ export async function getSessionList(
     : await db.sessions.where('status').notEqual('deleted').count();
 
   // 获取分页数据（按 updatedAt 降序）
-  const items = await db.sessions
+  let items = await db.sessions
     .orderBy('updatedAt')
     .reverse()
     .offset(offset)
     .limit(pageSize)
     .toArray();
+
+  // 非 includeDeleted 时过滤已删除
+  if (!includeDeleted) {
+    items = items.filter(s => s.status !== 'deleted');
+  }
+
+  // 统一解密所有会话的 title 和 summary
+  items = items.map(session => {
+    let title = session.title;
+    let summary = session.summary;
+
+    const decryptedTitle = decryptField(title);
+    if (decryptedTitle) title = decryptedTitle;
+    const decryptedSummary = decryptField(summary ?? '');
+    if (decryptedSummary) summary = decryptedSummary;
+
+    return {
+      ...session,
+      title: title ?? '',
+      summary: summary ?? '',
+    };
+  });
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -177,12 +229,29 @@ export async function getSessionList(
  * @returns Session 列表
  */
 export async function getRecentSessions(limit = 20): Promise<DBSession[]> {
-  return db.sessions
+  const items = await db.sessions
     .where('status')
     .equals('active')
     .reverse()
     .sortBy('updatedAt')
     .then(items => items.slice(0, limit));
+
+  // 统一解密所有会话的 title 和 summary
+  return items.map(session => {
+    let title = session.title;
+    let summary = session.summary;
+
+    const decryptedTitle = decryptField(title);
+    if (decryptedTitle) title = decryptedTitle;
+    const decryptedSummary = decryptField(summary ?? '');
+    if (decryptedSummary) summary = decryptedSummary;
+
+    return {
+      ...session,
+      title: title ?? '',
+      summary: summary ?? '',
+    };
+  });
 }
 
 /**
@@ -210,8 +279,25 @@ export async function getSessionsByTags(
     tags.some(tag => session.tags.includes(tag))
   );
 
-  const total = filteredItems.length;
-  const items = filteredItems.slice(offset, offset + pageSize);
+  // 统一解密所有会话的 title 和 summary
+  const decryptedItems = filteredItems.map(session => {
+    let title = session.title;
+    let summary = session.summary;
+
+    const decryptedTitle = decryptField(title);
+    if (decryptedTitle) title = decryptedTitle;
+    const decryptedSummary = decryptField(summary ?? '');
+    if (decryptedSummary) summary = decryptedSummary;
+
+    return {
+      ...session,
+      title: title ?? '',
+      summary: summary ?? '',
+    };
+  });
+
+  const total = decryptedItems.length;
+  const items = decryptedItems.slice(offset, offset + pageSize);
   const totalPages = Math.ceil(total / pageSize);
 
   return {
@@ -273,5 +359,22 @@ export async function getSessionStats(): Promise<{
  * @returns 所有会话列表
  */
 export async function getAllSessions(): Promise<DBSession[]> {
-  return db.sessions.toArray();
+  const sessions = await db.sessions.toArray();
+
+  // 统一解密所有会话的 title 和 summary
+  return sessions.map(session => {
+    let title = session.title;
+    let summary = session.summary;
+
+    const decryptedTitle = decryptField(title);
+    if (decryptedTitle) title = decryptedTitle;
+    const decryptedSummary = decryptField(summary ?? '');
+    if (decryptedSummary) summary = decryptedSummary;
+
+    return {
+      ...session,
+      title: title ?? '',
+      summary: summary ?? '',
+    };
+  });
 }

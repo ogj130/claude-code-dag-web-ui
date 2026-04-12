@@ -75,12 +75,25 @@ export class CCDatabase extends Dexie {
       });
     });
 
-    // Version 3: 添加 workspacePath 索引
+    // Version 3: 添加 workspacePath 索引（queries 表需回填已有记录）
     this.version(3).stores({
       sessions: 'id, workspacePath, updatedAt, status, createdAt, accessCount, *tags',
-      queries: 'id, sessionId, createdAt, status, accessCount',
+      queries: 'id, sessionId, createdAt, status, accessCount, workspacePath',
       toolCalls: 'id, queryId, sessionId',
       sessionShards: 'id, sessionId, [sessionId+shardIndex]',
+    }).upgrade(async tx => {
+      // 回填已有 query 记录的 workspacePath（从关联的 session 读取）
+      const sessions = await tx.table('sessions').toCollection().toArray();
+      const sessionPathMap = new Map<string, string>();
+      for (const s of sessions) {
+        sessionPathMap.set(s.id, (s as Record<string, unknown>).workspacePath as string ?? '');
+      }
+      await tx.table('queries').toCollection().modify((q: Record<string, unknown>) => {
+        const sessionId = q.sessionId as string;
+        if (sessionPathMap.has(sessionId)) {
+          q.workspacePath = sessionPathMap.get(sessionId) ?? '';
+        }
+      });
     });
   }
 }

@@ -532,8 +532,8 @@ export function DataDashboard() {
           count: byDate[day] ?? 0,
         }));
       } catch {
-        // Fallback: 生成随机趋势
-        queryTrend = last7Days.map(() => ({ date: '', count: Math.floor(Math.random() * 50) + 5 }));
+        // 无数据时显示空状态（不生成随机数据，避免界面抖动）
+        queryTrend = last7Days.map(day => ({ date: day, count: 0 }));
       }
 
       // 工具调用统计（从 toolCalls 表，fallback 模拟）
@@ -551,12 +551,28 @@ export function DataDashboard() {
         toolRanking = [];
       }
 
-      // TODO: 向量统计（等待 LanceDB / Task D 完成）
-      const totalVectors = 0;
-      const indexedQueries = 0;
-      const indexedToolCalls = 0;
-      const vectorUsageMB = 0;
-      const ragHealth = 0;
+      // 向量统计（通过 IPC 从主进程 LanceDB 获取）
+      let totalVectors = 0;
+      let indexedQueries = 0;
+      let indexedToolCalls = 0;
+      let vectorUsageMB = 0;
+      let ragHealth = 0;
+      try {
+        if (window.electronAPI?.vectorApi) {
+          const stats = await window.electronAPI.vectorApi.getTableStats() as {
+            totalChunks: number; tables: Array<{ name: string; count: number }>;
+          };
+          totalVectors = stats.totalChunks ?? 0;
+          indexedQueries = stats.tables.find(t => t.name === 'rag_global')?.count ?? 0;
+          indexedToolCalls = totalVectors - indexedQueries;
+          // 估算：每个向量约 4KB（1536维 float32 ≈ 6KB，压缩后约 4KB）
+          vectorUsageMB = (totalVectors * 4) / 1024;
+          // 健康度：已索引 Query > 100 则为 100，否则按比例
+          ragHealth = Math.min(100, Math.round((indexedQueries / 100) * 100));
+        }
+      } catch {
+        // LanceDB 不可用，保持 0 值，显示"未连接"状态
+      }
 
       setData({
         workspacePaths,

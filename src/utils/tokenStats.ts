@@ -121,7 +121,7 @@ export async function getTokenTrend(days: 7 | 30, workspacePath?: string): Promi
 
   // 按工作路径过滤
   if (workspacePath) {
-    queries = queries.filter(q => q.projectPath === workspacePath);
+    queries = queries.filter(q => q.workspacePath === workspacePath);
   }
 
   // 按日期聚合数据
@@ -191,16 +191,19 @@ export async function getOverallStats(workspacePath?: string): Promise<{
   avgTokensPerQuery: number;
 }> {
   let queries = await db.queries.toArray();
+  console.info('[tokenStats] getOverallStats: total queries in DB:', queries.length, 'workspacePath:', workspacePath);
 
   // 按工作路径过滤
   if (workspacePath) {
-    queries = queries.filter(q => q.projectPath === workspacePath);
+    queries = queries.filter(q => q.workspacePath === workspacePath);
+    console.info('[tokenStats] after filter:', queries.length);
   }
 
   const totalTokens = queries.reduce((sum, q) => sum + q.tokenUsage, 0);
   const totalQueries = queries.length;
   const avgTokensPerQuery = totalQueries > 0 ? Math.round(totalTokens / totalQueries) : 0;
 
+  console.info('[tokenStats] getOverallStats result:', { totalTokens, totalQueries, avgTokensPerQuery });
   return {
     totalTokens,
     totalQueries,

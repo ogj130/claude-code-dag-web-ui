@@ -73,10 +73,12 @@ function getDateString(timestamp: number): string {
  */
 async function getToolCallsInRange(days?: TimeRange, workspacePath?: string): Promise<ToolCall[]> {
   let allQueries = await db.queries.toArray();
+  console.info('[executionStats] getToolCallsInRange: total queries in DB:', allQueries.length, 'workspacePath:', workspacePath);
 
   // 按工作路径过滤
   if (workspacePath) {
-    allQueries = allQueries.filter(q => q.projectPath === workspacePath);
+    allQueries = allQueries.filter(q => q.workspacePath === workspacePath);
+    console.info('[executionStats] after workspacePath filter:', allQueries.length);
   }
 
   const allToolCalls: ToolCall[] = [];

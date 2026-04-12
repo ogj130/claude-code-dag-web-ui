@@ -1,84 +1,14 @@
-/**
- * EmbeddingConfigPanel — Embedding 配置管理面板
- *
- * 管理向量嵌入配置：添加/编辑/删除/测试连接/设为默认
- */
-
 import { useState, useEffect, useCallback } from 'react';
-
-// ---------------------------------------------------------------------------
-// 类型定义（接口约定，待 embeddingConfigStorage.ts 由其他 agent 创建后验证）
-// ---------------------------------------------------------------------------
-
-export type EmbeddingProvider = 'openai' | 'ollama' | 'cohere' | 'local';
-
-export interface EmbeddingConfig {
-  id: string;
-  name: string;
-  provider: EmbeddingProvider;
-  endpoint: string;
-  apiKey?: string;
-  model: string;
-  dimension: number;
-  isDefault: boolean;
-  createdAt: number;
-  updatedAt: number;
-  lastTestedAt?: number;
-  lastTestLatency?: number;
-  lastTestDimension?: number;
-}
-
-export interface TestResult {
-  success: boolean;
-  latency?: number;
-  dimension?: number;
-  error?: string;
-}
-
-// ---------------------------------------------------------------------------
-// 接口函数声明（将由 embeddingConfigStorage.ts 提供）
-// ---------------------------------------------------------------------------
-
-async function getAllConfigs(): Promise<EmbeddingConfig[]> {
-  // TODO: 替换为真实导入
-  // import { getAllConfigs } from '@/stores/embeddingConfigStorage';
-  console.warn('[EmbeddingConfigPanel] Using stub getAllConfigs — replace with real import');
-  return [];
-}
-
-async function saveConfig(
-  config: Omit<EmbeddingConfig, 'id' | 'createdAt' | 'updatedAt'>
-): Promise<EmbeddingConfig> {
-  console.warn('[EmbeddingConfigPanel] Using stub saveConfig — replace with real import');
-  return { ...config, id: `stub_${Date.now()}`, createdAt: Date.now(), updatedAt: Date.now() };
-}
-
-async function updateConfig(
-  _id: string,
-  _updates: Partial<Omit<EmbeddingConfig, 'id' | 'createdAt' | 'updatedAt'>>
-): Promise<void> {
-  console.warn('[EmbeddingConfigPanel] Using stub updateConfig — replace with real import');
-}
-
-async function deleteConfig(_id: string): Promise<void> {
-  console.warn('[EmbeddingConfigPanel] Using stub deleteConfig — replace with real import');
-}
-
-async function setDefaultConfig(_id: string): Promise<void> {
-  console.warn('[EmbeddingConfigPanel] Using stub setDefaultConfig — replace with real import');
-}
-
-async function testConnection(_config: EmbeddingConfig): Promise<TestResult> {
-  // TODO: 替换为真实导入
-  // import { testConnection } from '@/utils/embedding';
-  console.warn('[EmbeddingConfigPanel] Using stub testConnection — replace with real import');
-  // 模拟测试
-  return new Promise(resolve =>
-    setTimeout(() => {
-      resolve({ success: true, latency: Math.floor(Math.random() * 200) + 20, dimension: 1536 });
-    }, 800)
-  );
-}
+import {
+  getAllConfigs,
+  saveConfig,
+  updateConfig,
+  deleteConfig,
+  setDefaultConfig,
+} from '@/stores/embeddingConfigStorage';
+import { testConnection } from '@/utils/embedding';
+import type { EmbeddingConfig, EmbeddingProvider } from '@/stores/embeddingConfigStorage';
+import type { TestResult } from '@/utils/embedding';
 
 // ---------------------------------------------------------------------------
 // 常量

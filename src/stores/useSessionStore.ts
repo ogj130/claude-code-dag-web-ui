@@ -143,10 +143,17 @@ export const useSessionStore = create<SessionState>((set) => {
     },
   });
 
+  const defaultSession = createDefaultSession();
+
+  // 默认会话立即写入 CCWebDB（保证首次 Query 创建时 session 已存在）
+  engine.writeSessionImmediately(defaultSession).catch(err => {
+    console.error('[SessionStore] 写入默认会话失败', err);
+  });
+
   return {
     // 初始值：单个默认会话
-    sessions: [createDefaultSession()],
-    activeSessionId: FALLBACK_SESSION_ID,
+    sessions: [defaultSession],
+    activeSessionId: defaultSession.id,
     syncState: engine.state,
     isInitialized: false,
 
@@ -363,3 +370,8 @@ export function initMemoryMonitoring(interval = 60000): () => void {
 
   return memoryMonitorCleanup;
 }
+
+// 开发调试用：浏览器控制台可直接调用 window.__sessionStore.setState(...)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(window as any).__sessionStore = useSessionStore;
+

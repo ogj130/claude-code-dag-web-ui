@@ -16,8 +16,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { search } from '@/stores/vectorStorage';
 import type { SearchResult } from '@/stores/vectorStorage';
-import { getIndexedSessions } from '@/stores/localVectorStorage';
+import { getIndexedWorkspaces } from '@/stores/localVectorStorage';
 import { useRAGContext } from '@/hooks/useRAGContext';
+import ReactMarkdown from 'react-markdown';
 
 // ---------------------------------------------------------------------------
 // 类型
@@ -79,9 +80,12 @@ function ResultItem({
   isSelected: boolean;
   onToggle: () => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const isQuery = result.chunkType === 'query';
-  const typeColor = isQuery ? '#4a9eff' : '#f97316';
-  const typeBg = isQuery ? 'rgba(74,158,255,0.12)' : 'rgba(249,115,22,0.12)';
+  const isAnswer = result.chunkType === 'answer';
+  const typeColor = isQuery ? '#4a9eff' : isAnswer ? '#a855f7' : '#f97316';
+  const typeBg = isQuery ? 'rgba(74,158,255,0.12)' : isAnswer ? 'rgba(168,85,247,0.12)' : 'rgba(249,115,22,0.12)';
+  const typeLabel = isQuery ? 'Query' : isAnswer ? 'Answer' : 'ToolCall';
 
   const timeStr = new Date(result.timestamp).toLocaleString('zh-CN', {
     month: '2-digit',
@@ -90,13 +94,13 @@ function ResultItem({
     minute: '2-digit',
   });
 
-  // 内容截断
-  const displayContent = result.content.length > 180
-    ? result.content.substring(0, 180) + '…'
-    : result.content;
-
   // 会话标题
   const sessionTitle = result.metadata?.sessionTitle as string | undefined;
+
+  // 预览内容（截断前 200 字符）
+  const previewContent = result.content.length > 200
+    ? result.content.substring(0, 200) + '…'
+    : result.content;
 
   return (
     <div
@@ -124,7 +128,7 @@ function ResultItem({
           letterSpacing: '0.04em',
           flexShrink: 0,
         }}>
-          {isQuery ? 'Query' : 'ToolCall'}
+          {typeLabel}
         </span>
 
         {/* 相似度 */}
@@ -157,6 +161,23 @@ function ResultItem({
           {timeStr}
         </span>
 
+        {/* 展开/折叠按钮 */}
+        <button
+          onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
+          style={{
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border)',
+            borderRadius: 4,
+            padding: '2px 6px',
+            fontSize: 9,
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            flexShrink: 0,
+          }}
+        >
+          {expanded ? '收起' : '展开'}
+        </button>
+
         {/* 选中指示器 */}
         <div style={{
           width: 14,
@@ -178,18 +199,159 @@ function ResultItem({
         </div>
       </div>
 
-      {/* 内容 */}
+      {/* 内容 - Markdown 渲染 */}
       <div style={{
-        fontSize: 11,
-        color: 'var(--text-secondary)',
-        lineHeight: 1.55,
-        padding: '7px 10px',
         background: 'var(--bg-input)',
         borderRadius: 6,
-        fontFamily: "'JetBrains Mono', monospace",
-        wordBreak: 'break-word',
+        overflow: 'hidden',
       }}>
-        {displayContent}
+        {expanded ? (
+          // 展开模式：完整 Markdown 渲染
+          <div style={{
+            padding: '10px 12px',
+            fontSize: 12,
+            color: 'var(--text-secondary)',
+            lineHeight: 1.6,
+            maxHeight: 400,
+            overflowY: 'auto',
+          }}>
+            <ReactMarkdown
+              components={{
+                // 代码块样式
+                code: ({ className, children, ...props }) => {
+                  const isInline = !className;
+                  return isInline ? (
+                    <code style={{
+                      background: 'rgba(0,0,0,0.15)',
+                      padding: '1px 4px',
+                      borderRadius: 3,
+                      fontSize: '0.9em',
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }} {...props}>
+                      {children}
+                    </code>
+                  ) : (
+                    <code style={{
+                      display: 'block',
+                      background: 'rgba(0,0,0,0.2)',
+                      padding: '10px 12px',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      overflowX: 'auto',
+                      margin: '8px 0',
+                    }} {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+                // 表格样式
+                table: ({ children }) => (
+                  <div style={{ overflowX: 'auto', margin: '8px 0' }}>
+                    <table style={{
+                      borderCollapse: 'collapse',
+                      width: '100%',
+                      fontSize: 11,
+                    }}>
+                      {children}
+                    </table>
+                  </div>
+                ),
+                th: ({ children }) => (
+                  <th style={{
+                    border: '1px solid var(--border)',
+                    padding: '6px 10px',
+                    background: 'rgba(0,0,0,0.1)',
+                    textAlign: 'left',
+                  }}>{children}</th>
+                ),
+                td: ({ children }) => (
+                  <td style={{
+                    border: '1px solid var(--border)',
+                    padding: '6px 10px',
+                  }}>{children}</td>
+                ),
+                // 标题样式
+                h1: ({ children }) => <h1 style={{ fontSize: 16, margin: '12px 0 8px', color: 'var(--text-primary)' }}>{children}</h1>,
+                h2: ({ children }) => <h2 style={{ fontSize: 14, margin: '10px 0 6px', color: 'var(--text-primary)' }}>{children}</h2>,
+                h3: ({ children }) => <h3 style={{ fontSize: 13, margin: '8px 0 4px', color: 'var(--text-primary)' }}>{children}</h3>,
+                p: ({ children }) => <p style={{ margin: '6px 0' }}>{children}</p>,
+                ul: ({ children }) => <ul style={{ margin: '6px 0', paddingLeft: 20 }}>{children}</ul>,
+                ol: ({ children }) => <ol style={{ margin: '6px 0', paddingLeft: 20 }}>{children}</ol>,
+                li: ({ children }) => <li style={{ margin: '3px 0' }}>{children}</li>,
+                strong: ({ children }) => <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{children}</strong>,
+              }}
+            >
+              {result.content}
+            </ReactMarkdown>
+          </div>
+        ) : (
+          // 预览模式：Markdown 渲染（截断预览）
+          <div style={{
+            padding: '8px 10px',
+            fontSize: 11,
+            color: 'var(--text-secondary)',
+            lineHeight: 1.6,
+            maxHeight: 120,
+            overflowY: 'hidden',
+          }}>
+            <ReactMarkdown
+              components={{
+                // 代码块：紧凑样式
+                code: ({ className, children, ...props }) => {
+                  const isInline = !className;
+                  return isInline ? (
+                    <code style={{
+                      background: 'rgba(0,0,0,0.12)',
+                      padding: '1px 4px',
+                      borderRadius: 3,
+                      fontSize: '0.9em',
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }} {...props}>
+                      {children}
+                    </code>
+                  ) : (
+                    <code style={{
+                      display: 'block',
+                      background: 'rgba(0,0,0,0.15)',
+                      padding: '6px 8px',
+                      borderRadius: 4,
+                      fontSize: 10,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      overflowX: 'auto',
+                      margin: '4px 0',
+                    }} {...props}>
+                      {children}
+                    </code>
+                  );
+                },
+                // 标题：紧凑
+                h1: ({ children }) => <h1 style={{ fontSize: 13, margin: '4px 0 2px', color: 'var(--text-primary)' }}>{children}</h1>,
+                h2: ({ children }) => <h2 style={{ fontSize: 12, margin: '4px 0 2px', color: 'var(--text-primary)' }}>{children}</h2>,
+                h3: ({ children }) => <h3 style={{ fontSize: 11, margin: '4px 0 2px', color: 'var(--text-primary)' }}>{children}</h3>,
+                p: ({ children }) => <p style={{ margin: '3px 0' }}>{children}</p>,
+                ul: ({ children }) => <ul style={{ margin: '3px 0', paddingLeft: 16 }}>{children}</ul>,
+                ol: ({ children }) => <ol style={{ margin: '3px 0', paddingLeft: 16 }}>{children}</ol>,
+                li: ({ children }) => <li style={{ margin: '2px 0' }}>{children}</li>,
+                strong: ({ children }) => <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{children}</strong>,
+                // 表格：紧凑显示
+                table: ({ children }) => (
+                  <div style={{ overflowX: 'auto', margin: '4px 0', fontSize: 10 }}>
+                    <table style={{ borderCollapse: 'collapse', width: '100%' }}>{children}</table>
+                  </div>
+                ),
+                th: ({ children }) => (
+                  <th style={{ border: '1px solid var(--border)', padding: '4px 6px', background: 'rgba(0,0,0,0.08)', textAlign: 'left', fontSize: 10 }}>{children}</th>
+                ),
+                td: ({ children }) => (
+                  <td style={{ border: '1px solid var(--border)', padding: '4px 6px', fontSize: 10 }}>{children}</td>
+                ),
+              }}
+            >
+              {previewContent}
+            </ReactMarkdown>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -209,17 +371,20 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
   const [selectedPaths, setSelectedPaths] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [topK, setTopK] = useState(10);
-  const [threshold, setThreshold] = useState(0.5);
+  const [threshold, setThreshold] = useState(0.3);
   const [retrievalType, setRetrievalType] = useState<RetrievalType>('hybrid');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isSearching, setIsSearching] = useState(false);
   const [isIndexing, setIsIndexing] = useState(false);
   const [indexedCount, setIndexedCount] = useState(0);
-  const [indexedSessions, setIndexedSessions] = useState<Array<{ sessionId: string; workspacePath: string; indexedAt: number; queryCount: number }>>([]);
+  const [indexedWorkspaces, setIndexedWorkspaces] = useState<Array<{ workspacePath: string; indexedAt: number; chunkCount: number; sessionCount: number }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  // 分页状态
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(5);
 
   // RAG 上下文管理
   const { addItems } = useRAGContext();
@@ -245,40 +410,40 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
     }
   }, []);
 
-  // 加载已索引的会话列表（从 localStorage 持久化状态）
-  const loadIndexedSessions = useCallback(() => {
+  // 加载已索引的工作路径列表（从 localStorage 持久化状态）
+  const loadIndexedWorkspaces = useCallback(() => {
     try {
-      const sessions = getIndexedSessions();
-      setIndexedSessions(sessions);
+      const workspaces = getIndexedWorkspaces();
+      setIndexedWorkspaces(workspaces);
       // 计算总索引数量
-      const total = sessions.reduce((sum, s) => sum + s.queryCount, 0);
+      const total = workspaces.reduce((sum: number, w: { chunkCount: number }) => sum + w.chunkCount, 0);
       setIndexedCount(total);
     } catch (e) {
-      console.warn('[RAGRetrievalPanel] Failed to load indexed sessions:', e);
+      console.warn('[RAGRetrievalPanel] Failed to load indexed workspaces:', e);
     }
   }, []);
 
   useEffect(() => { loadWorkspacePaths(); }, [loadWorkspacePaths]);
-  useEffect(() => { loadIndexedSessions(); }, [loadIndexedSessions]);
+  useEffect(() => { loadIndexedWorkspaces(); }, [loadIndexedWorkspaces]);
 
-  /** 将所有历史会话的 Query 文本索引到本地向量库 */
+  /** 将所有历史会话按工作路径索引到本地向量库 */
   async function handleIndexHistory() {
     if (isIndexing) return;
     setIsIndexing(true);
     setError(null);
     try {
-      const { db } = await import('@/lib/db');
-      const { syncSessionToVector, getIndexedSessions } = await import('@/stores/localVectorStorage');
-      const sessions = await db.sessions.toArray();
-      let total = 0;
-      for (const session of sessions) {
-        const count = await syncSessionToVector(session.id, session.projectPath || 'Default');
-        total += count;
+      const { syncWorkspaceToVector, getIndexedWorkspaces } = await import('@/stores/localVectorStorage');
+
+      // 按工作路径分组，所有会话统一索引
+      const allPaths = [...new Set(workspacePaths)];
+      for (const path of allPaths) {
+        await syncWorkspaceToVector(path);
       }
-      // 重新加载已索引的会话列表
-      const indexed = getIndexedSessions();
-      setIndexedSessions(indexed);
-      setIndexedCount(indexed.reduce((sum, s) => sum + s.queryCount, 0));
+
+      // 重新加载已索引的工作路径列表
+      const indexed = getIndexedWorkspaces();
+      setIndexedWorkspaces(indexed);
+      setIndexedCount(indexed.reduce((sum: number, w: { chunkCount: number }) => sum + w.chunkCount, 0));
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -305,6 +470,7 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
 
       // 按相似度降序排列（vectorStorage 返回的已排序）
       setResults(hits);
+      setPage(1); // 重置到第一页
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[RAGRetrievalPanel] Search failed:', msg);
@@ -383,6 +549,10 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
   const hasResults = results.length > 0;
   const hasSelection = selected.size > 0;
 
+  // 分页计算
+  const totalPages = Math.ceil(results.length / pageSize);
+  const currentPageResults = results.slice((page - 1) * pageSize, page * pageSize);
+
   return (
     <div style={{
       background: 'var(--bg-card)',
@@ -439,7 +609,7 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
               <button
                 onClick={handleIndexHistory}
                 disabled={isIndexing}
-                title="将历史会话 Query 索引到本地向量库"
+                title="将工作路径下所有历史会话索引到本地向量库"
                 style={{
                   fontSize: 9,
                   background: isIndexing ? 'rgba(74,158,255,0.1)' : 'var(--accent)',
@@ -461,8 +631,8 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
         )}
       </div>
 
-      {/* ── 索引历史列表 ──────────────────────────────────────────── */}
-      {!loading && indexedSessions.length > 0 && (
+      {/* ── 索引历史列表（按工作路径）──────────────────────────────── */}
+      {!loading && indexedWorkspaces.length > 0 && (
         <div style={{
           padding: '8px 14px',
           borderBottom: '1px solid var(--border)',
@@ -482,7 +652,7 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
             <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
               <path d="M1 5L4 8L9 2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            已索引会话 ({indexedSessions.length})
+            已索引工作路径 ({indexedWorkspaces.length})
           </div>
           <div style={{
             display: 'flex',
@@ -491,15 +661,15 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
             maxHeight: 80,
             overflowY: 'auto',
           }}>
-            {indexedSessions.map(s => {
-              const timeStr = new Date(s.indexedAt).toLocaleString('zh-CN', {
+            {indexedWorkspaces.map(w => {
+              const timeStr = new Date(w.indexedAt).toLocaleString('zh-CN', {
                 month: '2-digit',
                 day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
               });
               return (
-                <div key={s.sessionId} style={{
+                <div key={w.workspacePath} style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: 6,
@@ -514,10 +684,10 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
                     <path d="M5 3V5.5L6.5 7" stroke="#4a9eff" strokeWidth="1" strokeLinecap="round"/>
                   </svg>
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {s.workspacePath}
+                    {w.workspacePath}
                   </span>
                   <span style={{ color: '#4a9eff', fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>
-                    {s.queryCount} 条
+                    {w.chunkCount} 条
                   </span>
                   <span style={{ color: 'var(--text-dim)', fontSize: 9 }}>
                     {timeStr}
@@ -643,14 +813,15 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
             onClick={handleSearch}
             disabled={isSearching || !query.trim()}
             style={{
-              background: isSearching ? 'var(--bg-input)' : 'var(--accent)',
-              color: isSearching ? 'var(--text-muted)' : '#fff',
-              border: 'none',
+              background: isSearching ? 'var(--bg-input)' : (query.trim() ? 'var(--accent)' : 'rgba(74,158,255,0.15)'),
+              color: isSearching ? 'var(--text-muted)' : (query.trim() ? '#fff' : 'var(--accent-dim)'),
+              border: '1px solid',
+              borderColor: query.trim() ? 'transparent' : 'var(--accent)',
               borderRadius: 8,
               padding: '7px 14px',
               fontSize: 12,
               fontWeight: 600,
-              cursor: isSearching ? 'not-allowed' : 'pointer',
+              cursor: isSearching || !query.trim() ? 'not-allowed' : 'pointer',
               opacity: isSearching ? 0.7 : 1,
               transition: 'all 0.15s',
               whiteSpace: 'nowrap',
@@ -774,7 +945,7 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
               {error ? (
                 <span style={{ color: '#f87171' }}>检索出错：{error}</span>
               ) : workspacePaths.length === 0 ? (
-                '暂无会话数据，无法检索'
+                '暂无工作路径，无法检索'
               ) : isElectron ? (
                 '输入查询内容，点击检索开始 RAG 检索'
               ) : indexedCount > 0 ? (
@@ -783,7 +954,7 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
                 </span>
               ) : (
                 <span>
-                  点击上方「索引历史」将历史会话导入向量库
+                  点击上方「索引历史」将工作路径下所有会话导入向量库
                   <br/>
                   <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>
                     （仅 Vite dev 模式可用）
@@ -793,14 +964,70 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
             </div>
           </div>
         ) : (
-          results.map(result => (
-            <ResultItem
-              key={result.id}
-              result={result}
-              isSelected={selected.has(result.id)}
-              onToggle={() => toggleSelect(result)}
-            />
-          ))
+          <>
+            {/* 搜索结果列表 */}
+            {currentPageResults.map(result => (
+              <ResultItem
+                key={result.id}
+                result={result}
+                isSelected={selected.has(result.id)}
+                onToggle={() => toggleSelect(result)}
+              />
+            ))}
+
+            {/* 分页控件 */}
+            {totalPages > 1 && (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '10px 0 4px',
+              }}>
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  style={{
+                    background: page <= 1 ? 'var(--bg-input)' : 'var(--accent)',
+                    color: page <= 1 ? 'var(--text-dim)' : '#fff',
+                    border: 'none',
+                    borderRadius: 4,
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    cursor: page <= 1 ? 'not-allowed' : 'pointer',
+                    opacity: page <= 1 ? 0.5 : 1,
+                  }}
+                >
+                  ‹ 上一页
+                </button>
+
+                <span style={{
+                  fontSize: 11,
+                  color: 'var(--text-muted)',
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}>
+                  第 {page} / {totalPages} 页
+                </span>
+
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  style={{
+                    background: page >= totalPages ? 'var(--bg-input)' : 'var(--accent)',
+                    color: page >= totalPages ? 'var(--text-dim)' : '#fff',
+                    border: 'none',
+                    borderRadius: 4,
+                    padding: '4px 10px',
+                    fontSize: 11,
+                    cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+                    opacity: page >= totalPages ? 0.5 : 1,
+                  }}
+                >
+                  下一页 ›
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

@@ -4,6 +4,9 @@
 
 import { db } from '@/lib/db';
 import type { QueryRecord } from '@/lib/db';
+// 写入 cc-web-ui DB 用于统计（与 CCWebDB 分开）
+import { db as statsDb } from '@/stores/db';
+import type { DBQuery } from '@/types/storage';
 // 使用 sessionStorage 的 updateSession
 import { updateSession } from './sessionStorage';
 import type {
@@ -57,7 +60,7 @@ export async function createQuery(input: CreateQueryInput): Promise<QueryRecord>
     timestamp: now,
     tokenCount: input.tokenUsage,
     toolCount: input.toolCalls?.length ?? 0,
-    projectPath: input.projectPath ?? sessionRecord?.projectPath ?? '',
+    projectPath: input.workspacePath ?? sessionRecord?.projectPath ?? '',
     metadata: JSON.stringify({
       toolCalls: input.toolCalls ?? [],
       dag: input.dag ?? null,
@@ -68,6 +71,29 @@ export async function createQuery(input: CreateQueryInput): Promise<QueryRecord>
   };
 
   await db.queries.add(record);
+
+  // ── 同时写入 cc-web-ui DB（供统计面板使用）───────────────────────────────
+  try {
+    const statsRecord: DBQuery = {
+      id: record.id,
+      sessionId: input.sessionId,
+      question: input.question,
+      answer: input.answer,
+      toolCalls: input.toolCalls ?? [],
+      dag: input.dag ?? null,
+      tokenUsage: input.tokenUsage,
+      duration: input.duration,
+      createdAt: now,
+      status: input.status,
+      errorMessage: input.errorMessage,
+      workspacePath: input.workspacePath ?? sessionRecord?.projectPath ?? '',
+    };
+    await statsDb.queries.add(statsRecord);
+    console.info('[QueryStorage] Stats DB write OK:', statsRecord.id, 'tokenUsage:', statsRecord.tokenUsage);
+  } catch (err) {
+    // 统计 DB 写入失败不影响主流程
+    console.warn('[QueryStorage] Failed to write to stats DB:', err);
+  }
 
   // 更新关联 Session 的统计信息
   await updateSession(input.sessionId, {
@@ -128,6 +154,20 @@ export async function updateQuery(
   await db.queries.update(id, updates);
   console.info('[QueryStorage] Updated query:', id);
   return db.queries.get(id);
+}
+
+/**
+ * 更新 stats DB 中的 tokenUsage（query_summary 先到达，token_usage 后到达）
+ * @param queryId Query ID
+ * @param tokenUsage Token 使用量
+ */
+export async function updateQueryTokenUsage(queryId: string, tokenUsage: number): Promise<void> {
+  try {
+    await statsDb.queries.update(queryId, { tokenUsage });
+    console.info('[QueryStorage] updateQueryTokenUsage OK:', queryId, 'tokenUsage:', tokenUsage);
+  } catch (err) {
+    console.warn('[QueryStorage] updateQueryTokenUsage failed:', err);
+  }
 }
 
 /**

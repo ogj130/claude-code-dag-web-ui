@@ -58,7 +58,7 @@ export const useRAGContext = create<RAGContextState>((set, get) => ({
     const contextParts = items
       .map((item, index) => {
         const time = new Date(item.timestamp).toLocaleString('zh-CN');
-        return `[${index + 1}] ${item.chunkType === 'answer' ? '回答' : '问题'}: ${item.content}\n来源: ${item.sourceSessionTitle} | ${time} | 相似度: ${(item.score * 100).toFixed(0)}%`;
+        return `[${index + 1}] ${item.chunkType === 'answer' ? '回答' : item.chunkType === 'query' ? '问题' : '工具调用'}: ${item.content}\n来源: ${item.sourceSessionTitle} | ${time} | 相似度: ${(item.score * 100).toFixed(0)}%`;
       })
       .join('\n\n');
 

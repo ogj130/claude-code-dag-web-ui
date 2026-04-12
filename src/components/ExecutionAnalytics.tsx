@@ -102,10 +102,12 @@ function EmptyState() {
 // ---------------------------------------------------------------------------
 
 export function ExecutionAnalytics({ isOpen = true, onClose }: ExecutionAnalyticsProps) {
+  console.info('[ExecutionAnalytics] render, isOpen:', isOpen);
   const sessions = useSessionStore(s => s.sessions);
   const activeSessionId = useSessionStore(s => s.activeSessionId);
   const currentSession = sessions.find(s => s.id === activeSessionId);
   const workspacePath = currentSession?.projectPath;
+  console.info('[ExecutionAnalytics] workspacePath:', workspacePath, 'activeSessionId:', activeSessionId);
 
   const [timeRange, setTimeRange] = useState<TimeRange>(7);
   const [summary, setSummary] = useState<{
@@ -120,8 +122,10 @@ export function ExecutionAnalytics({ isOpen = true, onClose }: ExecutionAnalytic
 
   // 加载摘要数据
   const loadSummary = useCallback(async () => {
+    console.info('[ExecutionAnalytics] loadSummary called, workspacePath:', workspacePath, 'timeRange:', timeRange);
     try {
       const data = await getExecutionSummary(timeRange, workspacePath);
+      console.info('[ExecutionAnalytics] getExecutionSummary result:', data);
       setSummary(data);
     } catch (err) {
       console.error('[ExecutionAnalytics] Failed to load summary:', err);
@@ -131,6 +135,7 @@ export function ExecutionAnalytics({ isOpen = true, onClose }: ExecutionAnalytic
   }, [timeRange, workspacePath]);
 
   useEffect(() => {
+    console.info('[ExecutionAnalytics] useEffect triggered, isOpen:', isOpen);
     if (isOpen) {
       setLoading(true);
       loadSummary();
