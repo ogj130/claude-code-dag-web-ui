@@ -3,6 +3,8 @@
 
 PID_FILE=".cc-web.pid"
 LOG_FILE=".cc-web.log"
+# 可能残留的子进程名
+CHILD_NAMES=("tsx" "vite" "esbuild" "node.*server/index" "concurrently")
 
 is_running() {
   if [ -f "$PID_FILE" ]; then
@@ -13,6 +15,22 @@ is_running() {
     rm -f "$PID_FILE"
   fi
   return 1
+}
+
+# 彻底清理所有相关进程（防止子进程残留导致端口冲突）
+cleanup_processes() {
+  echo "正在清理旧进程..."
+  # 杀主 PID
+  if [ -f "$PID_FILE" ]; then
+    PID=$(cat "$PID_FILE")
+    kill "$PID" 2>/dev/null
+  fi
+  # 杀所有相关子进程
+  for name in "${CHILD_NAMES[@]}"; do
+    pkill -f "$name" 2>/dev/null
+  done
+  sleep 1
+  rm -f "$PID_FILE"
 }
 
 start() {
@@ -30,7 +48,7 @@ start() {
   echo "✓ 类型检查通过"
 
   echo "正在启动 CC Web..."
-  NODE_ENV=production npm run dev > "$LOG_FILE" 2>&1 &
+  npm run dev > "$LOG_FILE" 2>&1 &
   PID=$!
   echo $PID > "$PID_FILE"
   echo "CC Web 已启动 (PID: $PID)"
@@ -40,15 +58,7 @@ start() {
 }
 
 stop() {
-  if ! is_running; then
-    echo "CC Web 未在运行"
-    return 1
-  fi
-
-  PID=$(cat "$PID_FILE")
-  echo "正在停止 CC Web (PID: $PID)..."
-  kill "$PID" 2>/dev/null
-  rm -f "$PID_FILE"
+  cleanup_processes
   echo "CC Web 已停止"
 }
 
@@ -71,7 +81,7 @@ case "${1:-start}" in
     stop
     ;;
   restart)
-    stop
+    cleanup_processes
     sleep 1
     start
     ;;
