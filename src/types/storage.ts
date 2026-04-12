@@ -74,6 +74,8 @@ export interface DBQuery {
   dagCompressed?: boolean;
   /** 访问次数（用于历史召回频率评分） */
   accessCount?: number;
+  /** 工作路径（用于按工作路径过滤统计） */
+  projectPath?: string;
 }
 
 /**

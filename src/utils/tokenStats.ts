@@ -110,12 +110,12 @@ export async function getTokenTrend(days: 7 | 30, workspacePath?: string): Promi
     });
   }
 
-  // 查询指定时间范围内的所有 queries（按 timestamp 索引）
+  // 查询指定时间范围内的所有 queries（按 createdAt 索引）
   const startTimestamp = getStartOfDay(startDate);
   const endTimestamp = getEndOfDay(now);
 
   let queries = await db.queries
-    .where('timestamp')
+    .where('createdAt')
     .between(startTimestamp, endTimestamp, true, true)
     .toArray();
 
@@ -126,11 +126,11 @@ export async function getTokenTrend(days: 7 | 30, workspacePath?: string): Promi
 
   // 按日期聚合数据
   for (const query of queries) {
-    const queryDate = new Date(query.timestamp);
+    const queryDate = new Date(query.createdAt);
     const dateStr = formatDate(queryDate);
     const dayData = trendMap.get(dateStr);
     if (dayData) {
-      dayData.totalTokens += query.tokenCount;
+      dayData.totalTokens += query.tokenUsage;
       dayData.queryCount += 1;
     }
   }
@@ -150,7 +150,7 @@ export async function getSessionTotalTokens(sessionId: string): Promise<number> 
     .equals(sessionId)
     .toArray();
 
-  return queries.reduce((sum, q) => sum + q.tokenCount, 0);
+  return queries.reduce((sum, q) => sum + q.tokenUsage, 0);
 }
 
 /**
@@ -197,7 +197,7 @@ export async function getOverallStats(workspacePath?: string): Promise<{
     queries = queries.filter(q => q.projectPath === workspacePath);
   }
 
-  const totalTokens = queries.reduce((sum, q) => sum + q.tokenCount, 0);
+  const totalTokens = queries.reduce((sum, q) => sum + q.tokenUsage, 0);
   const totalQueries = queries.length;
   const avgTokensPerQuery = totalQueries > 0 ? Math.round(totalTokens / totalQueries) : 0;
 
