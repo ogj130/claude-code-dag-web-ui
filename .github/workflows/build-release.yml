@@ -34,7 +34,7 @@ jobs:
           node-version: '24'
 
       - name: Install dependencies
-        run: npm config set registry https://registry.npmjs.org && npm ci
+        run: npm config set registry https://registry.npmjs.org && npm cache clean --force && npm ci --prefer-online
 
       - name: Run tests
         run: npm test
@@ -52,7 +52,10 @@ jobs:
           node-version: '24'
 
       - name: Install frontend dependencies
-        run: npm config set registry https://registry.npmjs.org && npm ci
+        run: npm config set registry https://registry.npmjs.org && npm cache clean --force && npm ci --prefer-online
+
+      - name: Verify openai installed
+        run: ls node_modules/openai/package.json && echo "openai installed successfully"
 
       - name: Build frontend
         run: npm run build
