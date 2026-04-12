@@ -15,5 +15,9 @@ export default defineConfig({
     globals: true,
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['fake-indexeddb/auto'],
+    // 自动激活 fake timers，让 vi.advanceTimersByTime() 能控制 jsdom Window 的定时器
+    fakeTimers: {
+      enabled: true,
+    },
   },
 });

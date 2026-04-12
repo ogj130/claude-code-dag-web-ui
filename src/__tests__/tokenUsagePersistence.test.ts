@@ -35,10 +35,17 @@ describe('token usage persistence timing', () => {
     });
   });
 
-  async function waitForStatsQuery() {
+  async function waitForStatsQuery(tokenUsageExpected?: number) {
     for (let i = 0; i < 50; i += 1) {
       const row = await statsDb.queries.toArray().then(rows => rows[0]);
-      if (row) return row;
+      if (row) {
+        // 如果指定了期望 tokenUsage，等待异步 updateQueryTokenUsage 完成
+        if (tokenUsageExpected !== undefined) {
+          if (row.tokenUsage === tokenUsageExpected) return row;
+        } else {
+          return row;
+        }
+      }
       await new Promise(resolve => setTimeout(resolve, 10));
     }
     throw new Error('stats query was not persisted in time');
@@ -75,7 +82,8 @@ describe('token usage persistence timing', () => {
       },
     });
 
-    const persisted = await waitForStatsQuery();
+    // 等待 query_record 出现 AND updateQueryTokenUsage 异步更新完成
+    const persisted = await waitForStatsQuery(657);
 
     expect(persisted.question).toBe('解释一下 TypeScript 泛型');
     expect(persisted.workspacePath).toBe('/Users/ouguangji/2026/cc-web-ui');

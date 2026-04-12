@@ -127,7 +127,7 @@ async function saveQueryToDB(params: {
   toolCalls: EventToolCall[];
   duration: number;
   status: 'success' | 'error' | 'partial';
-}): Promise<string | undefined> {
+}, currentQueryId: string): Promise<string | undefined> {
   try {
     const sessionId = useSessionStore.getState().activeSessionId;
     if (!sessionId) {
@@ -141,7 +141,7 @@ async function saveQueryToDB(params: {
 
     // 优先按 queryId 精确读取 tokenUsage（解决 query_summary 先于 token_usage 到达的时序问题）
     // 注意：必须每次从 store 重新读取，避免闭包捕获旧 Map 引用
-    const tokenUsage = useTaskStore.getState().tokenUsageByQueryId.get(params.queryId)
+    const tokenUsage = useTaskStore.getState().tokenUsageByQueryId.get(currentQueryId)
       ?? useTaskStore.getState().lastTokenUsage;
 
     const storageToolCalls: StorageToolCall[] = params.toolCalls.map((tc, index) => ({
@@ -352,16 +352,22 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       case 'token_usage': {
         const totalTokens = event.usage.input + event.usage.output;
         // currentQueryId 可能在 query_summary 后被清空，使用 lastEventQueryId 作为 fallback
-        const currentQueryId = get().currentQueryId ?? get().lastEventQueryId;
+        const resolvedQueryId = get().currentQueryId ?? get().lastEventQueryId;
         // 按 queryId 隔离存储，解决 query_summary 先于 token_usage 到达的时序问题
         const newTokenMap = new Map(get().tokenUsageByQueryId);
-        if (currentQueryId) {
-          newTokenMap.set(currentQueryId, totalTokens);
+        if (resolvedQueryId) {
+          newTokenMap.set(resolvedQueryId, totalTokens);
         }
         // 记录 pending 更新：saveQueryToDB 完成后会检查此 Map 并回写 DB
+        // 即使 queryId 为 null（query_summary 已清空 currentQueryId），也要用 __latest__ 标记
+        // 以便后续 saveQueryToDB 能通过 savedQueryIdByEventQueryId 的映射找到正确 record
         const newPendingMap = new Map(get().pendingTokenUsageUpdate);
-        if (currentQueryId) {
-          newPendingMap.set(currentQueryId, totalTokens);
+        if (resolvedQueryId) {
+          newPendingMap.set(resolvedQueryId, totalTokens);
+        } else {
+          // currentQueryId 和 lastEventQueryId 均为 null（query_summary 已处理完）
+          // 用 __latest__ 作为 fallback key，saveQueryToDB 会忽略它（key 不在 savedQueryIdByEventQueryId 中）
+          newPendingMap.set('__latest__', totalTokens);
         }
         set({
           tokenUsage: event.usage,
@@ -371,16 +377,19 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         });
 
         // 若 query_summary 已先落库（savedRecordId 已存在），直接在此更新
-        if (currentQueryId) {
-          const savedRecordId = get().savedQueryIdByEventQueryId.get(currentQueryId);
-          if (savedRecordId) {
-            updateQueryTokenUsage(savedRecordId, totalTokens).catch(err =>
+        // 遍历所有已保存的 query record，尝试应用 pending 的 tokenUsage
+        for (const [eventQueryId, savedRecordId] of get().savedQueryIdByEventQueryId) {
+          const pendingTokens = get().pendingTokenUsageUpdate.get(eventQueryId);
+          if (pendingTokens !== undefined && pendingTokens > 0) {
+            updateQueryTokenUsage(savedRecordId, pendingTokens).catch(err =>
               console.warn('[TaskStore] token_usage DB update failed:', err)
             );
             // 消费后清除 pending 标记
-            newPendingMap.delete(currentQueryId);
-            set({ pendingTokenUsageUpdate: newPendingMap });
+            newPendingMap.delete(eventQueryId);
           }
+        }
+        if (newPendingMap.size < get().pendingTokenUsageUpdate.size) {
+          set({ pendingTokenUsageUpdate: newPendingMap });
         }
         break;
       }
@@ -629,6 +638,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             collapsedCardIds: newCollapsedCardIds,
             currentCard: null,
             previousCard: null,
+            currentQueryId: null, // 清空：inProgressCard 已处理完毕
             summaryChunks: [], // 流式总结结束，清空累积的 chunks
             markdownCards: [
               ...markdownCards.slice(-50),
@@ -652,7 +662,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             toolCalls: updatedToolCalls,
             duration: Date.now() - inProgressCard.timestamp,
             status: 'success',
-          });
+          }, event.queryId);
         } else if (previousCard && previousCard.queryId === event.queryId) {
           // 情况2：前一张被折叠的卡片（Q2发送时Q1还未完成）
           newMarkdownCardId = `card_${previousCard.timestamp}_${event.queryId}`;
@@ -666,6 +676,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             toolCalls: updatedToolCalls,
             collapsedCardIds: newCollapsedCardIds,
             previousCard: null,
+            currentQueryId: null, // 清空：previousCard 已处理完毕
             summaryChunks: [], // 流式总结结束，清空累积的 chunks
             markdownCards: [
               ...markdownCards.slice(-50),
@@ -689,7 +700,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             toolCalls: updatedToolCalls,
             duration: Date.now() - previousCard.timestamp,
             status: 'success',
-          });
+          }, event.queryId);
         } else {
           // 情况3：无 currentCard（如服务端直接开始 query），创建新卡片
           newMarkdownCardId = `card_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -724,7 +735,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             toolCalls: updatedToolCalls,
             duration: 0,
             status: 'success',
-          });
+          }, event.queryId);
         }
         break;
       }
