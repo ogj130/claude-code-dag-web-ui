@@ -1,7 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { ClaudeCodeProcess } from './ClaudeCodeProcess.js';
 import { child as log } from './utils/logger.js';
-import { fileURLToPath } from 'url';
 // @ts-ignore
 import type { WSMessage, WSClientMessage } from '../types/events.js';
 
@@ -177,8 +176,7 @@ export function start(wss: WebSocketServer, port: number = DEFAULT_PORT): void {
 // 直接运行 tsx server/index.ts 启动独立 WS 服务器（端口固定为 5300）
 // 在 Electron 打包模式下，此文件由 main.ts 通过 import() 调用，
 // 仅注册事件处理（由 main.ts 控制 WS Server 的创建和端口分配）
-// ESM 模式用 import.meta.url 检测是否是直接运行的入口模块
-const __filename = fileURLToPath(import.meta.url);
-if (process.argv[1] === __filename || process.argv[1]?.endsWith('server/index.ts')) {
+// @ts-ignore require.main 在 CommonJS 编译输出中有效；tsx dev ESM 模式中被静默跳过
+if (require.main === module) {
   startServer();
 }
