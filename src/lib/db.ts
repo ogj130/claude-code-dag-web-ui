@@ -47,11 +47,14 @@ class CCDatabase extends Dexie {
   constructor() {
     super('CCWebDB');
 
-    this.version(2).stores({
-      // & 表示主键（复合索引需在 Schema 中声明）
+    // 注意：浏览器的 CCWebDB 已积累到 version 20+，必须将起始版本设为
+    // MAX(代码版本, 浏览器版本)，Dexie 才能正常打开已存在的数据库。
+    // 当前代码最后一次迁移对应 version 21（与浏览器版本对齐）。
+    this.version(21).stores({
+      // sessions 表索引
       sessions: '&id, updatedAt, createdAt, projectPath',
-      // 字段必须在 Schema 中声明才会被 Dexie 持久化
-      // projectPath 用于按工作路径过滤统计
+
+      // queries 表索引
       queries: '&id, sessionId, timestamp, tokenCount, query, summary, projectPath',
     });
   }

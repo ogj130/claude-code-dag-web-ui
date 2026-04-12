@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { DAGNode, ToolCall as EventToolCall, TokenUsage, ClaudeEvent } from '../types/events';
-import { createQuery } from './queryStorage';
+import { createQuery, updateQueryTokenUsage } from './queryStorage';
 import { useSessionStore } from './useSessionStore';
 import type { ToolCall as StorageToolCall } from '@/types/storage';
 
@@ -59,7 +59,15 @@ interface TaskState {
   previousCard: CurrentCardData | null;  // 前一个被折叠的进行中卡片（等待总结到来）
   groupingEnabled: boolean;  // 节点分组开关
   expandedGroupIds: Set<string>;  // 已展开的分组 ID 集合
-  lastTokenUsage: number;  // 最近一次查询的 Token 消耗
+  lastTokenUsage: number;  // 最近一次查询的 Token 消耗（保留兼容）
+  /** 按 queryId 隔离的 token 消耗（解决 query_summary 先于 token_usage 到达的时序问题） */
+  tokenUsageByQueryId: Map<string, number>;
+  /** query_summary 已落库时，event queryId → 生成的 DB query ID 映射（供 token_usage 到达后更新 tokenUsage） */
+  savedQueryIdByEventQueryId: Map<string, string>;
+  /** token_usage 先到达时，event queryId → 待更新的 tokenUsage（saveQueryToDB 完成后检查并应用） */
+  pendingTokenUsageUpdate: Map<string, number>;
+  /** 最近一次 query_summary 事件的 queryId（currentQueryId 被清空后，作为 token_usage 的 fallback） */
+  lastEventQueryId: string | null;
   /** 待添加到 DAG 的 RAG 检索结果（下次 query_start 时消费） */
   pendingRAGItems: Array<{
     id: string;
@@ -117,23 +125,25 @@ async function saveQueryToDB(params: {
   question: string;
   answer: string;
   toolCalls: EventToolCall[];
-  tokenUsage: number;
   duration: number;
   status: 'success' | 'error' | 'partial';
-}) {
+}): Promise<string | undefined> {
   try {
     const sessionId = useSessionStore.getState().activeSessionId;
     if (!sessionId) {
       console.warn('[TaskStore] No active session, skipping DB save');
-      return;
+      return undefined;
     }
 
-    // 从当前 session 获取 projectPath（用于按工作路径过滤统计）
     const sessions = useSessionStore.getState().sessions;
     const session = sessions.find(s => s.id === sessionId);
     const projectPath = session?.projectPath ?? '';
 
-    // 转换 ToolCall 格式：从 events 格式转为 storage 格式
+    // 优先按 queryId 精确读取 tokenUsage（解决 query_summary 先于 token_usage 到达的时序问题）
+    // 注意：必须每次从 store 重新读取，避免闭包捕获旧 Map 引用
+    const tokenUsage = useTaskStore.getState().tokenUsageByQueryId.get(params.queryId)
+      ?? useTaskStore.getState().lastTokenUsage;
+
     const storageToolCalls: StorageToolCall[] = params.toolCalls.map((tc, index) => ({
       id: tc.id || `tc_${params.queryId}_${index}`,
       queryId: params.queryId,
@@ -145,20 +155,41 @@ async function saveQueryToDB(params: {
       success: tc.status === 'completed' || tc.status === 'running',
     }));
 
-    await createQuery({
+    const record = await createQuery({
       sessionId,
       question: params.question,
       answer: params.answer,
       toolCalls: storageToolCalls,
-      tokenUsage: params.tokenUsage,
+      tokenUsage,
       duration: params.duration,
       status: params.status,
-      projectPath,
+      workspacePath: projectPath,
     });
 
-    console.info('[TaskStore] Saved query to DB:', params.queryId);
+    console.info('[TaskStore] Saved query to DB:', params.queryId, 'tokenUsage:', tokenUsage, '-> record.id:', record.id);
+
+    // 记录 event queryId → 生成的 DB record ID，供 token_usage 到达后做 update
+    const newMap = new Map(useTaskStore.getState().savedQueryIdByEventQueryId);
+    newMap.set(params.queryId, record.id);
+    useTaskStore.setState({ savedQueryIdByEventQueryId: newMap });
+
+    // 检查是否有 pending 的 tokenUsage 更新（token_usage 先于 query_summary 到达的情况）
+    const pendingTokens = useTaskStore.getState().pendingTokenUsageUpdate.get(params.queryId);
+    if (pendingTokens !== undefined && pendingTokens > 0) {
+      console.info('[TaskStore] Applying pending tokenUsage update:', pendingTokens, 'for record.id:', record.id);
+      updateQueryTokenUsage(record.id, pendingTokens).catch(err =>
+        console.warn('[TaskStore] pending tokenUsage update failed:', err)
+      );
+      // 消费后清除 pending 标记
+      const newPending = new Map(useTaskStore.getState().pendingTokenUsageUpdate);
+      newPending.delete(params.queryId);
+      useTaskStore.setState({ pendingTokenUsageUpdate: newPending });
+    }
+
+    return record.id;
   } catch (error) {
     console.error('[TaskStore] Failed to save query to DB:', error);
+    return undefined;
   }
 }
 
@@ -189,6 +220,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   groupingEnabled: true,  // 默认开启节点分组
   expandedGroupIds: new Set(),  // 默认全部折叠
   lastTokenUsage: 0,
+  tokenUsageByQueryId: new Map(),
+  savedQueryIdByEventQueryId: new Map(),
+  pendingTokenUsageUpdate: new Map(),
+  lastEventQueryId: null,
   pendingRAGItems: [],
 
   handleEvent: (event: ClaudeEvent) => {
@@ -316,7 +351,37 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       }
       case 'token_usage': {
         const totalTokens = event.usage.input + event.usage.output;
-        set({ tokenUsage: event.usage, lastTokenUsage: totalTokens });
+        // currentQueryId 可能在 query_summary 后被清空，使用 lastEventQueryId 作为 fallback
+        const currentQueryId = get().currentQueryId ?? get().lastEventQueryId;
+        // 按 queryId 隔离存储，解决 query_summary 先于 token_usage 到达的时序问题
+        const newTokenMap = new Map(get().tokenUsageByQueryId);
+        if (currentQueryId) {
+          newTokenMap.set(currentQueryId, totalTokens);
+        }
+        // 记录 pending 更新：saveQueryToDB 完成后会检查此 Map 并回写 DB
+        const newPendingMap = new Map(get().pendingTokenUsageUpdate);
+        if (currentQueryId) {
+          newPendingMap.set(currentQueryId, totalTokens);
+        }
+        set({
+          tokenUsage: event.usage,
+          lastTokenUsage: totalTokens,
+          tokenUsageByQueryId: newTokenMap,
+          pendingTokenUsageUpdate: newPendingMap,
+        });
+
+        // 若 query_summary 已先落库（savedRecordId 已存在），直接在此更新
+        if (currentQueryId) {
+          const savedRecordId = get().savedQueryIdByEventQueryId.get(currentQueryId);
+          if (savedRecordId) {
+            updateQueryTokenUsage(savedRecordId, totalTokens).catch(err =>
+              console.warn('[TaskStore] token_usage DB update failed:', err)
+            );
+            // 消费后清除 pending 标记
+            newPendingMap.delete(currentQueryId);
+            set({ pendingTokenUsageUpdate: newPendingMap });
+          }
+        }
         break;
       }
       case 'session_end': {
@@ -559,6 +624,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             pendingAnalysisByQueryId: newMap,
             lastSummaryNodeId: summaryNodeId,
             lastCompletedQueryId: event.queryId,
+            lastEventQueryId: event.queryId,
             toolCalls: updatedToolCalls,
             collapsedCardIds: newCollapsedCardIds,
             currentCard: null,
@@ -584,7 +650,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             question: inProgressCard.query,
             answer: event.summary || analysis,
             toolCalls: updatedToolCalls,
-            tokenUsage: lastTokenUsage,
             duration: Date.now() - inProgressCard.timestamp,
             status: 'success',
           });
@@ -597,6 +662,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             pendingAnalysisByQueryId: newMap,
             lastSummaryNodeId: summaryNodeId,
             lastCompletedQueryId: event.queryId,
+            lastEventQueryId: event.queryId,
             toolCalls: updatedToolCalls,
             collapsedCardIds: newCollapsedCardIds,
             previousCard: null,
@@ -621,7 +687,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             question: previousCard.query,
             answer: event.summary || analysis,
             toolCalls: updatedToolCalls,
-            tokenUsage: lastTokenUsage,
             duration: Date.now() - previousCard.timestamp,
             status: 'success',
           });
@@ -633,6 +698,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             pendingAnalysisByQueryId: newMap,
             lastSummaryNodeId: summaryNodeId,
             lastCompletedQueryId: event.queryId,
+            lastEventQueryId: event.queryId,
             toolCalls: updatedToolCalls,
             collapsedCardIds: newCollapsedCardIds,
             summaryChunks: [], // 流式总结结束，清空累积的 chunks
@@ -656,7 +722,6 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             question: queryText,
             answer: event.summary || analysis,
             toolCalls: updatedToolCalls,
-            tokenUsage: lastTokenUsage,
             duration: 0,
             status: 'success',
           });
@@ -808,7 +873,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       previousCard: null,
       groupingEnabled: true,
       expandedGroupIds: new Set(),
+      lastTokenUsage: 0,
+      tokenUsageByQueryId: new Map(),
+      savedQueryIdByEventQueryId: new Map(),
+      pendingTokenUsageUpdate: new Map(),
+      lastEventQueryId: null,
       pendingRAGItems: [],
     });
   },
 }));
+
+// 开发调试用：浏览器控制台可直接调用 window.__taskStore.handleEvent(...)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(window as any).__taskStore = useTaskStore;
