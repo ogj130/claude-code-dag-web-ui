@@ -51,11 +51,15 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Verify openai installed
-        run: ls node_modules/openai/package.json && echo "openai installed successfully"
+      - name: Install frontend dependencies (debug)
+        run: |
+          pwd && ls -la
+          cat package.json | grep openai
+          echo "--- npm ci verbose ---"
+          npm ci --prefer-offline=false --verbose 2>&1 | tail -50
+          echo "--- after npm ci ---"
+          ls node_modules 2>/dev/null | wc -l
+          ls node_modules/openai 2>/dev/null && echo "FOUND" || echo "NOT FOUND"
 
       - name: Build frontend
         run: npm run build
