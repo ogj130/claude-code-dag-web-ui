@@ -17,6 +17,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NODE_CACHE_VERSION: "v1"
 
 permissions:
   contents: write
@@ -32,8 +33,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ env.NODE_CACHE_VERSION }}-node-modules-${{ hashFiles('package-lock.json') }}
 
       - name: Install dependencies
         run: npm config set registry https://registry.npmjs.org && npm ci
@@ -52,8 +57,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: 'npm'
-          cache-dependency-path: package-lock.json
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ env.NODE_CACHE_VERSION }}-node-modules-${{ hashFiles('package-lock.json') }}
 
       - name: Install frontend dependencies
         run: npm config set registry https://registry.npmjs.org && npm ci
