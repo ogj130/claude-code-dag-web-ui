@@ -33,6 +33,76 @@
 
 ---
 
+## 功能列表
+
+### 执行可视化
+
+| 功能 | 说明 |
+|------|------|
+| **DAG 执行图** | 实时展示 Agent 思维链路，支持折叠/展开节点 |
+| **DAG 节点分组** | 按工具类型或会话自动分组，结构更清晰 |
+| **终端视图** | 原始工具日志实时输出，无需 Tab 切换 |
+| **工具卡片** | 每个工具调用的参数、结果、耗时独立展示 |
+| **Markdown 渲染** | GFM 完整支持：表格、代码块、Mermaid 图表等 |
+| **流式总结** | AI 回答逐字输出，卡片带打字机动画 |
+
+### 会话管理
+
+| 功能 | 说明 |
+|------|------|
+| **多会话管理** | 创建/切换/删除会话，随时切换工作上下文 |
+| **FIFO 自动淘汰** | 会话超过 100 条时自动删除最旧的 |
+| **隐私模式** | 完全离线，所有数据仅存在本地 localStorage |
+| **会话搜索** | 全局搜索历史会话和问答内容 |
+| **历史召回** | 基于访问频率的智能会话推荐 |
+
+### 数据分析
+
+| 功能 | 说明 |
+|------|------|
+| **Token 趋势统计** | 折线图展示输入/输出 Token 消耗趋势 |
+| **模型定价表** | 按模型估算本次会话成本 |
+| **执行分析面板** | 工具分布饼图、错误率趋势图、耗时分析 |
+| **工具排行榜** | Top-N 最常用工具排名 |
+| **按工作路径过滤** | 各统计面板支持按 `workspacePath` 隔离数据 |
+
+### RAG 智能检索
+
+| 功能 | 说明 |
+|------|------|
+| **向量相似度检索** | 基于 Embedding 的语义搜索，检索相似历史问答 |
+| **多后端支持** | OpenAI / Ollama / Cohere 自定义配置 |
+| **Answer 分块** | 按 Markdown 段落自动分块（100-1000 字符），检索更精准 |
+| **混合检索** | 支持 `query` / `toolcall` / `hybrid` 三种检索类型 |
+| **历史批量索引** | 一键将历史会话导入向量数据库 |
+| **工作路径隔离** | 按项目目录分别管理索引，避免跨项目污染 |
+| **上下文注入** | 检索结果直接注入到 Claude Code prompt |
+| **抽屉/弹窗双模式** | `Cmd+Shift+R` 快捷键切换 |
+
+### 存储与同步
+
+| 功能 | 说明 |
+|------|------|
+| **IndexedDB 持久化** | 所有会话、问答、Token 统计本地存储 |
+| **防抖写入** | 会话更新 500ms 防抖写入，减少 IndexedDB 压力 |
+| **缓存优先加载** | 页面启动从本地缓存读取，后台同步服务端 |
+| **自动压缩** | 长文本自动压缩，长会话自动分片 |
+| **存储监控** | 实时监控 IndexedDB 使用量，接近容量时告警 |
+
+### 界面体验
+
+| 功能 | 说明 |
+|------|------|
+| **暗黑/明亮模式** | CSS 变量驱动，主题切换无闪烁 |
+| **响应式布局** | 自适应窗口宽度 |
+| **快捷键支持** | `Cmd+K` 搜索、`Cmd+\` 折叠、`Cmd+Shift+R` RAG |
+| **连接状态指示** | WebSocket 连接状态实时显示 |
+| **错误边界** | 组件崩溃自动降级，不影响整体使用 |
+| **加载骨架屏** | 数据加载中显示骨架占位 |
+| **多语言支持** | 中文优先界面 |
+
+---
+
 ## 效果预览
 
 <details open>
@@ -109,27 +179,6 @@ sudo dpkg -i claude-code-web-ui_*.deb
 
 ---
 
-## 功能特性
-
-| | |
-|---|---|
-| **DAG 执行图** | 可视化 Agent 思维链路，节点可折叠/展开 |
-| **终端 + 工具卡片** | 实时工具调用展示，无需 Tab 切换 |
-| **流式总结** | AI 回答逐字输出，卡片带打字机动画 |
-| **Markdown 渲染** | GFM 支持，含表格、代码块等 |
-| **暗黑/明亮模式** | CSS 变量驱动，一键切换 |
-| **多会话管理** | 多会话历史，随时切换，FIFO 自动淘汰（≥100 条） |
-| **隐私模式** | 本地离线模式，不上传任何数据到服务端 |
-| **Token 趋势统计** | 折线图展示输入/输出 Token 消耗趋势 |
-| **执行分析面板** | 工具分布图、错误率趋势、耗时分析 |
-| **RAG 智能检索** | 基于向量相似度的历史问答召回 |
-| **向量化配置** | 支持 OpenAI / Ollama / Cohere 多后端 |
-| **缓存持久化** | IndexedDB 本地缓存 + 防抖写入 + 服务端同步 |
-| **响应式布局** | 自适应窗口宽度 |
-| **快捷键支持** | Cmd+K 搜索、Cmd+\ 折叠等 |
-
----
-
 ## 界面说明
 
 ```
@@ -155,6 +204,193 @@ sudo dpkg -i claude-code-web-ui_*.deb
 | **Tool** | 工具调用（Read/Bash/Edit 等） | 黄 |
 | **RAG** | 向量检索结果（可折叠） | 橙 |
 | **Summary** | 本轮总结，AI 生成的分析 | 紫 |
+
+---
+
+## RAG 智能检索架构
+
+### RAG 完整数据流
+
+```mermaid
+graph LR
+    A["会话数据\n(CCWebDB)"] --> B["索引阶段\nIndex"]
+    B --> C["向量化\nembedText()"]
+    C --> D["向量存储\nLanceDB / IndexedDB"]
+    D --> E["检索阶段\nSearch"]
+    E --> F["向量化查询\nembedText()"]
+    F --> G["相似度匹配\ncosine / ANN"]
+    G --> H["Top-K 结果"]
+    H --> I["上下文注入\ngetPromptContext()"]
+    I --> J["Claude Code\nPrompt"]
+```
+
+### 双后端存储策略
+
+| 环境 | 向量库 | 说明 |
+|------|--------|------|
+| **Electron 生产** | LanceDB | 高性能 ANN 搜索、磁盘持久化、Rust FFI |
+| **Vite dev 浏览器** | IndexedDB + JS | 纯浏览器实现，离线可用，无需额外依赖 |
+
+```mermaid
+graph TB
+    subgraph EmbeddingLayer["向量化层"]
+        direction LR
+        E1["Electron 渲染进程\n↓ IPC 桥接\nembeddingService"]
+        E2["Vite dev 浏览器\n↓ /v1/embeddings 代理\nx-embedding-target"]
+        E3["生产浏览器\n↓ dangerouslyAllowBrowser\nOpenAI SDK"]
+    end
+
+    subgraph StorageLayer["向量存储层"]
+        L["LanceDB\n(主进程)"]
+        I["IndexedDB\n+ cosine similarity"]
+    end
+
+    subgraph ConfigLayer["配置层"]
+        CFG["EmbeddingConfig\nprovider / endpoint / model / apiKey"]
+        IDB["IndexedDB\ncc-web-embedding"]
+    end
+
+    E1 --> L
+    E2 --> L
+    E3 --> L
+    E2 --> I
+    CFG --> IDB
+
+    style EmbeddingLayer fill:#1a3a5c,color:#fff
+    style StorageLayer fill:#1a3a2c,color:#fff
+    style ConfigLayer fill:#3a2a1a,color:#fff
+```
+
+### 向量化调用链路
+
+```
+Electron 渲染进程
+    ↓ import embedText() (src/utils/embedding.ts)
+    ↓ 检测环境
+    ├── Electron → IPC invoke('embedding:compute')
+    │               ↓
+    │               electron/src/main.ts 主进程
+    │               ↓ import embeddingService (src/utils/embeddingService.ts)
+    │               ↓ OpenAI SDK 调用
+    │
+    ├── Vite dev 浏览器 → fetch('/v1/embeddings')
+    │                     ↓
+    │                     vite.config.ts middleware
+    │                     读取 x-embedding-target header
+    │                     代理到配置的 API endpoint
+    │
+    └── 生产构建 → dangerouslyAllowBrowser: true
+                   直调 OpenAI API（需配置 CORS）
+```
+
+### 向量数据库设计
+
+#### LanceDB 表结构（Electron）
+
+```
+表名: rag_global（全局向量表）
+
+字段:
+  id          string   主键
+  vector      float32[] embedding 向量
+  content     string   原始文本
+  chunkType   string   'query' | 'toolcall' | 'answer'
+  sessionId   string   来源会话 ID
+  queryId     string   来源查询 ID
+  toolCallId  string?  来源工具调用 ID（仅 toolcall）
+  workspacePath string 工作路径
+  timestamp   number   索引时间
+  metadata    JSON     扩展元数据
+```
+
+#### IndexedDB 结构（浏览器开发环境）
+
+```
+数据库: cc-web-vector
+
+chunks 表:
+  id            auto-increment (主键)
+  content       string
+  vector        number[]
+  chunkType     string
+  sessionId     string
+  queryId       string
+  workspacePath  string
+  timestamp     number
+
+索引: chunkType, sessionId, queryId, workspacePath, timestamp
+```
+
+### Answer 分块策略
+
+```
+原始 Answer 文本（可能很长）
+    │
+    ▼
+1. 按 Markdown 段落分隔（## 标题 或 \n\n 双换行）
+    │
+    ▼
+2. 长段落按句子分隔（中文句号 / 英文句号）
+    │
+    ▼
+约束条件:
+  MAX_CHUNK_SIZE = 1000 字符
+  MIN_CHUNK_SIZE = 100 字符
+  (不足 100 字符的段落合并到前一个)
+    │
+    ▼
+每个 chunk 独立 embedding → 检索更精准
+每个 chunk 保留 parentQuery → 追溯原始问题
+```
+
+### RAG 配置管理
+
+```
+IndexedDB: cc-web-embedding (Dexie.js)
+
+configs 表:
+  id              string   主键 (ecfg_{timestamp}_{random})
+  name            string   配置名称（如 "OpenAI 3.5"）
+  provider        string   'openai' | 'ollama' | 'cohere' | 'local'
+  endpoint        string   API 地址（可自定义 OpenAI 兼容接口）
+  encryptedApiKey string   AES-GCM 加密存储（仅加密敏感字段）
+  model           string   Embedding 模型名
+  dimension       number   向量维度（自动检测或手动指定）
+  isDefault       number   0 | 1（是否为默认配置）
+  createdAt       number
+  updatedAt       number
+
+索引: id, name, provider, isDefault, updatedAt
+```
+
+### RAG 上下文注入
+
+```
+检索结果 (SearchResult[])
+    │
+    ▼
+useRAGContext (Zustand 状态)
+    │
+    ▼ getPromptContext()
+[知识上下文]
+以下是与你问题相关的历史对话片段：
+
+[1] 问题: xxx | 来源: 会话标题 | 时间 | 相似度: 85%
+[2] 回答: xxx | 来源: 会话标题 | 时间 | 相似度: 72%
+[/知识上下文]
+    │
+    ▼
+Claude Code prompt → 生成更精准的回答
+```
+
+### RAG 检索参数
+
+| 参数 | 可选值 | 说明 |
+|------|--------|------|
+| `type` | `query` / `toolcall` / `hybrid` | 检索类型 |
+| `topK` | `5` / `10` / `20` / `50` | 返回结果数量 |
+| `threshold` | `0.3` / `0.5` / `0.7` / `0.85` | 相似度阈值 |
+| `workspacePaths` | `string[]` | 筛选特定工作路径 |
 
 ---
 
@@ -246,17 +482,6 @@ graph LR
     F -.-> G["服务端数据\n合并覆盖"]
 ```
 
-### RAG 检索流程
-
-```mermaid
-graph LR
-    A["用户输入"] --> B["文本向量化\n(OpenAI/Ollama)"]
-    B --> C["向量相似度搜索"]
-    C --> D["Top-K 相关问答"]
-    D --> E["注入 Context\n到 Claude"]
-    E --> F["生成更精准回答"]
-```
-
 ### 状态转换
 
 ```mermaid
@@ -282,12 +507,18 @@ stateDiagram-v2
 | `src/stores/queryStorage.ts` | Query CRUD，自动压缩，分片存储 |
 | `src/stores/db.ts` | stats DB (Dexie)，Token/执行统计持久化 |
 | `src/lib/db.ts` | CCWebDB (Dexie)，RAG 内容存储，向量索引 |
-| `src/stores/vectorStorage.ts` | 向量存储，向量化配置，Ollama/OpenAI/Cohere |
+| `src/stores/vectorStorage.ts` | 统一向量存储接口（自动分发 LanceDB / IndexedDB） |
+| `src/stores/localVectorStorage.ts` | IndexedDB + 余弦相似度实现（浏览器环境） |
+| `src/stores/embeddingConfigStorage.ts` | Embedding 配置管理，API Key 加密存储 |
+| `src/utils/embedding.ts` | 统一向量化入口，检测运行环境 |
+| `src/utils/embeddingService.ts` | OpenAI SDK + 多 Provider 适配 |
+| `src/hooks/useRAGContext.ts` | RAG 上下文状态管理，prompt 生成 |
 | `src/components/DAG/` | ReactFlow 可视化，节点渲染，布局算法 |
 | `src/components/ToolView/` | 终端视图、工具卡片、Markdown 渲染 |
 | `src/components/TokenAnalytics.tsx` | Token 趋势折线图、模型定价表 |
 | `src/components/ExecutionAnalytics.tsx` | 工具分布、错误率趋势、耗时分析 |
 | `src/components/RAGRetrievalPanel.tsx` | RAG 检索面板，向量配置，索引管理 |
+| `src/components/RAGRetrievalModal.tsx` | 抽屉/弹窗双模式容器 |
 | `src/hooks/useWebSocket.ts` | WebSocket 连接，事件分发 |
 | `server/` | WebSocket Server + ANSI Parser + Claude Code 进程管理 |
 | `electron/` | Electron 主进程，HTTP 静态服务器，桌面打包 |
@@ -297,17 +528,22 @@ stateDiagram-v2
 ```
 ┌─────────────────────────────────────────────────────┐
 │                 IndexedDB (Dexie.js)                │
-├──────────────────┬─────────────────────────────────┤
-│   CCWebDB        │   cc-web-ui (stats DB)           │
-│   ───────────    │   ─────────────────────          │
-│  sessions        │  sessions (元数据)                │
-│  queries (RAG)   │  queries (统计)                   │
-│                  │  toolCalls                        │
-│  用于 RAG 检索    │  sessionShards (分片)             │
-│                  │                                  │
-│  向量化索引       │  用于 Token/执行分析               │
-│  分片存储         │  workspacePath 过滤              │
-└──────────────────┴─────────────────────────────────┘
+├──────────────────────────┬──────────────────────────┤
+│   CCWebDB                │   cc-web-ui (stats DB)   │
+│   ───────────            │   ─────────────────────  │
+│  sessions                │  sessions (元数据)         │
+│  queries (RAG 内容)       │  queries (统计)          │
+│                          │  toolCalls               │
+│  用于 RAG 检索             │  sessionShards (分片)    │
+│  向量化索引               │                          │
+│  分片存储                 │  用于 Token/执行分析      │
+│                          │  workspacePath 过滤       │
+├──────────────────────────┼──────────────────────────┤
+│   cc-web-vector           │   cc-web-embedding       │
+│   ─────────────────      │   ───────────────────    │
+│  chunks (向量+文本)        │  configs (Embedding配置)  │
+│                          │  API Key AES-GCM 加密    │
+└──────────────────────────┴──────────────────────────┘
 ```
 
 ---
@@ -331,9 +567,11 @@ stateDiagram-v2
  TypeScript    →    tsx runner             WebSocket
  Zustand       →    Claude Code spawn     HTTP Server
  ReactFlow     →    ANSI Parser           electron-builder
- xterm.js      →                         (跨平台打包)
+ xterm.js      →                          (跨平台打包)
  react-markdown→
  Dexie.js      →
+ LanceDB       →
+ OpenAI SDK    →
 ```
 
 ---
