@@ -128,6 +128,11 @@ async function saveQueryToDB(params: {
       return;
     }
 
+    // 从当前 session 获取 projectPath（用于按工作路径过滤统计）
+    const sessions = useSessionStore.getState().sessions;
+    const session = sessions.find(s => s.id === sessionId);
+    const projectPath = session?.projectPath ?? '';
+
     // 转换 ToolCall 格式：从 events 格式转为 storage 格式
     const storageToolCalls: StorageToolCall[] = params.toolCalls.map((tc, index) => ({
       id: tc.id || `tc_${params.queryId}_${index}`,
@@ -148,6 +153,7 @@ async function saveQueryToDB(params: {
       tokenUsage: params.tokenUsage,
       duration: params.duration,
       status: params.status,
+      projectPath,
     });
 
     console.info('[TaskStore] Saved query to DB:', params.queryId);
