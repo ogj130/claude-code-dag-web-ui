@@ -35,7 +35,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm config set registry https://registry.npmjs.org && npm ci
 
       - name: Run tests
         run: npm test
@@ -54,7 +54,7 @@ jobs:
           cache: 'npm'
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm config set registry https://registry.npmjs.org && npm ci
 
       - name: Build frontend
         run: npm run build
@@ -91,7 +91,7 @@ jobs:
 
       - name: Install Electron dependencies
         working-directory: electron
-        run: npm ci
+        run: npm config set registry https://registry.npmjs.org && npm ci
 
       - name: Set version from workflow input
         if: github.event_name == 'workflow_dispatch'
