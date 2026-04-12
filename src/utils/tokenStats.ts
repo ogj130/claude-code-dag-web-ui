@@ -89,9 +89,10 @@ function formatDate(date: Date): string {
 /**
  * 获取 Token 趋势数据
  * @param days 天数 (7 或 30)
+ * @param workspacePath 可选工作路径，默认全部
  * @returns 趋势数据数组
  */
-export async function getTokenTrend(days: 7 | 30): Promise<TokenTrendData[]> {
+export async function getTokenTrend(days: 7 | 30, workspacePath?: string): Promise<TokenTrendData[]> {
   const now = new Date();
   const startDate = new Date(now);
   startDate.setDate(startDate.getDate() - days + 1);
@@ -109,22 +110,27 @@ export async function getTokenTrend(days: 7 | 30): Promise<TokenTrendData[]> {
     });
   }
 
-  // 查询指定时间范围内的所有 queries
+  // 查询指定时间范围内的所有 queries（按 timestamp 索引）
   const startTimestamp = getStartOfDay(startDate);
   const endTimestamp = getEndOfDay(now);
 
-  const queries = await db.queries
-    .where('createdAt')
+  let queries = await db.queries
+    .where('timestamp')
     .between(startTimestamp, endTimestamp, true, true)
     .toArray();
 
+  // 按工作路径过滤
+  if (workspacePath) {
+    queries = queries.filter(q => q.projectPath === workspacePath);
+  }
+
   // 按日期聚合数据
   for (const query of queries) {
-    const queryDate = new Date(query.createdAt);
+    const queryDate = new Date(query.timestamp);
     const dateStr = formatDate(queryDate);
     const dayData = trendMap.get(dateStr);
     if (dayData) {
-      dayData.totalTokens += query.tokenUsage;
+      dayData.totalTokens += query.tokenCount;
       dayData.queryCount += 1;
     }
   }
@@ -144,7 +150,7 @@ export async function getSessionTotalTokens(sessionId: string): Promise<number> 
     .equals(sessionId)
     .toArray();
 
-  return queries.reduce((sum, q) => sum + q.tokenUsage, 0);
+  return queries.reduce((sum, q) => sum + q.tokenCount, 0);
 }
 
 /**
@@ -176,15 +182,22 @@ export function formatTokens(tokens: number): string {
 
 /**
  * 获取所有会话的 Token 统计
+ * @param workspacePath 可选工作路径，默认全部
  * @returns 总 Token 数、总查询数、平均 Token/查询
  */
-export async function getOverallStats(): Promise<{
+export async function getOverallStats(workspacePath?: string): Promise<{
   totalTokens: number;
   totalQueries: number;
   avgTokensPerQuery: number;
 }> {
-  const queries = await db.queries.toArray();
-  const totalTokens = queries.reduce((sum, q) => sum + q.tokenUsage, 0);
+  let queries = await db.queries.toArray();
+
+  // 按工作路径过滤
+  if (workspacePath) {
+    queries = queries.filter(q => q.projectPath === workspacePath);
+  }
+
+  const totalTokens = queries.reduce((sum, q) => sum + q.tokenCount, 0);
   const totalQueries = queries.length;
   const avgTokensPerQuery = totalQueries > 0 ? Math.round(totalTokens / totalQueries) : 0;
 
@@ -198,15 +211,16 @@ export async function getOverallStats(): Promise<{
 /**
  * 获取最近 N 天的 Token 使用统计
  * @param days 天数
+ * @param workspacePath 可选工作路径，默认全部
  * @returns 统计数据
  */
-export async function getRecentStats(days: 7 | 30): Promise<{
+export async function getRecentStats(days: 7 | 30, workspacePath?: string): Promise<{
   totalTokens: number;
   totalQueries: number;
   avgTokensPerQuery: number;
   dailyAvg: number;
 }> {
-  const trend = await getTokenTrend(days);
+  const trend = await getTokenTrend(days, workspacePath);
   const totalTokens = trend.reduce((sum, d) => sum + d.totalTokens, 0);
   const totalQueries = trend.reduce((sum, d) => sum + d.queryCount, 0);
   const avgTokensPerQuery = totalQueries > 0 ? Math.round(totalTokens / totalQueries) : 0;
