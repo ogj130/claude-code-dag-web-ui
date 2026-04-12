@@ -6,7 +6,16 @@ import { useWebSocketState } from './useWebSocketState';
 import type { WSMessage, WSClientMessage, WSTerminalMessage, WSTerminalChunkMessage, ClaudeEvent } from '../types/events';
 
 const log = createLogger('WebSocket');
-const WS_URL = `ws://localhost:5300`;
+
+/**
+ * 从 URL 参数读取 WebSocket 端口（Electron 打包模式由 main.ts 通过 ?wsPort=xxx 传入）
+ * Dev 模式 fallback 到默认端口 5300
+ */
+function getWsUrl(): string {
+  const params = new URLSearchParams(window.location.search);
+  const wsPort = params.get('wsPort') ?? '5300';
+  return `ws://localhost:${wsPort}`;
+}
 
 export function useWebSocket(sessionId: string | null) {
   const wsRef = useRef<WebSocket | null>(null);
@@ -32,7 +41,7 @@ export function useWebSocket(sessionId: string | null) {
     reset: resetState,
     registerConnectionCallbacks,
   } = useWebSocketState({
-    url: WS_URL,
+    url: getWsUrl(),
     onReconnect: doConnect,
     onConnected: undefined,
     onDisconnected: undefined,
@@ -61,7 +70,7 @@ export function useWebSocket(sessionId: string | null) {
     connectedSessionRef.current = sessionId;
     useTaskStore.setState({ isStarting: true, error: null });
 
-    const ws = new WebSocket(WS_URL);
+    const ws = new WebSocket(getWsUrl());
     wsRef.current = ws;
 
     // 注册生命周期回调（使状态机感知连接状态）

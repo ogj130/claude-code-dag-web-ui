@@ -4,8 +4,18 @@ import { child as log } from './utils/logger.js';
 // @ts-ignore
 import type { WSMessage, WSClientMessage } from '../types/events.js';
 
-const PORT = 5300;
+const DEFAULT_PORT = 5300;
 const logger = log('server');
+
+/**
+ * Dev 模式入口：创建 WS 服务器并直接启动（端口固定）
+ * 由 tsx server/index.ts 直接运行
+ */
+export function startServer(port: number = DEFAULT_PORT): WebSocketServer {
+  const wss = new WebSocketServer({ port });
+  start(wss, port);
+  return wss;
+}
 
 const processManager = new ClaudeCodeProcess();
 // 放宽监听器上限：StrictMode 等场景会快速创建多个 session
@@ -38,7 +48,11 @@ function broadcast(sessionId: string, message: string): void {
   }
 }
 
-export function start(wss: WebSocketServer): void {
+/**
+ * 注册 WebSocket 事件处理（不创建服务器）
+ * Dev 模式由 startServer() 调用，Electron 打包模式由 main.ts 调用
+ */
+export function start(wss: WebSocketServer, port: number = DEFAULT_PORT): void {
   startHeartbeat(wss);
 
   wss.on('connection', (ws: WebSocket) => {
@@ -155,5 +169,13 @@ export function start(wss: WebSocketServer): void {
     });
   });
 
-  logger.info(`WebSocket server running on ws://localhost:${PORT}`);
+  logger.info(`WebSocket server running on ws://localhost:${port}`);
+}
+
+// ── Dev 模式入口 ─────────────────────────────────────────────
+// 直接运行 tsx server/index.ts 启动独立 WS 服务器（端口固定为 5300）
+// 在 Electron 打包模式下，此文件由 main.ts 通过 import() 调用，
+// 仅注册事件处理（由 main.ts 控制 WS Server 的创建和端口分配）
+if (require.main === module) {
+  startServer();
 }

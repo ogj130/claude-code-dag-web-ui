@@ -1,18 +1,306 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import * as path from 'path';
 import * as http from 'http';
 import * as fs from 'fs';
+import * as net from 'net';
 import { WebSocketServer } from 'ws';
+// vectordb 是 Node.js 原生模块，使用动态 import 惰性加载，避免顶层导入崩溃
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type LanceDB = any;
 
 // ── 版本信息 ──────────────────────────────────────────────
-const FRONTEND_PORT = 5400;
-const WS_PORT = 5300;
+const DEFAULT_FRONTEND_PORT = 5400;
+const DEFAULT_WS_PORT = 5300;
+
+// ── LanceDB 单例 ────────────────────────────────────────────
+const GLOBAL_TABLE = 'rag_global';
+
+let _db: LanceDB | null = null;
+let _lancedb: LanceDB | null = null;
+
+async function getLanceDb(): Promise<LanceDB> {
+  if (!_lancedb) {
+    _lancedb = await import('vectordb');
+  }
+  return _lancedb;
+}
+
+async function getDb() {
+  if (_db) return _db;
+  const ldb = await getLanceDb();
+  _db = await ldb.connect('.lancedb');
+  return _db;
+}
+
+function sanitizeTableName(p: string): string {
+  return p.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 56);
+}
+
+function workspaceTableName(workspacePath: string): string {
+  return `rag_${sanitizeTableName(workspacePath)}`;
+}
+
+async function getOrCreateTable(name: string) {
+  const db = await getDb();
+  try {
+    return await db.openTable(name);
+  } catch {
+    // 表不存在，创建新表
+    const tbl = await db.createTable({ name, data: [] });
+    return tbl;
+  }
+}
+
+// cosine distance → similarity score
+function distanceToScore(distance: number): number {
+  return 1 / (1 + distance);
+}
+
+// ── LanceDB IPC 处理器 ──────────────────────────────────────
+function registerVectorHandlers() {
+  ipcMain.handle('vectordb:indexQuery', async (_event, params: {
+    sessionId: string; queryId: string; workspacePath: string;
+    content: string; vector: number[]; metadata?: Record<string, unknown>;
+  }) => {
+    const id = `q_${params.queryId}`;
+    const row = {
+      id,
+      vector: params.vector,
+      content: params.content,
+      chunkType: 'query',
+      sessionId: params.sessionId,
+      queryId: params.queryId,
+      toolCallId: '',
+      workspacePath: params.workspacePath,
+      timestamp: Date.now(),
+      metadata: JSON.stringify(params.metadata ?? {}),
+    };
+    await Promise.all([
+      getOrCreateTable(GLOBAL_TABLE).then(t => t.add([row])),
+      getOrCreateTable(workspaceTableName(params.workspacePath)).then(t => t.add([row])),
+    ]);
+    return id;
+  });
+
+  ipcMain.handle('vectordb:indexToolCall', async (_event, params: {
+    sessionId: string; queryId: string; toolCallId: string;
+    workspacePath: string; content: string; vector: number[];
+    metadata?: Record<string, unknown>;
+  }) => {
+    const id = `tc_${params.toolCallId}`;
+    const row = {
+      id,
+      vector: params.vector,
+      content: params.content,
+      chunkType: 'toolcall',
+      sessionId: params.sessionId,
+      queryId: params.queryId,
+      toolCallId: params.toolCallId,
+      workspacePath: params.workspacePath,
+      timestamp: Date.now(),
+      metadata: JSON.stringify(params.metadata ?? {}),
+    };
+    await Promise.all([
+      getOrCreateTable(GLOBAL_TABLE).then(t => t.add([row])),
+      getOrCreateTable(workspaceTableName(params.workspacePath)).then(t => t.add([row])),
+    ]);
+    return id;
+  });
+
+  ipcMain.handle('vectordb:search', async (_event, params: {
+    query: string; workspacePaths: string[];
+    type?: string; topK?: number; threshold?: number; queryVector?: number[];
+  }) => {
+    const topK = params.topK ?? 10;
+    const threshold = params.threshold ?? 0.5;
+    const db = await getDb();
+    const results: unknown[] = [];
+
+    const tableNames = [GLOBAL_TABLE, ...params.workspacePaths.map(workspaceTableName)];
+
+    for (const name of tableNames) {
+      try {
+        const tbl = await db.openTable(name);
+        let query = tbl.search(params.queryVector ?? ([] as number[]));
+        if (params.type && params.type !== 'hybrid') {
+          query = query.where(`chunkType = '${params.type}'`);
+        }
+        const rows = await query.limit(Math.min(topK, 100)).execute() as Array<{
+          id: string; content: string; chunkType: string;
+          sessionId: string; queryId: string; toolCallId: string;
+          workspacePath: string; timestamp: number; metadata: string;
+          _distance?: number;
+        }>;
+        for (const row of rows) {
+          const score = row._distance !== undefined ? distanceToScore(row._distance) : 0.8;
+          if (score < threshold) continue;
+          results.push({
+            id: row.id,
+            score,
+            content: row.content,
+            chunkType: row.chunkType,
+            sessionId: row.sessionId,
+            queryId: row.queryId,
+            toolCallId: row.toolCallId || undefined,
+            workspacePath: row.workspacePath,
+            timestamp: row.timestamp,
+            metadata: JSON.parse(row.metadata || '{}'),
+          });
+        }
+      } catch {
+        // 表不存在则跳过
+      }
+    }
+    return (results as { score: number }[]).sort((a, b) => b.score - a.score).slice(0, topK);
+  });
+
+  ipcMain.handle('vectordb:listTables', async () => {
+    try {
+      const db = await getDb();
+      const names = await db.tableNames();
+      return names.filter((n: string) => n.startsWith('rag_'));
+    } catch {
+      return [];
+    }
+  });
+
+  ipcMain.handle('vectordb:tableStats', async () => {
+    try {
+      const db = await getDb();
+      const names = await db.tableNames();
+      const ragTables = names.filter((n: string) => n.startsWith('rag_'));
+      const tables: { name: string; count: number }[] = [];
+      let totalChunks = 0;
+      for (const name of ragTables) {
+        try {
+          const tbl = await db.openTable(name);
+          const count = await tbl.countRows();
+          tables.push({ name, count });
+          totalChunks += count;
+        } catch { /* skip */ }
+      }
+      return { totalChunks, tables };
+    } catch {
+      return { totalChunks: 0, tables: [] };
+    }
+  });
+
+  ipcMain.handle('vectordb:rebuildIndex', async () => {
+    const db = await getDb();
+    try { await db.dropTable(GLOBAL_TABLE); } catch { /* ignore */ }
+    await db.createTable({ name: GLOBAL_TABLE, data: [] });
+  });
+
+  ipcMain.handle('vectordb:closeDb', async () => {
+    _db = null;
+  });
+}
+
+// ── Embedding IPC 处理器 ─────────────────────────────────────
+// 通过主进程代理 HTTP 请求，彻底绕过浏览器 CORS 限制
+// 使用 OpenAI SDK 处理各 Provider 的 embedding 请求
+import OpenAI from 'openai';
+
+function registerEmbeddingHandlers() {
+  ipcMain.handle('embedding:call', async (_event, params: {
+    endpoint: string;
+    provider: string;
+    apiKey?: string;
+    model: string;
+    text: string;
+  }) => {
+    const { endpoint, apiKey, model, text, provider } = params;
+
+    try {
+      const baseURL = provider === 'ollama'
+        ? `${endpoint}/v1`
+        : endpoint;
+
+      const client = new OpenAI({
+        apiKey: apiKey ?? 'unused',
+        baseURL,
+      });
+
+      let vector: number[];
+      let dimension = 0;
+
+      if (provider === 'ollama') {
+        // Ollama 不支持批量，逐条调用
+        const response = await client.embeddings.create({
+          input: text,
+          model,
+        });
+        vector = response.data[0].embedding as number[];
+      } else if (provider === 'cohere') {
+        const response = await client.embeddings.create({
+          input: [text],
+          model,
+        });
+        vector = response.data[0].embedding as number[];
+      } else {
+        // openai / local / default — OpenAI 兼容格式
+        const response = await client.embeddings.create({
+          input: [text],
+          model,
+          encoding_format: 'float',
+        });
+        vector = response.data[0].embedding as number[];
+      }
+
+      dimension = vector.length;
+      return { success: true, vector, dimension };
+    } catch (err: unknown) {
+      const e = err as { message?: string; status?: number };
+      return {
+        success: false,
+        error: e.message ?? String(err),
+      };
+    }
+  });
+}
 
 // ── 全局引用 ──────────────────────────────────────────────
 let mainWindow: BrowserWindow | null = null;
 
+// ── 端口检测工具 ─────────────────────────────────────────
+
+/**
+ * 检测端口是否已被占用（同时检测 IPv4 和 IPv6）
+ * @returns true = 已被占用，false = 可用
+ */
+function isPortInUse(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(() => resolve(false), 1500);
+    // 同时检测 IPv4 和 IPv6，避免地址族不一致导致的漏检
+    const server = net.createServer();
+    server.once('error', () => {
+      clearTimeout(timeout);
+      resolve(true); // 端口被占用
+    });
+    server.once('listening', () => {
+      server.close();
+      clearTimeout(timeout);
+      resolve(false); // 端口可用
+    });
+    server.listen(port); // 同时绑定 IPv4 (0.0.0.0) 和 IPv6 (::)
+  });
+}
+
+/**
+ * 自动寻找可用端口（从 startPort 开始向上递增）
+ * @param startPort 起始端口
+ * @returns 找到的可用端口
+ */
+async function findAvailablePort(startPort: number): Promise<number> {
+  let port = startPort;
+  while (await isPortInUse(port)) {
+    port++;
+  }
+  return port;
+}
+
 // ── 创建浏览器窗口 ─────────────────────────────────────────
-function createWindow() {
+function createWindow(frontendPort: number, wsPort: number) {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -32,7 +320,8 @@ function createWindow() {
     mainWindow?.show();
   });
 
-  mainWindow.loadURL(`http://localhost:${FRONTEND_PORT}`);
+  // 将 WS 端口通过 URL 参数传给前端，前端据此连接正确的端口
+  mainWindow.loadURL(`http://localhost:${frontendPort}?wsPort=${wsPort}`);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
@@ -45,7 +334,7 @@ function createWindow() {
 }
 
 // ── 启动 Claude Code WS Server ────────────────────────────
-async function startWsServer(): Promise<void> {
+async function startWsServer(): Promise<number> {
   const projectRoot = path.resolve(__dirname, '..');
   const serverPath = path.join(projectRoot, 'dist', 'server', 'index.js');
 
@@ -53,30 +342,51 @@ async function startWsServer(): Promise<void> {
   // 这样 server 的 logger 不会尝试加载 pino-pretty transport
   process.env.NODE_ENV = 'production';
 
-  // 动态导入预编译的 CommonJS server 模块
+  // 动态导入预编译的 CommonJS server 模块（模块顶层不会自动启动 WS Server）
   const serverModule = await import(serverPath);
 
-  return new Promise((resolve, reject) => {
-    const wss = new WebSocketServer({ port: WS_PORT });
+  // 自动寻找可用端口（从默认端口 5300 开始向上递增）
+  const wsPort = await findAvailablePort(DEFAULT_WS_PORT);
+  if (wsPort !== DEFAULT_WS_PORT) {
+    console.log(`[Main] Port ${DEFAULT_WS_PORT} is in use — using port ${wsPort}`);
+  }
+
+  return new Promise<number>((resolve, reject) => {
+    let port = wsPort;
+    const wss = new WebSocketServer({ port });
 
     wss.on('error', (err: NodeJS.ErrnoException) => {
+      // 竞态保护：listen 时端口被抢，自动尝试下一个
       if (err.code === 'EADDRINUSE') {
-        reject(new Error(`WebSocket port ${WS_PORT} is already in use. Please close the conflicting process and restart the app.`));
+        wss.close();
+        port++;
+        const retry = new WebSocketServer({ port });
+        retry.on('error', () => reject(err));
+        retry.on('listening', () => {
+          console.log(`[Main] Port ${DEFAULT_WS_PORT} is in use — WS Server using port ${port}`);
+          serverModule.start(retry, port);
+          resolve(port);
+        });
       } else {
         reject(err);
       }
     });
 
     wss.on('listening', () => {
-      console.log(`[Main] ✓ WS Server started on ws://localhost:${WS_PORT}`);
-      serverModule.start(wss);
-      resolve();
+      console.log(`[Main] ✓ WS Server started on ws://localhost:${port}`);
+      // 注册事件处理（不创建新服务器）
+      serverModule.start(wss, port);
+      resolve(port);
     });
   });
 }
 
 // ── 启动 HTTP 服务器（静态文件）───────────────────────────
-async function startHttpServer(): Promise<void> {
+/**
+ * 启动 HTTP 静态文件服务器，自动寻找可用端口
+ * @returns 实际使用的端口
+ */
+async function startHttpServer(): Promise<number> {
   const projectRoot = path.resolve(__dirname, '..');
   const distDir = path.join(projectRoot, 'dist');
 
@@ -94,12 +404,21 @@ async function startHttpServer(): Promise<void> {
     '.ttf': 'font/ttf',
   };
 
-  return new Promise((resolve, reject) => {
+  // 自动寻找可用端口（从默认端口 5400 开始向上递增）
+  let frontendPort = await findAvailablePort(DEFAULT_FRONTEND_PORT);
+
+  return new Promise<number>((resolve, reject) => {
     const server = http.createServer((req, res) => {
       let filePath = path.join(distDir, req.url === '/' ? 'index.html' : req.url!);
 
-      if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+      // 去掉 URL 中的查询参数后再查找文件（防止 ?wsPort=xxx 影响路径）
+      const rawPath = filePath.split('?')[0];
+      const safePath = rawPath || path.join(distDir, 'index.html');
+
+      if (!fs.existsSync(safePath) || fs.statSync(safePath).isDirectory()) {
         filePath = path.join(distDir, 'index.html');
+      } else {
+        filePath = safePath;
       }
 
       const ext = path.extname(filePath);
@@ -117,16 +436,20 @@ async function startHttpServer(): Promise<void> {
     });
 
     server.on('error', (err: NodeJS.ErrnoException) => {
+      // 竞态保护：listen 时端口被抢，自动尝试下一个
       if (err.code === 'EADDRINUSE') {
-        reject(new Error(`HTTP port ${FRONTEND_PORT} is already in use. Please close the conflicting process and restart the app.`));
+        server.listen(++frontendPort, '127.0.0.1', () => {
+          console.log(`[Main] Port ${DEFAULT_FRONTEND_PORT} is in use — HTTP Server using port ${frontendPort}`);
+          resolve(frontendPort);
+        });
       } else {
         reject(err);
       }
     });
 
-    server.listen(FRONTEND_PORT, '127.0.0.1', () => {
-      console.log(`[Main] ✓ HTTP Server started on http://localhost:${FRONTEND_PORT}`);
-      resolve();
+    server.listen(frontendPort, '127.0.0.1', () => {
+      console.log(`[Main] ✓ HTTP Server started on http://localhost:${frontendPort}`);
+      resolve(frontendPort);
     });
   });
 }
@@ -136,10 +459,16 @@ app.whenReady().then(async () => {
   console.log('[Main] Claude Code Web UI starting...');
   console.log(`[Main] Version: ${app.getVersion()}`);
 
+  // 注册 LanceDB IPC 处理器
+  registerVectorHandlers();
+
+  // 注册 Embedding HTTP 代理处理器（绕过 CORS）
+  registerEmbeddingHandlers();
+
   try {
-    await startWsServer();
-    await startHttpServer();
-    createWindow();
+    const wsPort = await startWsServer();
+    const frontendPort = await startHttpServer();
+    createWindow(frontendPort, wsPort);
     console.log('[Main] ✓ Window created');
   } catch (err) {
     console.error('[Main] Startup error:', err);
@@ -153,7 +482,12 @@ app.on('window-all-closed', () => {
 
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+    // macOS dock 图标点击时无法知道端口，重新检测
+    app.whenReady().then(async () => {
+      const wsPort = await startWsServer();
+      const frontendPort = await startHttpServer();
+      createWindow(frontendPort, wsPort);
+    });
   }
 });
 
