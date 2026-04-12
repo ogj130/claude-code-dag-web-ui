@@ -4,8 +4,8 @@
 
 import { db } from '@/lib/db';
 import type { QueryRecord } from '@/lib/db';
-// 使用 sessionStorage 的 getSession，返回 DBSession（含 workspacePath）
-import { getSession, updateSession } from './sessionStorage';
+// 使用 sessionStorage 的 updateSession
+import { updateSession } from './sessionStorage';
 import type {
   CreateQueryInput,
   QueryStatus,
@@ -44,6 +44,9 @@ function generateId(): string {
 export async function createQuery(input: CreateQueryInput): Promise<QueryRecord> {
   const now = Date.now();
 
+  // 先获取 session 以便读取 projectPath（用于后续向量索引和统计过滤）
+  const sessionRecord = await db.sessions.get(input.sessionId);
+
   // CCWebDB 直接存原始文本（供 RAG 检索）
   const record: QueryRecord = {
     id: generateId(),
@@ -54,6 +57,7 @@ export async function createQuery(input: CreateQueryInput): Promise<QueryRecord>
     timestamp: now,
     tokenCount: input.tokenUsage,
     toolCount: input.toolCalls?.length ?? 0,
+    projectPath: input.projectPath ?? sessionRecord?.projectPath ?? '',
     metadata: JSON.stringify({
       toolCalls: input.toolCalls ?? [],
       dag: input.dag ?? null,
@@ -74,10 +78,11 @@ export async function createQuery(input: CreateQueryInput): Promise<QueryRecord>
   console.info('[QueryStorage] Created query:', record.id, 'for session:', input.sessionId);
 
   // ── 自动向量索引（静默失败，不影响 Query 创建） ────────────────────────
-  const session2 = await getSession(input.sessionId);
-  if (session2?.workspacePath) {
+  // sessionRecord 已在函数开头获取，直接使用
+  const workspacePath = sessionRecord?.projectPath;
+  if (workspacePath) {
     const { indexQueryChunk } = await import('@/stores/vectorStorage');
-    indexQueryChunk(input.sessionId, record.id, session2.workspacePath, record.query, {
+    indexQueryChunk(input.sessionId, record.id, workspacePath, record.query, {
       tokenUsage: input.tokenUsage,
       status: input.status,
     }).catch((err: unknown) => {
@@ -87,13 +92,15 @@ export async function createQuery(input: CreateQueryInput): Promise<QueryRecord>
     // 索引 Answer 内容
     if (input.answer) {
       const { indexAnswerChunks } = await import('@/stores/vectorStorage');
-      indexAnswerChunks(input.sessionId, record.id, session2.workspacePath, input.answer, {
-        sessionTitle: (session2 as { name?: string }).name || 'Untitled',
+      indexAnswerChunks(input.sessionId, record.id, workspacePath, input.answer, {
+        sessionTitle: sessionRecord?.name || 'Untitled',
         parentQuery: input.question,
       }).catch((err: unknown) => {
         console.warn('[QueryStorage] Answer auto-index failed:', err instanceof Error ? err.message : String(err));
       });
     }
+  } else {
+    console.warn('[QueryStorage] Auto-index skipped: session', input.sessionId, 'not found in CCWebDB or has no projectPath');
   }
 
   return record;

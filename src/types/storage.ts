@@ -240,6 +240,8 @@ export interface CreateQueryInput {
   status: QueryStatus;
   /** 错误信息 */
   errorMessage?: string;
+  /** 工作路径（用于按路径过滤统计） */
+  projectPath?: string;
 }
 
 /**
