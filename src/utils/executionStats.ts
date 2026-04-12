@@ -3,8 +3,7 @@
  * 提供工具调用分布、平均响应时间、错误率趋势等统计功能
  */
 
-import { getQueriesBySession, loadQueriesFromShards } from '@/stores/queryStorage';
-import { getAllSessions } from '@/stores/sessionStorage';
+import { db } from '@/stores/db';
 import type { ToolCall } from '@/types/storage';
 
 // ---------------------------------------------------------------------------
@@ -69,26 +68,20 @@ function getDateString(timestamp: number): string {
 }
 
 /**
- * 获取指定时间范围内的工具调用记录
+ * 获取指定时间范围内和工作路径的工具调用记录
+ * 直接从 db.queries 表读取，跳过 sessions 依赖
  */
-async function getToolCallsInRange(days?: TimeRange): Promise<ToolCall[]> {
+async function getToolCallsInRange(days?: TimeRange, workspacePath?: string): Promise<ToolCall[]> {
+  let allQueries = await db.queries.toArray();
+
+  // 按工作路径过滤
+  if (workspacePath) {
+    allQueries = allQueries.filter(q => q.projectPath === workspacePath);
+  }
+
   const allToolCalls: ToolCall[] = [];
-
-  // 获取所有会话
-  const sessions = await getAllSessions();
-
-  for (const session of sessions) {
-    let queries;
-    if (session.isSharded) {
-      queries = await loadQueriesFromShards(session.id);
-    } else {
-      const result = await getQueriesBySession(session.id);
-      queries = result.items;
-    }
-
-    for (const query of queries) {
-      allToolCalls.push(...(query.toolCalls || []));
-    }
+  for (const q of allQueries) {
+    allToolCalls.push(...(q.toolCalls || []));
   }
 
   // 按时间范围过滤
@@ -107,10 +100,11 @@ async function getToolCallsInRange(days?: TimeRange): Promise<ToolCall[]> {
 /**
  * 获取工具调用分布数据
  * @param days 可选天数，默认全部
+ * @param workspacePath 可选工作路径，默认全部
  * @returns 按调用次数降序排列的工具分布
  */
-export async function getToolDistribution(days?: TimeRange): Promise<ToolDistributionData[]> {
-  const toolCalls = await getToolCallsInRange(days);
+export async function getToolDistribution(days?: TimeRange, workspacePath?: string): Promise<ToolDistributionData[]> {
+  const toolCalls = await getToolCallsInRange(days, workspacePath);
   const total = toolCalls.length;
 
   if (total === 0) return [];
@@ -138,10 +132,11 @@ export async function getToolDistribution(days?: TimeRange): Promise<ToolDistrib
 /**
  * 获取各工具的平均响应时间
  * @param days 可选天数，默认全部
+ * @param workspacePath 可选工作路径，默认全部
  * @returns 按平均响应时间降序排列的工具列表
  */
-export async function getAverageResponseTime(days?: TimeRange): Promise<AverageResponseTime[]> {
-  const toolCalls = await getToolCallsInRange(days);
+export async function getAverageResponseTime(days?: TimeRange, workspacePath?: string): Promise<AverageResponseTime[]> {
+  const toolCalls = await getToolCallsInRange(days, workspacePath);
 
   if (toolCalls.length === 0) return [];
 
@@ -176,10 +171,11 @@ export async function getAverageResponseTime(days?: TimeRange): Promise<AverageR
 /**
  * 获取错误率趋势数据
  * @param days 时间范围：7天、30天或全部
+ * @param workspacePath 可选工作路径，默认全部
  * @returns 按日期升序排列的错误率趋势
  */
-export async function getErrorRateTrend(days: TimeRange = 7): Promise<ErrorRateTrend[]> {
-  const toolCalls = await getToolCallsInRange(days);
+export async function getErrorRateTrend(days: TimeRange = 7, workspacePath?: string): Promise<ErrorRateTrend[]> {
+  const toolCalls = await getToolCallsInRange(days, workspacePath);
 
   if (toolCalls.length === 0) return [];
 
@@ -215,13 +211,15 @@ export async function getErrorRateTrend(days: TimeRange = 7): Promise<ErrorRateT
  * 获取热点工具排行榜（Top N）
  * @param limit 返回数量，默认10
  * @param days 可选天数，默认全部
+ * @param workspacePath 可选工作路径，默认全部
  * @returns 按调用次数降序排列的工具列表
  */
 export async function getHotToolRanking(
   limit: number = 10,
-  days?: TimeRange
+  days?: TimeRange,
+  workspacePath?: string,
 ): Promise<HotToolEntry[]> {
-  const toolCalls = await getToolCallsInRange(days);
+  const toolCalls = await getToolCallsInRange(days, workspacePath);
 
   if (toolCalls.length === 0) return [];
 
@@ -265,9 +263,10 @@ export async function getHotToolRanking(
 /**
  * 获取总体执行统计摘要
  * @param days 可选天数，默认全部
+ * @param workspacePath 可选工作路径，默认全部
  * @returns 统计摘要
  */
-export async function getExecutionSummary(days?: TimeRange): Promise<{
+export async function getExecutionSummary(days?: TimeRange, workspacePath?: string): Promise<{
   totalCalls: number;
   successCalls: number;
   errorCalls: number;
@@ -275,7 +274,7 @@ export async function getExecutionSummary(days?: TimeRange): Promise<{
   avgDuration: number;
   uniqueTools: number;
 }> {
-  const toolCalls = await getToolCallsInRange(days);
+  const toolCalls = await getToolCallsInRange(days, workspacePath);
 
   const totalCalls = toolCalls.length;
 
