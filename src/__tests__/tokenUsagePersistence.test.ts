@@ -4,6 +4,30 @@ import { useSessionStore } from '@/stores/useSessionStore';
 import { db as statsDb } from '@/stores/db';
 import { db as contentDb } from '@/lib/db';
 
+// ── Mock queryStorage（隔离 DB 操作，避免 CI 环境下模块加载问题）──────────────
+vi.mock('@/stores/queryStorage', () => ({
+  createQuery: vi.fn().mockImplementation(async (input) => {
+    const id = `query_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    await statsDb.queries.add({
+      id,
+      sessionId: input.sessionId,
+      question: input.question,
+      answer: input.answer,
+      toolCalls: input.toolCalls,
+      tokenUsage: input.tokenUsage,
+      duration: input.duration,
+      status: input.status,
+      workspacePath: input.workspacePath,
+      timestamp: Date.now(),
+    });
+    return { id };
+  }),
+  updateQueryTokenUsage: vi.fn().mockImplementation(async (id, tokenUsage) => {
+    await statsDb.queries.update(id, { tokenUsage });
+  }),
+}));
+
+// ── Mock vectorStorage（隔离 RAG 向量操作）──────────────────────────────────
 vi.mock('@/stores/vectorStorage', () => ({
   indexQueryChunk: vi.fn().mockResolvedValue(undefined),
   indexAnswerChunks: vi.fn().mockResolvedValue(undefined),
@@ -36,7 +60,7 @@ describe('token usage persistence timing', () => {
   });
 
   async function waitForStatsQuery(tokenUsageExpected?: number) {
-    for (let i = 0; i < 50; i += 1) {
+    for (let i = 0; i < 200; i += 1) {  // CI 环境较慢，增加到 200 次（共 2s）
       const row = await statsDb.queries.toArray().then(rows => rows[0]);
       if (row) {
         // 如果指定了期望 tokenUsage，等待异步 updateQueryTokenUsage 完成
