@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, shell, desktopCapturer } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as http from 'http';
 import * as fs from 'fs';
@@ -485,6 +486,94 @@ async function startHttpServer(): Promise<number> {
   });
 }
 
+// ── 自动更新模块 ─────────────────────────────────────────────
+function setupAutoUpdater() {
+  const UPDATE_CH = {
+    INIT: 'update:init',
+    CHECK: 'update:check',
+    START_DOWNLOAD: 'update:start-download',
+    INSTALL: 'update:install',
+    AVAILABLE: 'update:available',
+    PROGRESS: 'update:progress',
+    DOWNLOADED: 'update:downloaded',
+    ERROR: 'update:error',
+    STATUS: 'update:status',
+  } as const;
+
+  // 启动时发送当前版本信息到渲染进程
+  if (mainWindow) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow?.webContents.send(UPDATE_CH.INIT, {
+        currentVersion: app.getVersion(),
+      });
+    });
+  }
+
+  // 配置 autoUpdater
+  autoUpdater.logger = console;
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  // IPC: 手动检查更新
+  ipcMain.handle(UPDATE_CH.CHECK, async () => {
+    try {
+      const result = await autoUpdater.checkForUpdates();
+      return { available: !!result?.updateInfo, info: result?.updateInfo ?? null };
+    } catch (err) {
+      return { available: false, error: (err as Error).message };
+    }
+  });
+
+  // IPC: 开始下载
+  ipcMain.handle(UPDATE_CH.START_DOWNLOAD, async () => {
+    try {
+      await autoUpdater.downloadUpdate();
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: (err as Error).message };
+    }
+  });
+
+  // IPC: 安装并重启
+  ipcMain.handle(UPDATE_CH.INSTALL, () => {
+    autoUpdater.quitAndInstall();
+  });
+
+  // autoUpdater 事件转发到渲染进程
+  autoUpdater.on('checking-for-update', () => {
+    mainWindow?.webContents.send(UPDATE_CH.STATUS, 'checking');
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    mainWindow?.webContents.send(UPDATE_CH.AVAILABLE, {
+      version: info.version,
+      releaseDate: info.releaseDate,
+      releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      downloadUrl: (info as any).downloadUrl,
+    });
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    mainWindow?.webContents.send(UPDATE_CH.PROGRESS, Math.round(progress.percent));
+  });
+
+  autoUpdater.on('update-downloaded', () => {
+    mainWindow?.webContents.send(UPDATE_CH.DOWNLOADED);
+  });
+
+  autoUpdater.on('error', (err) => {
+    mainWindow?.webContents.send(UPDATE_CH.ERROR, err.message);
+  });
+
+  // 启动时后台静默检查
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch(() => {
+      // 静默失败
+    });
+  }, 3000);
+}
+
 // ── Electron 生命周期 ─────────────────────────────────────
 app.whenReady().then(async () => {
   console.log('[Main] Claude Code Web UI starting...');
@@ -498,6 +587,9 @@ app.whenReady().then(async () => {
 
   // V1.4.0: 注册截图捕获处理器
   registerScreenshotHandlers();
+
+  // 自动更新模块
+  setupAutoUpdater();
 
   try {
     const wsPort = await startWsServer();
