@@ -1,6 +1,6 @@
 {
   "name": "cc-web-ui",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Claude Code DAG Web UI - Cross-platform Desktop Application",
   "type": "module",
   "scripts": {
