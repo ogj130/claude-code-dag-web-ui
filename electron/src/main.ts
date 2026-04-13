@@ -275,7 +275,7 @@ function registerScreenshotHandlers() {
       }
 
       const windowTitle = currentWindow.getTitle();
-      const source = sources.find((s) => s.title === windowTitle) || sources[0];
+      const source = sources.find((s) => s.name === windowTitle) || sources[0];
 
       if (!source) {
         return { success: false, error: 'No window source found' };
