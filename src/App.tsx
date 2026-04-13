@@ -79,7 +79,7 @@ export function App() {
   } = useTheme();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isThemeSettingsOpen, setIsThemeSettingsOpen] = useState(false);
-  const [themeSettingsTab, setThemeSettingsTab] = useState<'theme' | 'embedding'>('theme');
+  const [themeSettingsTab, setThemeSettingsTab] = useState<'theme' | 'embedding' | 'update'>('theme');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isShortcutHelpOpen, setIsShortcutHelpOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);

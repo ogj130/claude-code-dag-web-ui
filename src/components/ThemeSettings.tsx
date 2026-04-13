@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import type { ThemeMode, AccentColor, Density, FontSize } from '../hooks/useTheme';
 import { EmbeddingConfigPanel } from './EmbeddingConfigPanel';
+import { UpdateSettingsTab } from './UpdateSettingsTab';
 
 // ── Props ────────────────────────────────────────────────────────────────────
 
@@ -95,7 +96,7 @@ function OptionGroup({ children }: { children: React.ReactNode }) {
 
 // ── 标签页类型 ─────────────────────────────────────────────────────────────
 
-type Tab = 'theme' | 'embedding';
+type Tab = 'theme' | 'embedding' | 'update';
 
 const TABS: { key: Tab; label: string; icon: string }[] = [
   {
@@ -107,6 +108,11 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
     key: 'embedding',
     label: 'Embedding',
     icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4',
+  },
+  {
+    key: 'update',
+    label: '更新',
+    icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
   },
 ];
 
@@ -349,9 +355,13 @@ export function ThemeSettings(props: ThemeSettingsProps) {
         {/* 标签页内容 */}
         {activeTab === 'theme' ? (
           <ThemeContent {...props} />
-        ) : (
+        ) : activeTab === 'embedding' ? (
           <div style={{ maxHeight: 'calc(80vh - 140px)', overflowY: 'auto' }}>
             <EmbeddingConfigPanel />
+          </div>
+        ) : (
+          <div style={{ maxHeight: 'calc(80vh - 140px)', overflowY: 'auto' }}>
+            <UpdateSettingsTab />
           </div>
         )}
       </div>
