@@ -65,12 +65,13 @@ interface EmbeddingApi {
 interface UpdateInfo {
   version: string;
   releaseDate: string;
-  releaseNotes?: string | null;
+  releaseNotes: string | null;
+  downloadUrl: string;
 }
 
 interface UpdateApi {
   check(): Promise<{ available: boolean; info?: UpdateInfo | null; error?: string }>;
-  startDownload(): Promise<void>;
+  startDownload(): Promise<{ success: boolean; error?: string }>;
   install(): Promise<void>;
   onInit(cb: (data: { currentVersion: string }) => void): () => void;
   onAvailable(cb: (info: UpdateInfo) => void): () => void;
