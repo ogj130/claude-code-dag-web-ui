@@ -1,8 +1,14 @@
+import React from 'react';
 import { create } from 'zustand';
-import type { DAGNode, ToolCall as EventToolCall, TokenUsage, ClaudeEvent } from '../types/events';
+import type { DAGNode, ToolCall as EventToolCall, TokenUsage, ClaudeEvent, RAGChunk } from '../types/events';
 import { createQuery, updateQueryTokenUsage } from './queryStorage';
 import { useSessionStore } from './useSessionStore';
 import type { ToolCall as StorageToolCall } from '@/types/storage';
+import type { PendingAttachment } from '../types/attachment';
+
+// V1.4.1: Reuse PendingAttachment from attachment types (status/createdAt optional)
+export type { PendingAttachment } from '../types/attachment';
+export interface PendingAttachmentData extends PendingAttachment {}
 
 export interface MarkdownCardData {
   id: string;
@@ -13,6 +19,8 @@ export interface MarkdownCardData {
   summary?: string;      // 最终总结（无工具调用时可能为空）
   completeSummary?: string; // 完整总结（用于流式补完动画：summary 先显示流式内容，再动画补完到 completeSummary）
   tokenUsage?: number;  // 单次查询 Token 消耗
+  ragChunks?: RAGChunk[]; // 历史召回的 RAG chunks
+  attachments?: PendingAttachmentData[]; // V1.4.1: 附件列表
 }
 
 // 进行中的问答卡片（实时更新）
@@ -31,6 +39,8 @@ export interface CurrentCardData {
     sourceSessionTitle: string;
     timestamp: number;
   }>;
+  /** V1.4.1: 附件列表 */
+  attachments?: PendingAttachmentData[];
 }
 
 interface TaskState {
@@ -59,6 +69,8 @@ interface TaskState {
   previousCard: CurrentCardData | null;  // 前一个被折叠的进行中卡片（等待总结到来）
   groupingEnabled: boolean;  // 节点分组开关
   expandedGroupIds: Set<string>;  // 已展开的分组 ID 集合
+  // V1.4.0: Agent Group collapse state
+  collapsedAgentIds: Set<string>;  // 已折叠的 Agent Group ID 集合
   lastTokenUsage: number;  // 最近一次查询的 Token 消耗（保留兼容）
   /** 按 queryId 隔离的 token 消耗（解决 query_summary 先于 token_usage 到达的时序问题） */
   tokenUsageByQueryId: Map<string, number>;
@@ -78,6 +90,12 @@ interface TaskState {
     sourceSessionTitle: string;
     timestamp: number;
   }>;
+  /** V1.4.1: 待添加到 DAG 的附件（下次 query_start 时消费） */
+  pendingAttachments: PendingAttachmentData[];
+  /** V1.4.1: 各 query 的附件数量（用于 DAG 节点徽章显示） */
+  attachmentCountByQueryId: Map<string, number>;
+  /** V1.4.1: 各 query 的完整附件数据（用于 DAG 节点内渲染附件列表） */
+  attachmentDataByQueryId: Map<string, PendingAttachmentData[]>;
 
   handleEvent: (event: ClaudeEvent) => void;
   addTerminalLine: (line: string) => void;
@@ -91,9 +109,14 @@ interface TaskState {
   toggleDagQueryCollapse: (queryId: string) => void;  // 手动折叠/展开 DAG query
   collapseAllDagQueries: () => void;  // 折叠全部 DAG query 节点
   expandAllDagQueries: () => void;  // 展开全部 DAG query 节点
+  // V1.4.0: Agent Group collapse
+  collapseAllAgentGroups: () => void;  // 折叠全部 Agent Group 节点
+  expandAllAgentGroups: () => void;  // 展开全部 Agent Group 节点
   toggleGrouping: () => void;  // 切换节点分组开关
   toggleGroupExpand: (groupId: string) => void;  // 切换分组展开/折叠
   collapseAllGroups: () => void;  // 折叠全部工具分组
+  // V1.4.0: Agent Group collapse
+  setCollapsedAgentIds: (updater: React.SetStateAction<Set<string>>) => void;  // 设置折叠状态
   addRAGNodes: (queryId: string, ragItems: Array<{
     id: string;
     content: string;
@@ -112,7 +135,35 @@ interface TaskState {
     sourceSessionTitle: string;
     timestamp: number;
   }>) => void;  // 设置待消费的 RAG 项目
+  setPendingAttachments: (items: PendingAttachmentData[]) => void;  // V1.4.1: 设置待消费的附件
   reset: () => void;
+}
+
+// ── 辅助函数：从终端输出中移除附件列表内容 ─────────────────────────────
+
+/**
+ * 过滤掉终端输出中的附件列表部分，避免文件内容展示到 analysis 中
+ * 后端会以 Markdown 列表形式回显 attachments，格式如下：
+ * ## 附件
+ * - 📎 filename.md
+ * - 🖼 image.png
+ * 我们把整个附件列表块从输出中移除，附件通过 card.attachments 单独展示
+ */
+function filterAttachmentListFromAnalysis(analysis: string): string {
+  // 匹配 "## 附件" 或 "**附件**" 开头的 Markdown 列表块，直到下一个 ## 标题或文档末尾
+  return analysis
+    // 移除 "## 附件" 标题 + 跟随的无序列表
+    .replace(/^#{1,3}\s*[,，]?\s*附件[^\n]*\n((?:[-*+]\s+.+\n?)*)/gm, '')
+    // 移除 "**附件**" 标题 + 跟随的无序列表
+    .replace(/^\*\*(?:附件|Attach|Files)\*\*[^\n]*\n((?:[-*+]\s+.+\n?)*)/gim, '')
+    // 移除行内附件列表（单独一行的列表）
+    .replace(/^[-*+]\s+📎\s+.+\n/gm, '')
+    .replace(/^[-*+]\s+🖼\s+.+\n/gm, '')
+    // 移除常见的 "已上传文件:" 格式
+    .replace(/^\*\*已上传文件\*\*:?\s*\n((?:[-*+]\s+.+\n?)*)/gm, '')
+    // 清理多余的空行
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 // ── 辅助函数：将 Query 数据保存到 IndexedDB ──────────────────────────────
@@ -219,12 +270,17 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   previousCard: null,
   groupingEnabled: true,  // 默认开启节点分组
   expandedGroupIds: new Set(),  // 默认全部折叠
+  // V1.4.0: Agent Group collapse
+  collapsedAgentIds: new Set(),  // 默认全部展开
   lastTokenUsage: 0,
   tokenUsageByQueryId: new Map(),
   savedQueryIdByEventQueryId: new Map(),
   pendingTokenUsageUpdate: new Map(),
   lastEventQueryId: null,
   pendingRAGItems: [],
+  pendingAttachments: [],  // V1.4.1
+  attachmentCountByQueryId: new Map(),  // V1.4.1
+  attachmentDataByQueryId: new Map(),  // V1.4.1
 
   handleEvent: (event: ClaudeEvent) => {
     if (event.type === 'summary_chunk') {
@@ -236,7 +292,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     switch (event.type) {
       case 'streamEnd': {
         const { terminalChunks } = get();
-        const analysis = terminalChunks.join('');
+        const rawAnalysis = terminalChunks.join('');
+        const analysis = filterAttachmentListFromAnalysis(rawAnalysis);
         const queryId = event.queryId ?? get().currentQueryId ?? 'unknown';
         const newMap = new Map(get().pendingAnalysisByQueryId);
         newMap.set(queryId, analysis);
@@ -404,8 +461,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
         try {
           const parsed = JSON.parse(event.text);
-          if (parsed.query !== undefined && Array.isArray(parsed.ragChunks)) {
+          // V1.4.1: 先提取 query（payload 格式固定有 query，attachments 是可选的）
+          if (parsed.query !== undefined) {
             queryText = String(parsed.query ?? '');
+          }
+          // ragChunks 独立判断（有 RAG 上下文时才解析）
+          if (Array.isArray(parsed.ragChunks)) {
             ragChunks = parsed.ragChunks.map((chunk: { id: string; content: string; score: number; sourceSessionId: string; sourceSessionTitle: string; timestamp: number }) => ({
               id: chunk.id,
               content: chunk.content,
@@ -496,6 +557,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           });
         });
 
+        // V1.4.1: 记录附件数据到 queryId 映射（用于 DAG 节点内渲染附件列表）
+        const pendingAttachments = get().pendingAttachments;
+        const newAttachmentCountMap = new Map(get().attachmentCountByQueryId);
+        const newAttachmentDataMap = new Map(get().attachmentDataByQueryId);
+        if (pendingAttachments.length > 0) {
+          newAttachmentCountMap.set(event.queryId, pendingAttachments.length);
+          newAttachmentDataMap.set(event.queryId, [...pendingAttachments]);
+        }
+
         // 自动折叠前一个已完成的 query（DAG）
         const prevQueryId = get().lastCompletedQueryId;
         const newCollapsedDagQueryIds = new Set(get().collapsedDagQueryIds);
@@ -513,6 +583,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           lastCompletedQueryId,
           isRunning: true,
           pendingRAGItems: [],  // 消费后清除
+          pendingAttachments: [],  // V1.4.1: 消费后清除
+          attachmentCountByQueryId: newAttachmentCountMap,  // V1.4.1
+          attachmentDataByQueryId: newAttachmentDataMap,  // V1.4.1
         });
         break;
       }
@@ -651,6 +724,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
                 summary: streamedSummary || event.summary, // 流式内容优先，保证立即有内容可显示
                 completeSummary: event.summary, // 流式补完动画目标
                 tokenUsage: lastTokenUsage,
+                // V1.4.1: 关联本 query 的附件（用于卡片内渲染附件图标列表）
+                attachments: get().attachmentDataByQueryId.get(event.queryId) ?? undefined,
               },
             ],
           });
@@ -804,6 +879,23 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ collapsedDagQueryIds: new Set() });
   },
 
+  // V1.4.0: Agent Group collapse
+  collapseAllAgentGroups: () => {
+    set(state => {
+      const agentGroupIds = new Set<string>();
+      for (const [, node] of state.nodes) {
+        if (node.type === 'agent_group' || node.agentName) {
+          agentGroupIds.add(node.id);
+        }
+      }
+      return { collapsedAgentIds: agentGroupIds };
+    });
+  },
+
+  expandAllAgentGroups: () => {
+    set({ collapsedAgentIds: new Set() });
+  },
+
   toggleGrouping: () => {
     set(state => ({ groupingEnabled: !state.groupingEnabled }));
   },
@@ -822,6 +914,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
   collapseAllGroups: () => {
     set({ expandedGroupIds: new Set() });
+  },
+
+  // V1.4.0: Agent Group collapse/expand
+  setCollapsedAgentIds: (updater: React.SetStateAction<Set<string>>) => {
+    set((state) => ({
+      collapsedAgentIds: typeof updater === 'function'
+        ? updater(state.collapsedAgentIds)
+        : updater,
+    }));
   },
 
   // 添加 RAG 节点
@@ -856,6 +957,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   setPendingRAGItems: (items: TaskState['pendingRAGItems']) => {
     set({ pendingRAGItems: items });
   },
+  /** V1.4.1: 设置待消费的附件 */
+  setPendingAttachments: (items: TaskState['pendingAttachments']) => {
+    set({ pendingAttachments: items });
+  },
 
   reset: () => {
     set({
@@ -884,12 +989,16 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       previousCard: null,
       groupingEnabled: true,
       expandedGroupIds: new Set(),
+      collapsedAgentIds: new Set(),  // V1.4.0
       lastTokenUsage: 0,
       tokenUsageByQueryId: new Map(),
       savedQueryIdByEventQueryId: new Map(),
       pendingTokenUsageUpdate: new Map(),
       lastEventQueryId: null,
       pendingRAGItems: [],
+      pendingAttachments: [],  // V1.4.1
+      attachmentCountByQueryId: new Map(),  // V1.4.1
+      attachmentDataByQueryId: new Map(),  // V1.4.1
     });
   },
 }));

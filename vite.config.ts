@@ -83,6 +83,26 @@ function embeddingProxyPlugin(): Plugin {
 export default defineConfig({
   plugins: [react(), embeddingProxyPlugin()],
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React vendor chunk
+          'vendor-react': ['react', 'react-dom'],
+          // React Flow for DAG visualization
+          'vendor-reactflow': ['@xyflow/react'],
+          // Image processing (heavy - 1.4MB)
+          'vendor-image': ['image-js'],
+          // Charts
+          'vendor-charts': ['recharts'],
+          // Vector database
+          'vendor-vector': ['vectordb'],
+          // Terminal (xterm)
+          'vendor-terminal': ['@xterm/xterm', '@xterm/addon-fit'],
+        },
+      },
+    },
+  },
   server: {
     port: 5400,
     proxy: {

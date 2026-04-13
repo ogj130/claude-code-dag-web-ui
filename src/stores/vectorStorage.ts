@@ -21,7 +21,7 @@
  *   vectordb:closeDb      — 关闭连接
  */
 
-export type ChunkType = 'query' | 'toolcall' | 'answer';
+export type ChunkType = 'query' | 'toolcall' | 'answer' | 'attachment';
 
 export interface VectorChunk {
   id: string;
@@ -47,6 +47,9 @@ export interface SearchResult {
   workspacePath: string;
   timestamp: number;
   metadata: Record<string, unknown>;
+  /** V1.4.1: 附件元数据 */
+  fileName?: string;
+  mimeType?: string;
 }
 
 export interface SearchOptions {
@@ -144,6 +147,27 @@ export async function indexAnswerChunks(
   } else {
     const local = await import('@/stores/localVectorStorage');
     return local.indexAnswerChunks(sessionId, queryId, workspacePath, answer, metadata);
+  }
+}
+
+/**
+ * V1.4.1: 索引附件文档（自动切分、向量化、入库）
+ * 仅在 Vite dev 模式下可用
+ */
+export async function indexAttachmentChunks(
+  attachmentId: string,
+  fileName: string,
+  mimeType: string,
+  textContent: string,
+  workspacePath: string,
+  sessionId: string,
+): Promise<string[]> {
+  if (isElectron) {
+    console.warn('[vectorStorage] indexAttachmentChunks not yet implemented for Electron IPC');
+    return [];
+  } else {
+    const local = await import('@/stores/localVectorStorage');
+    return local.indexAttachmentChunks(attachmentId, fileName, mimeType, textContent, workspacePath, sessionId);
   }
 }
 

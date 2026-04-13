@@ -176,7 +176,9 @@ export function start(wss: WebSocketServer, port: number = DEFAULT_PORT): void {
 // 直接运行 tsx server/index.ts 启动独立 WS 服务器（端口固定为 5300）
 // 在 Electron 打包模式下，此文件由 main.ts 通过 import() 调用，
 // 仅注册事件处理（由 main.ts 控制 WS Server 的创建和端口分配）
-// @ts-ignore require.main 在 CommonJS 编译输出中有效；tsx dev ESM 模式中被静默跳过
-if (require.main === module) {
+
+// ESM 模式入口检测
+const isMainModule = import.meta.url === `file://${process.argv[1]}`;
+if (isMainModule) {
   startServer();
 }

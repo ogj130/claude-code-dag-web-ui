@@ -11,6 +11,11 @@ import { MarkdownCard } from './MarkdownCard';
 import { LiveCard } from './LiveCard';
 import { ToolCards } from './ToolCards';
 import { useHistoryRecall } from '../../hooks/useHistoryRecall';
+// V1.4.1: Attachment components
+import { AttachmentButton, AttachmentPreviewStrip, AttachmentDetailPanel, AttachmentPreviewModal, TerminalAttachmentSection } from '../Attachment';
+import { useFileUpload } from '../../hooks/useFileUpload';
+import { useAttachmentStore, usePendingAttachments } from '../../stores/useAttachmentStore';
+import type { PendingAttachment } from '../../types/attachment';
 
 interface Props {
   theme: 'dark' | 'light';
@@ -71,6 +76,15 @@ export function TerminalView({ theme, onInput, style }: Props) {
   const [pendingQueryText, setPendingQueryText] = useState('');
   /** 本次发送的 RAG chunks（用于在上方分离显示） */
   const [pendingRAGChunks, setPendingRAGChunks] = useState<RAGContextItem[]>([]);
+  // V1.4.1: Attachment preview modal state
+  const [previewAttachment, setPreviewAttachment] = useState<PendingAttachment | null>(null);
+  // V1.4.1: Sent attachments for current query
+  const [sentAttachments, setSentAttachments] = useState<PendingAttachment[]>([]);
+
+  // V1.4.1: File upload hook
+  const { handleFileSelect, handleRemoveAttachment, handleClearAll, getReadyAttachments } = useFileUpload();
+  const { setPreviewExpanded } = useAttachmentStore();
+  const pendingAttachments = usePendingAttachments();
   const {
     terminalLines,
     streamEndPending,
@@ -297,40 +311,68 @@ export function TerminalView({ theme, onInput, style }: Props) {
   // 外部文本框按 Enter 时发送
   const { getPromptContext, items: ragItems } = useRAGContext();
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== 'Enter') return;
-    const text = (inputValue ?? '').trim();
-    if (!text) return;
+  // V1.4.1: Handle preview modal
+  const handlePreviewAttachment = useCallback((attachment: PendingAttachment) => {
+    setPreviewAttachment(attachment);
+  }, []);
+
+  // V1.4.1: Handle send with attachments
+  const handleSendWithAttachments = useCallback(() => {
+    const text = inputValue.trim();
+    if (!text && pendingAttachments.length === 0) return;
 
     const term = terminalRef.current;
-
-    // 先清空输入框（即使 WebSocket 发送失败也保持 UI 同步）
-    setInputValue('');
-
     if (!term) return;
+
+    // 先清空输入框
+    setInputValue('');
 
     // 首次问题回答完毕后，第二次输入前显示分隔线
     if (markdownCards.length > 0) {
       writeSeparator(term, theme === 'dark');
     }
 
-    // ── 构造 payload：有 RAG chunks 时用 JSON，否则用原始文本 ─────
-    const payload = ragItems.length > 0
-      ? JSON.stringify({ query: text, ragChunks: ragItems })
-      : text;
+    // 获取附件
+    const readyAttachments = getReadyAttachments();
 
-    // 回显用户输入（使用原始 text，不是 JSON）
-    term.writeln(`\n\x1b[36m›\x1b[0m \x1b[90m${text}\x1b[0m`);
+    // 回显用户输入
+    term.writeln(`\n\x1b[36m›\x1b[0m \x1b[90m${text || '(仅附件)'}\x1b[0m`);
 
-    // 获取 RAG 上下文并注入到 prompt（给服务端/AI 使用）
-    const ragContext = getPromptContext();
-
-    // 发送 payload（带 RAG 时是 JSON，不带 RAG 时是原始文本）
-    const finalText = ragContext ? `${ragContext}用户问题：${payload}` : payload;
-
-    // ── 设置 pending 状态（用于上方分离显示）───────────────
+    // ── 构造 payload ────────────────────────────────────────
+    const payload: Record<string, unknown> = { query: text };
     if (ragItems.length > 0) {
-      // 先设置 pending RAG chunks（用于 DAG 节点）
+      payload.ragChunks = ragItems;
+    }
+
+    // V1.4.1: 添加附件信息到 payload
+    if (readyAttachments.length > 0) {
+      payload.attachments = readyAttachments.map(att => ({
+        type: att.type,
+        mimeType: att.mimeType,
+        fileName: att.fileName,
+        imageData: att.imageData,
+        textContent: att.textContent,
+      }));
+
+      // V1.4.1: 同步到 TaskStore（保留完整数据用于预览，仅 payload 不发送 textContent）
+      useTaskStore.getState().setPendingAttachments(readyAttachments.map((att) => ({
+        id: att.id,
+        type: att.type,
+        mimeType: att.mimeType,
+        fileName: att.fileName,
+        fileSize: att.fileSize,
+        thumbnailData: att.thumbnailData,
+        imageData: att.imageData,
+        textContent: att.textContent,
+        textPreview: att.textPreview,
+      })));
+
+      // 显示发送的附件（终端中）
+      setSentAttachments([...readyAttachments]);
+    }
+
+    // ── 设置 pending RAG 状态 ────────────────────────────────
+    if (ragItems.length > 0) {
       useTaskStore.getState().setPendingRAGItems(
         ragItems.map(item => ({
           id: item.id,
@@ -342,18 +384,23 @@ export function TerminalView({ theme, onInput, style }: Props) {
           timestamp: item.timestamp,
         }))
       );
-      // 设置本地 pending 状态（用于上方分离显示）
       setPendingQueryText(text);
       setPendingRAGChunks([...ragItems]);
     }
 
-    // 发送消息（出错时回显提示）
+    // 获取 RAG 上下文
+    const ragContext = getPromptContext();
+    const finalPayload = ragContext
+      ? `${ragContext}用户问题：${JSON.stringify(payload)}`
+      : JSON.stringify(payload);
+
+    // 发送消息
     try {
-      const sent = onInput?.(finalText);
+      const sent = onInput?.(finalPayload);
       if (sent === false || sent === undefined) {
         term.writeln('\x1b[33m⚠ 发送失败，请检查连接状态\x1b[0m');
       } else {
-        // 清除 RAG 上下文（UI 侧）
+        // 清除 RAG 上下文
         if (ragItems.length > 0) {
           useRAGContext.getState().clearAll();
           setTimeout(() => {
@@ -361,11 +408,28 @@ export function TerminalView({ theme, onInput, style }: Props) {
             setPendingRAGChunks([]);
           }, 3000);
         }
+
+        // V1.4.1: 清除已发送的附件
+        if (readyAttachments.length > 0) {
+          handleClearAll();
+          // 3秒后清除终端中的附件显示
+          setTimeout(() => {
+            setSentAttachments([]);
+          }, 3000);
+        }
       }
     } catch (err) {
       term.writeln(`\x1b[31m✗ 发送异常: ${String(err)}\x1b[0m`);
     }
-  };
+  }, [inputValue, pendingAttachments, markdownCards, ragItems, getPromptContext, getReadyAttachments, handleClearAll, onInput, theme]);
+
+  // 兼容旧的 handleInputKeyDown（用于 Ctrl+Enter 发送）
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendWithAttachments();
+    }
+  }, [handleSendWithAttachments]);
 
   const totalTokens = tokenUsage.input + tokenUsage.output;
   const statusColor = error ? 'var(--error)' : isRunning ? 'var(--success)' : 'var(--text-muted)';
@@ -428,7 +492,7 @@ export function TerminalView({ theme, onInput, style }: Props) {
         {markdownCards.length > 0 && (
           <div style={{ padding: '0 4px' }}>
             {markdownCards.map(card => (
-              <MarkdownCard key={`${card.queryId}-${collapsedCardIds.has(card.queryId)}`} card={card} defaultAnalysisOpen={false} defaultCollapsed={collapsedCardIds.has(card.queryId)} />
+              <MarkdownCard key={`${card.queryId}-${collapsedCardIds.has(card.queryId)}`} card={card} defaultAnalysisOpen={false} defaultCollapsed={collapsedCardIds.has(card.queryId)} onAttachmentClick={(att) => setPreviewAttachment(att)} />
             ))}
           </div>
         )}
@@ -867,7 +931,30 @@ export function TerminalView({ theme, onInput, style }: Props) {
         </div>
       )}
 
-      {/* 输入框（保持不变） */}
+      {/* V1.4.1: 附件预览条带（发送前） */}
+      <AttachmentPreviewStrip
+        onRemove={handleRemoveAttachment}
+        onClearAll={handleClearAll}
+        onToggleExpand={() => setPreviewExpanded(true)}
+        onPreview={handlePreviewAttachment}
+        onFileSelect={handleFileSelect}
+      />
+
+      {/* V1.4.1: 附件详情面板（可展开） */}
+      <AttachmentDetailPanel
+        onRemove={handleRemoveAttachment}
+        onPreview={handlePreviewAttachment}
+      />
+
+      {/* V1.4.1: 已发送的附件（终端中显示） */}
+      {sentAttachments.length > 0 && (
+        <TerminalAttachmentSection
+          attachments={sentAttachments}
+          onPreview={handlePreviewAttachment}
+        />
+      )}
+
+      {/* 输入框 */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -881,6 +968,9 @@ export function TerminalView({ theme, onInput, style }: Props) {
         onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
         onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
       >
+        {/* V1.4.1: 附件按钮 */}
+        <AttachmentButton onFilesSelected={handleFileSelect} />
+
         <span style={{
           color: 'var(--accent)',
           fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
@@ -888,6 +978,7 @@ export function TerminalView({ theme, onInput, style }: Props) {
           fontWeight: 700,
           lineHeight: 1,
           userSelect: 'none',
+          marginLeft: 4,
         }}>›</span>
         <input
           type="text"
@@ -929,6 +1020,12 @@ export function TerminalView({ theme, onInput, style }: Props) {
           </span>
         )}
       </div>
+
+      {/* V1.4.1: 附件预览弹窗 */}
+      <AttachmentPreviewModal
+        attachment={previewAttachment}
+        onClose={() => setPreviewAttachment(null)}
+      />
     </div>
   );
 }

@@ -14,12 +14,15 @@ import { ShortcutHelp } from './components/ShortcutHelp';
 import { ExecutionAnalytics } from './components/ExecutionAnalytics';
 import { TokenAnalytics } from './components/TokenAnalytics';
 import { RAGRetrievalModal } from './components/RAGRetrievalModal';
+import { CompactionDrawer } from './components/Compaction/CompactionDrawer';
 import { RAGContextBar } from './components/RAGContextBar';
 import { useSessionStore } from './stores/useSessionStore';
 import { useTaskStore, type MarkdownCardData } from './stores/useTaskStore';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useTheme } from './hooks/useTheme';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useClipboardImage } from './hooks/useClipboardImage';
+import { useCompressionTrigger } from './hooks/useCompressionTrigger';
 import { appendErrorLog } from './utils/errorLogger';
 import { getQueriesBySession } from './stores/queryStorage';
 import type { SearchResult } from './stores/searchIndex';
@@ -82,6 +85,7 @@ export function App() {
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isTokenAnalyticsOpen, setIsTokenAnalyticsOpen] = useState(false);
   const [isRAGOpen, setIsRAGOpen] = useState(false);
+  const [isCompactionOpen, setIsCompactionOpen] = useState(false);
 
   // 响应式布局：监听窗口宽度
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -110,11 +114,29 @@ export function App() {
   const { sendInput, disconnect, connect } = useWebSocket(activeSessionId);
   const { nodes, error, isStarting, markdownCards, isRunning, currentCard } = useTaskStore();
 
+  // V1.4.0: Clipboard image paste detection
+  useClipboardImage({
+    sessionId: activeSessionId || 'default',
+    showToast: true,
+    toastMessage: '截图已添加到输入',
+  });
+
+  // V1.4.0: Context compression monitoring
+  useCompressionTrigger();
+
   // 快捷键系统（替换原有的 Cmd+K 和 Esc 监听）
   const { shortcuts, conflicts } = useKeyboardShortcuts({
     openSearch: () => setIsSearchOpen(prev => !prev),
-    collapseAll: () => useTaskStore.getState().collapseAllDagQueries(),
-    expandAll: () => useTaskStore.getState().expandAllDagQueries(),
+    // V1.4.0: 折叠/展开同时处理旧 DAG 分组和新的 Agent Group
+    collapseAll: () => {
+      useTaskStore.getState().collapseAllDagQueries();
+      useTaskStore.getState().collapseAllAgentGroups();
+    },
+    expandAll: () => {
+      useTaskStore.getState().expandAllDagQueries();
+      useTaskStore.getState().expandAllAgentGroups();
+    },
+    openCompaction: () => setIsCompactionOpen(prev => !prev),
     toggleTheme: () => {
       const next = mode === 'dark' ? 'light' : 'dark';
       setMode(next);
@@ -125,6 +147,7 @@ export function App() {
       if (isShortcutHelpOpen) { setIsShortcutHelpOpen(false); return; }
       if (isHistoryOpen) { setIsHistoryOpen(false); return; }
       if (isRAGOpen) { setIsRAGOpen(false); return; }
+      if (isCompactionOpen) { setIsCompactionOpen(false); return; }
       if (isAnalyticsOpen) { setIsAnalyticsOpen(false); return; }
       if (isTokenAnalyticsOpen) { setIsTokenAnalyticsOpen(false); return; }
       if (isSearchOpen) { setIsSearchOpen(false); return; }
@@ -255,6 +278,7 @@ export function App() {
         onOpenAnalytics={() => setIsAnalyticsOpen(prev => !prev)}
         onOpenTokenAnalytics={() => setIsTokenAnalyticsOpen(prev => !prev)}
         onOpenRAG={() => setIsRAGOpen(prev => !prev)}
+        onOpenCompaction={() => setIsCompactionOpen(prev => !prev)}
       />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {renderMainContent()}
@@ -300,6 +324,10 @@ export function App() {
           setIsRAGOpen(false);
           setIsThemeSettingsOpen(true);
         }}
+      />
+      <CompactionDrawer
+        isOpen={isCompactionOpen}
+        onClose={() => setIsCompactionOpen(false)}
       />
       <ShortcutHelp
         isOpen={isShortcutHelpOpen}

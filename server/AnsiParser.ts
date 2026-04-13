@@ -7,6 +7,8 @@ export class AnsiParser extends EventEmitter {
   private currentQueryId = '';
   // 检测到 stream-json 模式后，禁止 fallback 的 terminalLine（防止重复输出）
   private streamJsonMode = false;
+  // 跟踪当前活动的 Agent ID（用于匹配 agent_start 和 agent_end）
+  private currentAgentId = '';
 
   setCurrentQueryId(id: string): void {
     this.currentQueryId = id;
@@ -268,10 +270,15 @@ export class AnsiParser extends EventEmitter {
   /** 解析 ANSI 彩色终端输出行（交互模式回退） */
   private parseAnsiLine(clean: string): ClaudeEvent[] {
     const agentStart = clean.match(/›››\s*Agent:\s*(.+?)\s*(启动|开始|start)/);
-    if (agentStart) return [{ type: 'agent_start', agentId: `agent_${Date.now()}`, label: agentStart[1] }];
+    if (agentStart) {
+      this.currentAgentId = `agent_${Date.now()}`;
+      return [{ type: 'agent_start', agentId: this.currentAgentId, label: agentStart[1] }];
+    }
 
     const agentEnd = clean.match(/›››\s*Agent:\s*(.+?)\s*(✓|完成|end|done)/);
-    if (agentEnd) return [{ type: 'agent_end', agentId: `agent_${Date.now()}`, result: agentEnd[1] }];
+    if (agentEnd) {
+      return [{ type: 'agent_end', agentId: this.currentAgentId, result: agentEnd[1] }];
+    }
 
     const toolMatch = clean.match(/›››\s*([A-Za-z]+)\s*(.*)/);
     if (toolMatch && !clean.includes('Agent')) {

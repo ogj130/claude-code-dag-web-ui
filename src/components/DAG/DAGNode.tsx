@@ -1,6 +1,8 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { DAGNode as DAGNodeType } from '../../types/events';
+import type { PendingAttachmentData } from '../../stores/useTaskStore';
+import { getFileIcon, formatFileSize, type AttachmentType } from '../../types/attachment';
 
 // ── 浅比较函数：仅当核心属性变化时才重渲染 ─────────────
 function arePropsEqual(prev: DAGNodeProps, next: DAGNodeProps): boolean {
@@ -21,7 +23,10 @@ function arePropsEqual(prev: DAGNodeProps, next: DAGNodeProps): boolean {
     pd.onToggleCollapse === nd.onToggleCollapse &&
     pd.onToggleGroup === nd.onToggleGroup &&
     pd.containerWidth === nd.containerWidth &&
-    pd.toolMessage === nd.toolMessage
+    pd.toolMessage === nd.toolMessage &&
+    pd.attachmentCount === nd.attachmentCount &&
+    pd.attachmentData === nd.attachmentData &&
+    pd.onAttachmentClick === nd.onAttachmentClick
   );
 }
 
@@ -131,6 +136,12 @@ interface DAGNodeProps {
     isExpanded?: boolean;
     /** 容器模式下固定子节点宽度 */
     containerWidth?: number;
+    /** V1.4.1: 附件数量 */
+    attachmentCount?: number;
+    /** V1.4.1: 完整附件数据（用于渲染附件容器） */
+    attachmentData?: PendingAttachmentData[] | null;
+    /** V1.4.1: 附件点击回调 */
+    onAttachmentClick?: (att: PendingAttachmentData) => void;
   };
   onOpenDetail?: (node: Pick<DAGNodeType, 'id' | 'type' | 'label' | 'status' | 'args' | 'summaryContent' | 'content' | 'score' | 'sourceSessionId' | 'sourceSessionTitle'>) => void;
 }
@@ -318,6 +329,88 @@ function DAGNodeInner({ data, onOpenDetail }: DAGNodeProps) {
               ? <path d="M10 17l5-5-5-5z"/>
               : <path d="M7 10l5 5 5-5z"/>}
           </svg>
+        </div>
+      )}
+
+      {/* V1.4.1: 附件容器（query 节点有附件时渲染为容器） */}
+      {data.type === 'query' && data.attachmentData && data.attachmentData.length > 0 && (
+        <div style={{
+          marginTop: 8,
+          padding: '6px 8px',
+          background: 'rgba(99, 102, 241, 0.06)',
+          border: '1.5px dashed rgba(99, 102, 241, 0.4)',
+          borderRadius: 8,
+        }}>
+          {/* 容器标题 */}
+          <div style={{
+            fontSize: 9,
+            fontWeight: 600,
+            color: '#6366F1',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase',
+            marginBottom: 6,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+            </svg>
+            附件 ({data.attachmentData.length})
+          </div>
+          {/* 附件图标列表 */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {data.attachmentData.map((att) => (
+              <div
+                key={att.id}
+                title={`${att.fileName} (${formatFileSize(att.fileSize)})`}
+                onClick={() => data.onAttachmentClick?.(att)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '3px 6px',
+                  background: 'var(--dag-node, var(--bg-card))',
+                  border: '1px solid rgba(99, 102, 241, 0.3)',
+                  borderRadius: 5,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = '#6366F1';
+                  e.currentTarget.style.background = 'rgba(99, 102, 241, 0.12)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+                  e.currentTarget.style.background = 'var(--dag-node, var(--bg-card))';
+                }}
+              >
+                {/* 缩略图或图标 */}
+                {att.type === 'image' && att.thumbnailData ? (
+                  <img
+                    src={att.thumbnailData}
+                    alt={att.fileName}
+                    style={{ width: 20, height: 20, borderRadius: 3, objectFit: 'cover' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 12 }}>{getFileIcon(att.type as AttachmentType, att.mimeType)}</span>
+                )}
+                {/* 文件名 */}
+                <span style={{
+                  fontSize: 9,
+                  fontWeight: 500,
+                  color: 'var(--text-secondary)',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  maxWidth: 80,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}>
+                  {att.fileName}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {data.parentId && (

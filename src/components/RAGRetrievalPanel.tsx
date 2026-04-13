@@ -24,7 +24,7 @@ import ReactMarkdown from 'react-markdown';
 // 类型
 // ---------------------------------------------------------------------------
 
-type RetrievalType = 'query' | 'toolcall' | 'hybrid';
+type RetrievalType = 'all' | 'conversation' | 'attachment';
 
 // ---------------------------------------------------------------------------
 // 骨架屏
@@ -83,9 +83,11 @@ function ResultItem({
   const [expanded, setExpanded] = useState(false);
   const isQuery = result.chunkType === 'query';
   const isAnswer = result.chunkType === 'answer';
-  const typeColor = isQuery ? '#4a9eff' : isAnswer ? '#a855f7' : '#f97316';
-  const typeBg = isQuery ? 'rgba(74,158,255,0.12)' : isAnswer ? 'rgba(168,85,247,0.12)' : 'rgba(249,115,22,0.12)';
-  const typeLabel = isQuery ? 'Query' : isAnswer ? 'Answer' : 'ToolCall';
+  const isAttachment = result.chunkType === 'attachment';
+  const typeColor = isQuery ? '#4a9eff' : isAnswer ? '#a855f7' : isAttachment ? '#6366F1' : '#f97316';
+  const typeBg = isQuery ? 'rgba(74,158,255,0.12)' : isAnswer ? 'rgba(168,85,247,0.12)' : isAttachment ? 'rgba(99,102,241,0.12)' : 'rgba(249,115,22,0.12)';
+  const typeLabel = isQuery ? 'Query' : isAnswer ? 'Answer' : isAttachment ? '附件' : 'ToolCall';
+  const fileName = isAttachment ? result.fileName : undefined;
 
   const timeStr = new Date(result.timestamp).toLocaleString('zh-CN', {
     month: '2-digit',
@@ -141,8 +143,21 @@ function ResultItem({
           {(result.score * 100).toFixed(1)}%
         </span>
 
-        {/* 会话标题 */}
-        {sessionTitle && (
+        {/* 会话标题 / 附件文件名 */}
+        {isAttachment && fileName ? (
+          <span style={{
+            fontSize: 10,
+            color: '#6366F1',
+            flex: 1,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            textAlign: 'right',
+            fontFamily: "'JetBrains Mono', monospace",
+          }}>
+            📎 {fileName}
+          </span>
+        ) : sessionTitle ? (
           <span style={{
             fontSize: 10,
             color: 'var(--text-muted)',
@@ -154,7 +169,7 @@ function ResultItem({
           }}>
             {sessionTitle}
           </span>
-        )}
+        ) : null}
 
         {/* 时间 */}
         <span style={{ fontSize: 9, color: 'var(--text-dim)', flexShrink: 0 }}>
@@ -372,7 +387,7 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
   const [query, setQuery] = useState('');
   const [topK, setTopK] = useState(10);
   const [threshold, setThreshold] = useState(0.3);
-  const [retrievalType, setRetrievalType] = useState<RetrievalType>('hybrid');
+  const [retrievalType, setRetrievalType] = useState<RetrievalType>('all');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isSearching, setIsSearching] = useState(false);
@@ -461,15 +476,26 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
     setSelected(new Set());
 
     try {
+      // V1.4.1: 检索类型映射：UI 类型 → search 函数类型
+      const searchType: 'query' | 'toolcall' | 'answer' | 'attachment' | 'hybrid' =
+        retrievalType === 'all' ? 'hybrid'
+        : retrievalType === 'attachment' ? 'attachment'
+        : 'hybrid'; // 'conversation' 用 hybrid 结果在 UI 层过滤
+
       const hits = await search(query, {
         workspacePaths: selectedPaths,
-        type: retrievalType,
+        type: searchType,
         topK,
         threshold,
       });
 
+      // V1.4.1: 对话历史模式过滤掉 attachment 类型
+      const filtered = retrievalType === 'conversation'
+        ? hits.filter(h => h.chunkType !== 'attachment')
+        : hits;
+
       // 按相似度降序排列（vectorStorage 返回的已排序）
-      setResults(hits);
+      setResults(filtered);
       setPage(1); // 重置到第一页
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -782,9 +808,9 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
         display: 'flex',
         gap: 5,
       }}>
-        {typeBtn('query', 'Query 级', '仅检索用户查询片段')}
-        {typeBtn('toolcall', 'ToolCall 级', '仅检索工具调用片段')}
-        {typeBtn('hybrid', '混合', 'Query + ToolCall 混合检索')}
+        {typeBtn('all', '全部', '检索全部类型（对话历史 + 附件）')}
+        {typeBtn('conversation', '对话历史', '仅检索对话历史片段')}
+        {typeBtn('attachment', '附件', '仅检索上传的文档附件')}
       </div>
 
       {/* ── 搜索输入 ──────────────────────────────────────────────────── */}

@@ -15,9 +15,10 @@ interface Props {
   onOpenAnalytics?: () => void;
   onOpenTokenAnalytics?: () => void;
   onOpenRAG?: () => void;
+  onOpenCompaction?: () => void;
 }
 
-export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, onOpenThemeSettings, onOpenAnalytics, onOpenTokenAnalytics, onOpenRAG }: Props) {
+export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, onOpenThemeSettings, onOpenAnalytics, onOpenTokenAnalytics, onOpenRAG, onOpenCompaction }: Props) {
   const { addSession } = useSessionStore();
   const { groupingEnabled, toggleGrouping } = useTaskStore();
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
@@ -169,6 +170,24 @@ export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, o
           </svg>
           Token 统计
         </button>
+        {onOpenCompaction && (
+          <button
+            onClick={onOpenCompaction}
+            style={{
+              background: 'transparent', color: '#F59E0B',
+              border: '1px solid rgba(245, 158, 11, 0.4)', padding: '6px 12px',
+              borderRadius: 6, fontSize: 12, cursor: 'pointer',
+              fontFamily: 'inherit', transition: 'all 0.2s',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth={1.8}
+              strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L22 20H2L12 2Z" strokeDasharray="3 2" />
+            </svg>
+            上下文压缩
+          </button>
+        )}
         <button
           onClick={onOpenRAG}
           style={{

@@ -3,7 +3,8 @@
  * 封装 Session/Query 与 Dexie 之间的读写逻辑，
  * 包含压缩支持（依赖 lz-string）
  */
-import { compress, decompress } from 'lz-string';
+import LZString from 'lz-string';
+const { compress, decompress } = LZString;
 import type { SessionRecord, QueryRecord } from './db';
 import {
   createSession,

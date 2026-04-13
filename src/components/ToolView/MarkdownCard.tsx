@@ -2,24 +2,17 @@ import React, { memo, useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CardToolTimeline } from './CardToolTimeline';
-import type { RAGChunk } from '../../types/events';
+import type { MarkdownCardData } from '../../stores/useTaskStore';
+import { formatFileSize, getFileIcon } from '../../types/attachment';
 
-export interface MarkdownCardData {
-  id: string;
-  queryId: string;        // 关联的 query ID，用于工具时间线
-  timestamp: number;
-  query: string;         // 用户问题
-  analysis: string;       // AI 分析过程（Markdown）
-  summary?: string;       // 当前显示的总结（流式开始时为流式内容，最终为完整内容）
-  completeSummary?: string; // 完整总结（用于流式补完动画：summary 先显示流式内容，再动画补完到 completeSummary）
-  tokenUsage?: number;    // 单次查询 Token 消耗
-  ragChunks?: RAGChunk[]; // 历史召回的 RAG chunks
-}
+// Re-export the type
+export type { MarkdownCardData } from '../../stores/useTaskStore';
 
 interface MarkdownCardProps {
   card: MarkdownCardData;
   defaultAnalysisOpen?: boolean; // analysis 默认折叠
   defaultCollapsed?: boolean;   // 外部控制的折叠状态（新问题开始时自动叠起）
+  onAttachmentClick?: (attachment: NonNullable<MarkdownCardData['attachments']>[number]) => void;  // V1.4.1: 附件点击回调
 }
 
 // Markdown 元素样式（与 DAGNode.tsx 保持一致）
@@ -68,7 +61,7 @@ const markdownStyles: Record<string, React.CSSProperties> = {
   hr: { border: 'none', borderTop: '1px solid var(--border)', margin: '8px 0' },
 };
 
-function MarkdownCardInner({ card, defaultAnalysisOpen = false, defaultCollapsed = false }: MarkdownCardProps) {
+function MarkdownCardInner({ card, defaultAnalysisOpen = false, defaultCollapsed = false, onAttachmentClick }: MarkdownCardProps) {
   const [open, setOpen] = useState(!defaultCollapsed);  // 外部控制折叠时，默认折叠
   const [analysisOpen, setAnalysisOpen] = useState(defaultAnalysisOpen);
   // 流式补完动画：初始显示流式内容，逐字补完到完整内容
@@ -212,6 +205,101 @@ function MarkdownCardInner({ card, defaultAnalysisOpen = false, defaultCollapsed
               <span style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.6, wordBreak: 'break-word' }}>
                 {card.query}
               </span>
+            </div>
+          )}
+
+          {/* V1.4.1: 附件列表 */}
+          {card.attachments && card.attachments.length > 0 && (
+            <div style={{
+              border: '1px solid rgba(99, 102, 241, 0.35)',
+              borderRadius: 6,
+              padding: '6px 10px',
+              margin: '0 12px 8px',
+              background: 'rgba(99, 102, 241, 0.04)',
+            }}>
+              <div style={{
+                fontSize: 9,
+                color: 'rgba(99, 102, 241, 0.8)',
+                fontFamily: "'JetBrains Mono', monospace",
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                marginBottom: 4,
+              }}>
+                附件 ({card.attachments.length})
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {card.attachments.map((att) => {
+                  return (
+                    <div
+                      key={att.id}
+                      onClick={() => onAttachmentClick?.(att)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '4px 8px',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 6,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                        maxWidth: 180,
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.borderColor = '#6366F1';
+                        e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.borderColor = 'var(--border)';
+                        e.currentTarget.style.background = 'var(--bg-card)';
+                      }}
+                    >
+                      {/* Thumbnail */}
+                      <div style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 4,
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                        background: 'var(--bg-input)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                        {att.type === 'image' && att.thumbnailData ? (
+                          <img
+                            src={att.thumbnailData}
+                            alt={att.fileName}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          <span style={{ fontSize: 14 }}>{getFileIcon(att.type, att.mimeType)}</span>
+                        )}
+                      </div>
+                      {/* Info */}
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{
+                          fontSize: 10,
+                          fontWeight: 500,
+                          color: 'var(--text-primary)',
+                          fontFamily: "'JetBrains Mono', monospace",
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {att.fileName}
+                        </div>
+                        <div style={{
+                          fontSize: 9,
+                          color: 'var(--text-muted)',
+                        }}>
+                          {formatFileSize(att.fileSize)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

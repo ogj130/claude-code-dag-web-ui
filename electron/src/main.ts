@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, desktopCapturer } from 'electron';
 import * as path from 'path';
 import * as http from 'http';
 import * as fs from 'fs';
@@ -259,6 +259,37 @@ function registerEmbeddingHandlers() {
   });
 }
 
+// ── V1.4.0: 截图捕获（UI 对比验证用）─────────────────────────
+function registerScreenshotHandlers() {
+  ipcMain.handle('screenshot:captureWindow', async () => {
+    try {
+      const sources = await desktopCapturer.getSources({
+        types: ['window'],
+        thumbnailSize: { width: 1920, height: 1080 },
+      });
+
+      // 找到当前窗口
+      const currentWindow = BrowserWindow.getFocusedWindow();
+      if (!currentWindow) {
+        return { success: false, error: 'No focused window' };
+      }
+
+      const windowTitle = currentWindow.getTitle();
+      const source = sources.find((s) => s.title === windowTitle) || sources[0];
+
+      if (!source) {
+        return { success: false, error: 'No window source found' };
+      }
+
+      // 返回 base64 PNG
+      return { success: true, data: source.thumbnail.toDataURL() };
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      return { success: false, error: e.message ?? String(err) };
+    }
+  });
+}
+
 // ── 全局引用 ──────────────────────────────────────────────
 let mainWindow: BrowserWindow | null = null;
 
@@ -464,6 +495,9 @@ app.whenReady().then(async () => {
 
   // 注册 Embedding HTTP 代理处理器（绕过 CORS）
   registerEmbeddingHandlers();
+
+  // V1.4.0: 注册截图捕获处理器
+  registerScreenshotHandlers();
 
   try {
     const wsPort = await startWsServer();

@@ -10,6 +10,7 @@
  * - Cmd/Ctrl+K        全局搜索（Phase 3 已实现，此处仅注册）
  * - Cmd/Ctrl+Shift+C  折叠全部 DAG 节点
  * - Cmd/Ctrl+Shift+E  展开全部 DAG 节点
+ * - Cmd/Ctrl+Shift+P  打开上下文压缩抽屉（V1.4.0）
  * - Cmd/Ctrl+T        切换主题
  * - Cmd/Ctrl+H        显示/隐藏历史面板
  * - Esc               关闭弹窗/取消选择
@@ -63,6 +64,12 @@ export function useShortcutDefinitions(): Shortcut[] {
       combo: 'cmd+shift+e',
       description: '展开全部节点',
       scope: 'dag',
+    },
+    {
+      key: `${mod}+Shift+P`,
+      combo: 'cmd+shift+p',
+      description: '上下文压缩',
+      scope: 'global',
     },
     {
       key: `${mod}+T`,
@@ -121,6 +128,9 @@ function matchShortcut(e: KeyboardEvent): string | null {
   // Cmd/Ctrl + Shift + E
   if (key === 'e' && hasShift) return 'cmd+shift+e';
 
+  // Cmd/Ctrl + Shift + P (compaction)
+  if (key === 'p' && hasShift) return 'cmd+shift+p';
+
   // Cmd/Ctrl + T
   if (key === 't' && !hasShift) return 'cmd+t';
 
@@ -158,6 +168,7 @@ export interface UseKeyboardShortcutsOptions {
   openSearch: () => void;
   collapseAll: () => void;
   expandAll: () => void;
+  openCompaction: () => void;  // V1.4.0
   toggleTheme: () => void;
   toggleHistory: () => void;
   closeModal: () => void;
@@ -171,6 +182,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
     openSearch,
     collapseAll,
     expandAll,
+    openCompaction,
     toggleTheme,
     toggleHistory,
     closeModal,
@@ -183,6 +195,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
     openSearch,
     collapseAll,
     expandAll,
+    openCompaction,
     toggleTheme,
     toggleHistory,
     closeModal,
@@ -192,6 +205,7 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
     openSearch,
     collapseAll,
     expandAll,
+    openCompaction,
     toggleTheme,
     toggleHistory,
     closeModal,
@@ -231,6 +245,11 @@ export function useKeyboardShortcuts(options: UseKeyboardShortcutsOptions) {
           e.preventDefault();
           e.stopPropagation();
           a.expandAll();
+          break;
+        case 'cmd+shift+p':
+          e.preventDefault();
+          e.stopPropagation();
+          a.openCompaction();
           break;
         case 'cmd+t':
           // 浏览器会拦截 Cmd+T，这里只做非浏览器环境或 Ctrl+T

@@ -45,6 +45,8 @@
 | **工具卡片** | 每个工具调用的参数、结果、耗时独立展示 |
 | **Markdown 渲染** | GFM 完整支持：表格、代码块、Mermaid 图表等 |
 | **流式总结** | AI 回答逐字输出，卡片带打字机动画 |
+| **DAG 节点附件徽章** | Query 节点显示附件数量徽章，悬浮显示文件名列表 |
+| **终端附件图标列表** | 已发送附件以文件图标横向排列展示，不再堆砌原始文本 |
 
 ### 会话管理
 
@@ -55,6 +57,18 @@
 | **隐私模式** | 完全离线，所有数据仅存在本地 localStorage |
 | **会话搜索** | 全局搜索历史会话和问答内容 |
 | **历史召回** | 基于访问频率的智能会话推荐 |
+
+### 附件上传（V1.4.1）
+
+| 功能 | 说明 |
+|------|------|
+| **上传入口** | 附件按钮从工具栏迁移到输入框附近，点击即选 |
+| **拖拽上传** | 支持拖拽文件到输入区域上传 |
+| **多格式支持** | 图片（PNG/JPG/WebP/GIF）、文本、Markdown、JSON、LOG |
+| **二进制文档** | 支持 docx/xlsx/xls/pptx/ppt，存原始数据+提取纯文本 |
+| **图片压缩** | 自动压缩图片，缩略图+大图预览 |
+| **多格式预览弹窗** | 图片/视频大图、Markdown/代码高亮、Word/Excel/PPT/PDF 内容提取渲染 |
+| **自动 RAG 索引** | 上传时自动切分+向量化入库，chunk type 为 `'attachment'` |
 
 ### 数据分析
 
@@ -73,7 +87,8 @@
 | **向量相似度检索** | 基于 Embedding 的语义搜索，检索相似历史问答 |
 | **多后端支持** | OpenAI / Ollama / Cohere 自定义配置 |
 | **Answer 分块** | 按 Markdown 段落自动分块（100-1000 字符），检索更精准 |
-| **混合检索** | 支持 `query` / `toolcall` / `hybrid` 三种检索类型 |
+| **混合检索** | 支持 `all` / `conversation` / `attachment` 三种检索类型 |
+| **附件自动索引** | 上传文档时自动切分+向量化入库，chunk type 为 `'attachment'` |
 | **历史批量索引** | 一键将历史会话导入向量数据库 |
 | **工作路径隔离** | 按项目目录分别管理索引，避免跨项目污染 |
 | **上下文注入** | 检索结果直接注入到 Claude Code prompt |
@@ -200,7 +215,7 @@ sudo dpkg -i claude-code-web-ui_*.deb
 | 节点 | 含义 | 颜色 |
 |------|------|------|
 | **Agent** | 根节点，Claude Agent 本身 | 蓝 |
-| **Query** | 用户提问（可折叠） | 绿 |
+| **Query** | 用户提问（可折叠，可带附件徽章） | 绿 |
 | **Tool** | 工具调用（Read/Bash/Edit 等） | 黄 |
 | **RAG** | 向量检索结果（可折叠） | 橙 |
 | **Summary** | 本轮总结，AI 生成的分析 | 紫 |
@@ -211,18 +226,7 @@ sudo dpkg -i claude-code-web-ui_*.deb
 
 ### RAG 完整数据流
 
-```mermaid
-graph LR
-    A["会话数据\n(CCWebDB)"] --> B["索引阶段\nIndex"]
-    B --> C["向量化\nembedText()"]
-    C --> D["向量存储\nLanceDB / IndexedDB"]
-    D --> E["检索阶段\nSearch"]
-    E --> F["向量化查询\nembedText()"]
-    F --> G["相似度匹配\ncosine / ANN"]
-    G --> H["Top-K 结果"]
-    H --> I["上下文注入\ngetPromptContext()"]
-    I --> J["Claude Code\nPrompt"]
-```
+![RAG 完整数据流](docs/screenshots/arch-rag-flow.svg)
 
 ### 双后端存储策略
 
@@ -231,35 +235,7 @@ graph LR
 | **Electron 生产** | LanceDB | 高性能 ANN 搜索、磁盘持久化、Rust FFI |
 | **Vite dev 浏览器** | IndexedDB + JS | 纯浏览器实现，离线可用，无需额外依赖 |
 
-```mermaid
-graph TB
-    subgraph EmbeddingLayer["向量化层"]
-        direction LR
-        E1["Electron 渲染进程\n↓ IPC 桥接\nembeddingService"]
-        E2["Vite dev 浏览器\n↓ /v1/embeddings 代理\nx-embedding-target"]
-        E3["生产浏览器\n↓ dangerouslyAllowBrowser\nOpenAI SDK"]
-    end
-
-    subgraph StorageLayer["向量存储层"]
-        L["LanceDB\n(主进程)"]
-        I["IndexedDB\n+ cosine similarity"]
-    end
-
-    subgraph ConfigLayer["配置层"]
-        CFG["EmbeddingConfig\nprovider / endpoint / model / apiKey"]
-        IDB["IndexedDB\ncc-web-embedding"]
-    end
-
-    E1 --> L
-    E2 --> L
-    E3 --> L
-    E2 --> I
-    CFG --> IDB
-
-    style EmbeddingLayer fill:#1a3a5c,color:#fff
-    style StorageLayer fill:#1a3a2c,color:#fff
-    style ConfigLayer fill:#3a2a1a,color:#fff
-```
+![双后端存储策略](docs/screenshots/arch-storage.svg)
 
 ### 向量化调用链路
 
@@ -291,16 +267,19 @@ Electron 渲染进程
 表名: rag_global（全局向量表）
 
 字段:
-  id          string   主键
-  vector      float32[] embedding 向量
-  content     string   原始文本
-  chunkType   string   'query' | 'toolcall' | 'answer'
-  sessionId   string   来源会话 ID
-  queryId     string   来源查询 ID
-  toolCallId  string?  来源工具调用 ID（仅 toolcall）
-  workspacePath string 工作路径
-  timestamp   number   索引时间
-  metadata    JSON     扩展元数据
+  id           string   主键
+  vector       float32[] embedding 向量
+  content      string   原始文本
+  chunkType    string   'query' | 'toolcall' | 'answer' | 'attachment'
+  sessionId    string   来源会话 ID
+  queryId      string   来源查询 ID
+  toolCallId   string?  来源工具调用 ID（仅 toolcall）
+  workspacePath string   工作路径
+  timestamp    number   索引时间
+  metadata     JSON     扩展元数据
+  fileName     string?  附件文件名（仅 attachment）
+  mimeType     string?  MIME 类型（仅 attachment）
+  attachmentId string?  附件 ID（仅 attachment）
 ```
 
 #### IndexedDB 结构（浏览器开发环境）
@@ -312,16 +291,19 @@ chunks 表:
   id            auto-increment (主键)
   content       string
   vector        number[]
-  chunkType     string
+  chunkType     string   'query' | 'toolcall' | 'answer' | 'attachment'
   sessionId     string
   queryId       string
   workspacePath  string
-  timestamp     number
+  timestamp      number
+  fileName       string?  附件文件名（V1.4.1）
+  mimeType       string?  MIME 类型（V1.4.1）
+  attachmentId   string?  附件 ID（V1.4.1）
 
 索引: chunkType, sessionId, queryId, workspacePath, timestamp
 ```
 
-### Answer 分块策略
+### Answer / Attachment 分块策略
 
 ```
 原始 Answer 文本（可能很长）
@@ -341,7 +323,20 @@ chunks 表:
     ▼
 每个 chunk 独立 embedding → 检索更精准
 每个 chunk 保留 parentQuery → 追溯原始问题
+
+附件文档（V1.4.1）
+    │
+    ▼
+上传文件 → mammoth / xlsx 提取纯文本
+    │
+    ▼
+按上述相同段落+句子分块策略切分
+    │
+    ▼
+每个 chunk 携带 fileName / mimeType / attachmentId 元数据
 ```
+
+![分块策略](docs/screenshots/arch-chunking.svg)
 
 ### RAG 配置管理
 
@@ -377,6 +372,7 @@ useRAGContext (Zustand 状态)
 
 [1] 问题: xxx | 来源: 会话标题 | 时间 | 相似度: 85%
 [2] 回答: xxx | 来源: 会话标题 | 时间 | 相似度: 72%
+[3] 附件【readme.md】: xxx | 附件 readme.md | 时间 | 相似度: 80%
 [/知识上下文]
     │
     ▼
@@ -387,10 +383,12 @@ Claude Code prompt → 生成更精准的回答
 
 | 参数 | 可选值 | 说明 |
 |------|--------|------|
-| `type` | `query` / `toolcall` / `hybrid` | 检索类型 |
+| `type` | `all` / `conversation` / `attachment` | 检索类型：全部/仅对话历史/仅附件 |
 | `topK` | `5` / `10` / `20` / `50` | 返回结果数量 |
 | `threshold` | `0.3` / `0.5` / `0.7` / `0.85` | 相似度阈值 |
 | `workspacePaths` | `string[]` | 筛选特定工作路径 |
+
+> `conversation` 检索类型内部映射为 `query` + `answer` + `toolcall` 三种 chunk，排除 `'attachment'`；`attachment` 仅检索附件类型 chunks；`all` 为混合检索。
 
 ---
 
@@ -398,128 +396,49 @@ Claude Code prompt → 生成更精准的回答
 
 ### 系统架构（完整分层）
 
-```mermaid
-graph TB
-    subgraph User["用户层"]
-        UserInput["用户输入"]
-        Browser["浏览器 / Electron"]
-    end
-
-    subgraph Frontend["前端 (React + Zustand)"]
-        UI["界面层\nDAG + Terminal + Cards + Charts"]
-        Store["状态层\nuseTaskStore + useSessionStore"]
-        RAG["RAG 检索层\n向量存储 + 相似度搜索"]
-        Cache["缓存同步层\nCacheSyncEngine"]
-        DB["IndexedDB\nCCWebDB + stats DB"]
-    end
-
-    subgraph Backend["后端 (Node.js)"]
-        WS["WebSocket 服务端\n:5300"]
-        AP["ANSI 解析器\nstdout → JSON 事件"]
-        CC["Claude Code 进程\nspawn"]
-    end
-
-    UserInput --> Browser
-    Browser <--> UI
-    UI <--> Store
-    Store <--> Cache
-    Cache <--> DB
-    Store <--> RAG
-    RAG <--> DB
-
-    Browser -. WebSocket .-> WS
-    WS <--> AP
-    AP <-. stdio .-> CC
-
-    style Frontend fill:#1a3a5c,color:#fff
-    style Backend fill:#1a3a2c,color:#fff
-    style DB fill:#3a2a1a,color:#fff
-```
+![系统架构](docs/screenshots/arch-system.svg)
 
 ### 事件驱动数据流
 
-```mermaid
-sequenceDiagram
-    participant User as 用户
-    participant UI as 前端 UI
-    participant WS as WebSocket
-    participant CC as Claude Code
-    participant Store as useTaskStore
-    participant Cache as CacheSyncEngine
-    participant IDB as IndexedDB
-    participant RAG as 向量存储
-
-    User->>UI: 发送问题
-    UI->>Store: handleEvent(user_input_sent)
-    Store-->>RAG: 召回相似历史问答
-    Store->>WS: send_input
-    WS->>CC: 转发输入
-
-    loop Claude Code 执行
-        CC-->>WS: stdout (ANSI)
-        WS->>AP: 解析 ANSI
-        AP-->>WS: JSON 事件
-        WS->>Store: handleEvent(event)
-        Store->>IDB: 持久化 (防抖/立即)
-        Store->>RAG: 索引问答内容
-        Store->>Cache: 同步服务端
-        Store->>UI: 状态更新
-        UI->>UI: 渲染 DAG / Terminal / Cards
-    end
-
-    Note over Store,IDB: token_usage 可能先于或后于 query_summary 到达<br/>三层 Map 保护：tokenUsageByQueryId / pendingTokenUsageUpdate / savedQueryIdByEventQueryId
-```
+![事件驱动数据流](docs/screenshots/arch-sequence.svg)
 
 ### 缓存同步策略（Phase 2.2）
 
-```mermaid
-graph LR
-    A["新建会话\n立即写入"] --> B["IndexedDB\nqueries 表"]
-    C["会话更新\n500ms 防抖"] --> B
-    D["删除会话\n同步删除"] --> B
-    E["页面加载\n缓存优先"] --> B
-    B --> F["后台同步\n服务端"]
-    F -.-> G["服务端数据\n合并覆盖"]
-```
+![缓存同步策略](docs/screenshots/arch-cache.svg)
 
 ### 状态转换
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle: session_start
-    Idle --> Running: 发送问题
-    Running --> Running: 新一轮问答
-    Running --> QueryEnd: query_end
-    QueryEnd --> Completed: query_summary
-    Completed --> Running: 发送下一个问题
-    Completed --> [*]: session_end
-    Idle --> Privacy: 开启隐私模式
-    Privacy --> Idle: 关闭隐私模式
-```
+![状态转换](docs/screenshots/arch-state.svg)
 
 ### 模块说明
 
 | 模块 | 职责 |
 |------|------|
-| `src/stores/useTaskStore.ts` | 核心状态管理，事件处理器，DAG 节点状态 |
+| `src/stores/useTaskStore.ts` | 核心状态管理，事件处理器，DAG 节点状态，附件数据按查询 ID 存储 |
 | `src/stores/useSessionStore.ts` | 会话管理，FIFO 淘汰，隐私模式，缓存同步 |
 | `src/stores/cacheSync.ts` | 缓存同步引擎，防抖/立即写入，服务端同步 |
 | `src/stores/queryStorage.ts` | Query CRUD，自动压缩，分片存储 |
 | `src/stores/db.ts` | stats DB (Dexie)，Token/执行统计持久化 |
 | `src/lib/db.ts` | CCWebDB (Dexie)，RAG 内容存储，向量索引 |
 | `src/stores/vectorStorage.ts` | 统一向量存储接口（自动分发 LanceDB / IndexedDB） |
-| `src/stores/localVectorStorage.ts` | IndexedDB + 余弦相似度实现（浏览器环境） |
+| `src/stores/localVectorStorage.ts` | IndexedDB + 余弦相似度实现（浏览器环境），含附件分块逻辑 |
 | `src/stores/embeddingConfigStorage.ts` | Embedding 配置管理，API Key 加密存储 |
+| `src/stores/useAttachmentStore.ts` | 预发送附件状态管理，支持图片+文本+二进制文档 |
 | `src/utils/embedding.ts` | 统一向量化入口，检测运行环境 |
 | `src/utils/embeddingService.ts` | OpenAI SDK + 多 Provider 适配 |
-| `src/hooks/useRAGContext.ts` | RAG 上下文状态管理，prompt 生成 |
-| `src/components/DAG/` | ReactFlow 可视化，节点渲染，布局算法 |
+| `src/utils/imageProcessor.ts` | 图片压缩、缩略图生成、EXIF 方向纠正 |
+| `src/utils/textFileReader.ts` | 文本文件读取工具 |
+| `src/hooks/useRAGContext.ts` | RAG 上下文状态管理，prompt 生成，支持附件类型 |
+| `src/hooks/useFileUpload.ts` | 文件上传 Hook，含 mammoth/xlsx 文本提取和自动 RAG 索引 |
+| `src/components/DAG/` | ReactFlow 可视化，节点渲染，布局算法，含附件徽章展示 |
 | `src/components/ToolView/` | 终端视图、工具卡片、Markdown 渲染 |
+| `src/components/Attachment/` | 附件相关组件：按钮、预览条带、详情面板、弹窗预览 |
 | `src/components/TokenAnalytics.tsx` | Token 趋势折线图、模型定价表 |
 | `src/components/ExecutionAnalytics.tsx` | 工具分布、错误率趋势、耗时分析 |
-| `src/components/RAGRetrievalPanel.tsx` | RAG 检索面板，向量配置，索引管理 |
+| `src/components/RAGRetrievalPanel.tsx` | RAG 检索面板，向量配置，检索类型切换（全部/对话/附件） |
 | `src/components/RAGRetrievalModal.tsx` | 抽屉/弹窗双模式容器 |
 | `src/hooks/useWebSocket.ts` | WebSocket 连接，事件分发 |
+| `src/types/attachment.ts` | 附件类型定义（PendingAttachment, PendingAttachmentData） |
 | `server/` | WebSocket Server + ANSI Parser + Claude Code 进程管理 |
 | `electron/` | Electron 主进程，HTTP 静态服务器，桌面打包 |
 
@@ -539,11 +458,17 @@ stateDiagram-v2
 │  分片存储                 │  用于 Token/执行分析      │
 │                          │  workspacePath 过滤       │
 ├──────────────────────────┼──────────────────────────┤
-│   cc-web-vector           │   cc-web-embedding       │
+│   cc-web-vector          │   cc-web-embedding       │
 │   ─────────────────      │   ───────────────────    │
 │  chunks (向量+文本)        │  configs (Embedding配置)  │
-│                          │  API Key AES-GCM 加密    │
-└──────────────────────────┴──────────────────────────┘
+│  chunkType含'attachment' │  API Key AES-GCM 加密    │
+│  fileName/mimeType字段   │                          │
+├──────────────────────────┴──────────────────────────┤
+│   localStorage                                        │
+│   ─────────────────                                  │
+│  rag_indexed_workspaces (工作路径索引状态)              │
+│  useAttachmentStore (预发送附件，内存+sessionStorage)   │
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -568,7 +493,8 @@ stateDiagram-v2
  Zustand       →    Claude Code spawn     HTTP Server
  ReactFlow     →    ANSI Parser           electron-builder
  xterm.js      →                          (跨平台打包)
- react-markdown→
+ react-markdown→  mammoth         →  (DOCX/PPTX 文本提取)
+ remarkGfm     →  xlsx           →  (Excel → CSV)
  Dexie.js      →
  LanceDB       →
  OpenAI SDK    →

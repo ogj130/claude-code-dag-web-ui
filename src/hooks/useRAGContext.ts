@@ -6,10 +6,13 @@ export interface RAGContextItem {
   content: string;
   summary: string;        // 用于显示的摘要
   score: number;          // 相似度 0-1
-  chunkType: 'query' | 'answer' | 'toolcall';
+  chunkType: 'query' | 'answer' | 'toolcall' | 'attachment';  // V1.4.1: 支持附件类型
   sourceSessionId: string;
   sourceSessionTitle: string;
   timestamp: number;
+  /** V1.4.1: 附件元数据 */
+  fileName?: string;
+  mimeType?: string;
 }
 
 interface RAGContextState {
@@ -29,10 +32,13 @@ export const useRAGContext = create<RAGContextState>((set, get) => ({
       content: r.content,
       summary: r.content.length > 80 ? r.content.substring(0, 80) + '...' : r.content,
       score: r.score,
-      chunkType: r.chunkType,
+      chunkType: r.chunkType as RAGContextItem['chunkType'],
       sourceSessionId: r.sessionId,
       sourceSessionTitle: (r.metadata?.sessionTitle as string) || 'Unknown',
       timestamp: r.timestamp,
+      // V1.4.1: 附件元数据
+      fileName: r.fileName,
+      mimeType: r.mimeType,
     }));
 
     set((state) => {
@@ -58,10 +64,17 @@ export const useRAGContext = create<RAGContextState>((set, get) => ({
     const contextParts = items
       .map((item, index) => {
         const time = new Date(item.timestamp).toLocaleString('zh-CN');
-        return `[${index + 1}] ${item.chunkType === 'answer' ? '回答' : item.chunkType === 'query' ? '问题' : '工具调用'}: ${item.content}\n来源: ${item.sourceSessionTitle} | ${time} | 相似度: ${(item.score * 100).toFixed(0)}%`;
+        const typeLabel = item.chunkType === 'answer' ? '回答'
+          : item.chunkType === 'query' ? '问题'
+          : item.chunkType === 'attachment' ? `附件【${item.fileName ?? '文档'}】`
+          : '工具调用';
+        const source = item.chunkType === 'attachment'
+          ? `${item.fileName ?? '附件'} | ${time} | 相似度: ${(item.score * 100).toFixed(0)}%`
+          : `${item.sourceSessionTitle} | ${time} | 相似度: ${(item.score * 100).toFixed(0)}%`;
+        return `[${index + 1}] ${typeLabel}: ${item.content}\n来源: ${source}`;
       })
       .join('\n\n');
 
-    return `[知识上下文]\n以下是与你问题相关的历史对话片段：\n${contextParts}\n[/知识上下文]\n\n`;
+    return `[知识上下文]\n以下是与你问题相关的历史片段：\n${contextParts}\n[/知识上下文]\n\n`;
   },
 }));

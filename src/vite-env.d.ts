@@ -68,6 +68,8 @@ interface ElectronAPI {
   openExternal(url: string): void;
   vectorApi: VectorApi;
   embeddingApi: EmbeddingApi;
+  // V1.4.0: Screenshot capture for UI verification
+  captureWindow(): Promise<string>;
 }
 
 declare global {

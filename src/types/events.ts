@@ -1,10 +1,13 @@
 export type NodeStatus = 'pending' | 'running' | 'completed' | 'failed';
 
+// V1.4.0: Extended node types
+export type DAGNodeType = 'agent' | 'agent_group' | 'tool' | 'query' | 'summary' | 'rag' | 'task' | 'compact' | 'image';
+
 export interface DAGNode {
   id: string;
   label: string;
   status: NodeStatus;
-  type: 'agent' | 'tool' | 'query' | 'summary' | 'rag';
+  type: DAGNodeType;
   parentId?: string;
   startTime?: number;
   endTime?: number;
@@ -23,6 +26,16 @@ export interface DAGNode {
   sourceSessionTitle?: string;
   /** RAG 节点：时间戳 */
   timestamp?: number;
+  // V1.4.0: Task/Agent/Compact/Image node properties
+  taskDescription?: string;
+  childCount?: number;
+  agentName?: string;
+  collapsed?: boolean;
+  savingsPct?: number;
+  beforeTokens?: number;
+  afterTokens?: number;
+  imageData?: string;
+  thumbnailData?: string;
   [key: string]: unknown;
 }
 
@@ -46,6 +59,17 @@ export interface TokenUsage {
 export type ClaudeEvent =
   | { type: 'agent_start'; agentId: string; label: string; parentId?: string }
   | { type: 'agent_end'; agentId: string; result?: string }
+  // V1.4.0: Subagent events (awaiting Phase 0 verification)
+  | { type: 'subagent_start'; agentId: string; agentName: string; parentAgentId?: string; status: 'running' }
+  | { type: 'subagent_end'; agentId: string; agentName: string; status: 'completed' | 'failed'; result?: string }
+  | { type: 'subagent_message'; agentId: string; message: string }
+  // V1.4.0: Task events
+  | { type: 'task_start'; taskId: string; label: string; description?: string }
+  | { type: 'task_end'; taskId: string; outcome: string }
+  // V1.4.0: Compact events
+  | { type: 'compact_start'; compactionId: string; beforeTokens: number }
+  | { type: 'compact_end'; compactionId: string; afterTokens: number; savingsPct: number }
+  // Existing events
   | { type: 'tool_call'; toolId: string; tool: string; args: Record<string, unknown> }
   | { type: 'tool_result'; toolId: string; result: unknown; status: 'success' | 'error' }
   | { type: 'tool_progress'; toolId: string; tool: string; message: string }

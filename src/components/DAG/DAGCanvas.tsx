@@ -9,7 +9,16 @@ import '@xyflow/react/dist/style.css';
 import { DAGNodeComponent } from './DAGNode';
 import { GroupNodeComponent } from './GroupNode';
 import { NodeDetailModal } from './NodeDetailModal';
+// V1.4.0: New node types
+import AgentGroupNode, { AGENT_GROUP_NODE_TYPE } from './AgentGroupNode';
+import TaskNode, { TASK_NODE_TYPE } from './TaskNode';
+import CompactNode, { COMPACT_NODE_TYPE } from './CompactNode';
+import ImageNode, { IMAGE_NODE_TYPE } from './ImageNode';
+import { useImageDrop, DropOverlay } from '../../hooks/useImageDrop';
 import { useTaskStore } from '../../stores/useTaskStore';
+import { useSessionStore } from '../../stores/useSessionStore';
+import type { PendingAttachmentData } from '../../stores/useTaskStore';
+import { AttachmentPreviewModal } from '../Attachment';
 import { getGlobalMonitor } from '../../utils/performance';
 import { NODE_LIMIT } from '../../utils/memoryManager';
 import type { Node, Edge, OnNodesChange, OnEdgesChange, NodeMouseHandler } from '@xyflow/react';
@@ -23,8 +32,17 @@ const RAG_VERTICAL_GAP = 70;  // 多个 RAG 节点之间的垂直间距
 // 模块级 ref：存储 ReactFlow 实例的 fitView，跨 render 稳定
 let fitViewInstance: ((options?: { padding: number; duration: number; nodes?: Node[] }) => void) | null = null;
 
-// 注册节点类型：dagNode 和 group
-const nodeTypes = { dagNode: DAGNodeComponent, group: GroupNodeComponent };
+// 注册节点类型：dagNode 和 group + V1.4.0 新类型
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const nodeTypes: Record<string, React.ComponentType<any>> = {
+  dagNode: DAGNodeComponent,
+  group: GroupNodeComponent,
+  // V1.4.0: New node types
+  [AGENT_GROUP_NODE_TYPE]: AgentGroupNode,
+  [TASK_NODE_TYPE]: TaskNode,
+  [COMPACT_NODE_TYPE]: CompactNode,
+  [IMAGE_NODE_TYPE]: ImageNode,
+};
 
 interface Props {
   style?: React.CSSProperties;
@@ -35,7 +53,20 @@ export function DAGCanvas({ style }: Props) {
     nodes: storeNodes,
     collapsedDagQueryIds,
     currentQueryId,
+    attachmentCountByQueryId,
+    attachmentDataByQueryId,
   } = useTaskStore();
+  const { activeSessionId } = useSessionStore();
+
+  // V1.4.0: Drag & drop image zone ref
+  const dropZoneRef = useRef<HTMLDivElement>(null);
+
+  // V1.4.0: Image drag & drop handler
+  const { isDragging } = useImageDrop({
+    sessionId: activeSessionId || 'default',
+    dropZoneRef,
+    enabled: true,
+  });
 
   interface ModalState {
     open: boolean;
@@ -58,6 +89,9 @@ export function DAGCanvas({ style }: Props) {
     nodeId: '',
     nodeLabel: '',
   });
+
+  // V1.4.1: 附件预览弹窗状态
+  const [previewAttachment, setPreviewAttachment] = useState<PendingAttachmentData | null>(null);
 
   const handleOpenDetail = useCallback((node: Pick<DAGNode, 'id' | 'type' | 'label' | 'status' | 'args' | 'summaryContent' | 'content' | 'score' | 'sourceSessionId' | 'sourceSessionTitle'>) => {
     const dagNode = storeNodes.get(node.id);
@@ -98,6 +132,12 @@ export function DAGCanvas({ style }: Props) {
       onOpenDetail: handleOpenDetail,
       onToggleCollapse: handleToggleCollapse,
       isCollapsed: node.type === 'query' && collapsedQueryIds.has(node.id),
+      // V1.4.1: 附件徽章数量
+      attachmentCount: attachmentCountByQueryId.get(node.id) ?? 0,
+      // V1.4.1: 完整附件数据（用于渲染附件列表）
+      attachmentData: attachmentDataByQueryId.get(node.id) ?? null,
+      // V1.4.1: 附件点击回调
+      onAttachmentClick: (att: PendingAttachmentData) => setPreviewAttachment(att),
     },
     position: { x: 0, y: 0 },
   }));
@@ -658,7 +698,8 @@ export function DAGCanvas({ style }: Props) {
           </span>
         )}
       </div>
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, position: 'relative' }} ref={dropZoneRef}>
+        {isDragging && <DropOverlay message="拖放图片到 DAG 画布" />}
         <ReactFlow
           nodes={overlapOptimizedNodes}
           edges={allEdges}
@@ -697,6 +738,14 @@ export function DAGCanvas({ style }: Props) {
             ragSourceSessionId={modal.ragSourceSessionId}
             ragSourceSessionTitle={modal.ragSourceSessionTitle}
             onClose={() => setModal(m => ({ ...m, open: false }))}
+          />
+        )}
+
+        {/* V1.4.1: 附件预览弹窗 */}
+        {previewAttachment && (
+          <AttachmentPreviewModal
+            attachment={previewAttachment}
+            onClose={() => setPreviewAttachment(null)}
           />
         )}
       </div>

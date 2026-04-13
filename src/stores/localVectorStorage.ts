@@ -23,7 +23,7 @@ const MIN_CHUNK_SIZE = 100;   // 最小 chunk 长度
 
 // ── 类型 ────────────────────────────────────────────────────────────────────
 
-export type ChunkType = 'query' | 'toolcall' | 'answer';
+export type ChunkType = 'query' | 'toolcall' | 'answer' | 'attachment';
 
 export interface VectorChunk {
   id?: number;          // 自动递增主键
@@ -36,6 +36,10 @@ export interface VectorChunk {
   workspacePath: string;
   timestamp: number;
   metadata: Record<string, unknown>;
+  /** V1.4.1: 附件元数据 */
+  fileName?: string;
+  mimeType?: string;
+  attachmentId?: string;
 }
 
 // Answer chunk 扩展类型（用于类型标注）
@@ -60,6 +64,9 @@ export interface SearchResult {
   workspacePath: string;
   timestamp: number;
   metadata: Record<string, unknown>;
+  /** V1.4.1: 附件元数据 */
+  fileName?: string;
+  mimeType?: string;
 }
 
 export interface SearchOptions {
@@ -303,6 +310,116 @@ export async function indexAnswerChunks(
   return ids;
 }
 
+/**
+ * V1.4.1: 索引附件文档（自动切分、向量化、入库）
+ * @param attachmentId  附件 ID
+ * @param fileName     文件名
+ * @param mimeType     MIME 类型
+ * @param textContent  文档纯文本内容
+ * @param workspacePath 工作路径
+ * @param sessionId    会话 ID
+ */
+export async function indexAttachmentChunks(
+  attachmentId: string,
+  fileName: string,
+  mimeType: string,
+  textContent: string,
+  workspacePath: string,
+  sessionId: string,
+): Promise<string[]> {
+  const config = await _getDefaultConfig();
+  if (!config) {
+    console.warn('[VectorStorage] No embedding config, skipping attachment indexing');
+    return [];
+  }
+
+  // 按段落切分文档内容
+  const chunks = _chunkAttachmentText(textContent, attachmentId, fileName, mimeType, workspacePath, sessionId);
+  if (chunks.length === 0) return [];
+
+  // 批量向量化
+  const texts = chunks.map(c => c.content);
+  const vectors = await computeEmbeddings(texts, config);
+
+  // 写入 IndexedDB
+  const ids: string[] = [];
+  for (let i = 0; i < chunks.length; i++) {
+    chunks[i].vector = vectors[i];
+    const id = await _db.chunks.add(chunks[i] as VectorChunk);
+    ids.push(String(id));
+  }
+
+  console.log(`[VectorStorage] Indexed ${ids.length} attachment chunks for ${fileName}`);
+  return ids;
+}
+
+/**
+ * 将附件文本切分为多个 chunk
+ */
+function _chunkAttachmentText(
+  text: string,
+  attachmentId: string,
+  fileName: string,
+  mimeType: string,
+  workspacePath: string,
+  sessionId: string,
+): Array<VectorChunk & { attachmentId: string }> {
+  const chunks: Array<VectorChunk & { attachmentId: string }> = [];
+  const paragraphs = splitByParagraphs(text);
+  let current = '';
+
+  for (const para of paragraphs) {
+    if (para.length <= MAX_CHUNK_SIZE) {
+      if (para.trim().length >= MIN_CHUNK_SIZE) {
+        chunks.push(_makeAttachmentChunk(para.trim(), attachmentId, fileName, mimeType, workspacePath, sessionId));
+      }
+      continue;
+    }
+
+    // 超长段落按句子拆分
+    const sentences = splitBySentences(para);
+    for (const s of sentences) {
+      if (current.length + s.length <= MAX_CHUNK_SIZE) {
+        current += s;
+      } else {
+        if (current.length >= MIN_CHUNK_SIZE) {
+          chunks.push(_makeAttachmentChunk(current.trim(), attachmentId, fileName, mimeType, workspacePath, sessionId));
+        }
+        current = s;
+      }
+    }
+  }
+
+  if (current.length >= MIN_CHUNK_SIZE) {
+    chunks.push(_makeAttachmentChunk(current.trim(), attachmentId, fileName, mimeType, workspacePath, sessionId));
+  }
+
+  return chunks;
+}
+
+function _makeAttachmentChunk(
+  content: string,
+  attachmentId: string,
+  fileName: string,
+  mimeType: string,
+  workspacePath: string,
+  sessionId: string,
+): VectorChunk & { attachmentId: string } {
+  return {
+    content,
+    chunkType: 'attachment',
+    attachmentId,
+    fileName,
+    mimeType,
+    sessionId,
+    queryId: attachmentId, // 复用 queryId 字段
+    workspacePath,
+    timestamp: Date.now(),
+    metadata: { fileName, mimeType, attachmentId },
+    vector: [], // 向量稍后填充
+  };
+}
+
 // ── 搜索 ───────────────────────────────────────────────────────────────────
 
 /**
@@ -363,6 +480,8 @@ export async function search(
     workspacePath: c.workspacePath,
     timestamp: c.timestamp,
     metadata: c.metadata ?? {},
+    fileName: (c as Record<string, unknown>)['fileName'] as string | undefined,
+    mimeType: (c as Record<string, unknown>)['mimeType'] as string | undefined,
   }));
 }
 
@@ -406,6 +525,8 @@ export async function searchWithVector(
     workspacePath: c.workspacePath,
     timestamp: c.timestamp,
     metadata: c.metadata ?? {},
+    fileName: (c as Record<string, unknown>)['fileName'] as string | undefined,
+    mimeType: (c as Record<string, unknown>)['mimeType'] as string | undefined,
   }));
 }
 

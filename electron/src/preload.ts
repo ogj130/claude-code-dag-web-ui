@@ -1,14 +1,31 @@
-import { contextBridge } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron';
 
-// 暴露安全的 API 到渲染进程
+// ── Embedding IPC 通道名 ─────────────────────────────────────
+const SCREENSHOT_CH = {
+  CAPTURE_WINDOW: 'screenshot:captureWindow',
+} as const;
+
+// ── 向量 API 通道名 ─────────────────────────────────────
+const EMBED_CH = {
+  CALL: 'embedding:call',
+} as const;
+const CH = {
+  INDEX_QUERY:   'vectordb:indexQuery',
+  INDEX_TOOL:    'vectordb:indexToolCall',
+  SEARCH:        'vectordb:search',
+  LIST_TABLES:   'vectordb:listTables',
+  TABLE_STATS:   'vectordb:tableStats',
+  REBUILD_INDEX: 'vectordb:rebuildIndex',
+  CLOSE_DB:      'vectordb:closeDb',
+} as const;
+
+// ── 向量 API 桥接（主进程 → 渲染进程） ─────────────────────
 contextBridge.exposeInMainWorld('electronAPI', {
-  // 获取 app 版本
+  // 原有 API
   getVersion: () => process.env.npm_package_version ?? '1.1.0',
 
-  // 获取 Claude Code 可执行文件路径
   getClaudePath: () => {
     const { execSync } = require('child_process');
-    // 跨平台：Windows 用 where，其他平台用 which
     const command = process.platform === 'win32' ? 'where claude' : 'which claude';
     try {
       const result = execSync(command, { encoding: 'utf-8', shell: true });
@@ -18,9 +35,70 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
 
-  // 打开外部链接
   openExternal: (url: string) => {
     const { shell } = require('electron');
     shell.openExternal(url);
+  },
+
+  // ── 向量存储 API ─────────────────────────────────────────
+  vectorApi: {
+    async indexQueryChunk(params: {
+      sessionId: string; queryId: string; workspacePath: string;
+      content: string; metadata?: Record<string, unknown>;
+    }): Promise<string> {
+      return ipcRenderer.invoke(CH.INDEX_QUERY, params);
+    },
+
+    async indexToolCallChunk(params: {
+      sessionId: string; queryId: string; toolCallId: string;
+      workspacePath: string; content: string; metadata?: Record<string, unknown>;
+    }): Promise<string> {
+      return ipcRenderer.invoke(CH.INDEX_TOOL, params);
+    },
+
+    async search(params: {
+      query: string; workspacePaths: string[];
+      type?: string; topK?: number; threshold?: number;
+    }): Promise<unknown[]> {
+      return ipcRenderer.invoke(CH.SEARCH, params);
+    },
+
+    async listTables(): Promise<string[]> {
+      return ipcRenderer.invoke(CH.LIST_TABLES);
+    },
+
+    async getTableStats(): Promise<unknown> {
+      return ipcRenderer.invoke(CH.TABLE_STATS);
+    },
+
+    async rebuildIndex(): Promise<void> {
+      return ipcRenderer.invoke(CH.REBUILD_INDEX);
+    },
+
+    async closeDb(): Promise<void> {
+      return ipcRenderer.invoke(CH.CLOSE_DB);
+    },
+  },
+
+  // ── Embedding HTTP 代理 API（CORS 绕过） ────────────────────
+  embeddingApi: {
+    async call(params: {
+      endpoint: string;
+      provider: string;
+      apiKey?: string;
+      model: string;
+      text: string;
+    }): Promise<{ success: boolean; vector?: number[]; dimension?: number; error?: string }> {
+      return ipcRenderer.invoke(EMBED_CH.CALL, params);
+    },
+  },
+
+  // V1.4.0: Screenshot capture for UI verification
+  captureWindow: async (): Promise<string> => {
+    const result = await ipcRenderer.invoke(SCREENSHOT_CH.CAPTURE_WINDOW);
+    if (!result.success) {
+      throw new Error(result.error ?? 'Screenshot capture failed');
+    }
+    return result.data;
   },
 });
