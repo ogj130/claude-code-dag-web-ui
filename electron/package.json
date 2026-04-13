@@ -22,6 +22,7 @@
     "dist": "npm run build && electron-builder"
   },
   "dependencies": {
+    "electron-updater": "^6.3.9",
     "express": "^4.21.2",
     "openai": "^6.34.0",
     "pino": "^9.14.0",
@@ -111,6 +112,11 @@
     "asarUnpack": [
       "**/node_modules/vectordb/**/*.{node,dylib}",
       "**/node_modules/lancedb/**/*.{node,dylib}"
-    ]
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "ogj130",
+      "repo": "claude-code-dag-web-ui"
+    }
   }
 }
