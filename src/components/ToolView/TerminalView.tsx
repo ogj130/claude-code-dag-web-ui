@@ -487,6 +487,9 @@ export function TerminalView({ theme, onInput, style }: Props) {
         borderTop: 'none',
         borderBottom: 'none',
         transition: 'background 0.3s, border-color 0.3s',
+        // 防止无限增高：内容区最多占据视口的 65vh，超出后滚动
+        // 这避免了页面什么都不输入时内容区无限扩张的问题
+        maxHeight: '65vh',
       }}>
         {/* MarkdownCard 列表（已完成） */}
         {markdownCards.length > 0 && (
