@@ -62,6 +62,23 @@ interface EmbeddingApi {
   }): Promise<{ success: boolean; vector?: number[]; dimension?: number; error?: string }>;
 }
 
+interface UpdateInfo {
+  version: string;
+  releaseDate: string;
+  releaseNotes?: string | null;
+}
+
+interface UpdateApi {
+  check(): Promise<{ available: boolean; info?: UpdateInfo | null; error?: string }>;
+  startDownload(): Promise<void>;
+  install(): Promise<void>;
+  onInit(cb: (data: { currentVersion: string }) => void): () => void;
+  onAvailable(cb: (info: UpdateInfo) => void): () => void;
+  onProgress(cb: (progress: number) => void): () => void;
+  onDownloaded(cb: () => void): () => void;
+  onError(cb: (msg: string) => void): () => void;
+}
+
 interface ElectronAPI {
   getVersion(): Promise<string>;
   getClaudePath(): Promise<string | null>;
@@ -70,6 +87,8 @@ interface ElectronAPI {
   embeddingApi: EmbeddingApi;
   // V1.4.0: Screenshot capture for UI verification
   captureWindow(): Promise<string>;
+  // Auto-update
+  updateApi: UpdateApi;
 }
 
 declare global {
