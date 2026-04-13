@@ -101,4 +101,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
     return result.data;
   },
+
+  // ── 自动更新 API ─────────────────────────────────────────
+  updateApi: {
+    check: () => ipcRenderer.invoke('update:check'),
+    startDownload: () => ipcRenderer.invoke('update:start-download'),
+    install: () => ipcRenderer.invoke('update:install'),
+    onInit: (cb: (data: { currentVersion: string }) => void) =>
+      ipcRenderer.on('update:init', (_e, data) => cb(data)),
+    onAvailable: (cb: (info: UpdateInfo) => void) =>
+      ipcRenderer.on('update:available', (_e, info) => cb(info)),
+    onProgress: (cb: (progress: number) => void) =>
+      ipcRenderer.on('update:progress', (_e, p) => cb(p)),
+    onDownloaded: (cb: () => void) =>
+      ipcRenderer.on('update:downloaded', () => cb()),
+    onError: (cb: (msg: string) => void) =>
+      ipcRenderer.on('update:error', (_e, msg) => cb(msg)),
+  },
 });
+
+// ── 类型定义 ────────────────────────────────────────────────
+interface UpdateInfo {
+  version: string;
+  releaseDate: string;
+  releaseNotes: string | null;
+  downloadUrl: string;
+}
