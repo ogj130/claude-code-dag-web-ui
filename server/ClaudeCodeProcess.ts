@@ -7,18 +7,33 @@ import { child as log } from './utils/logger.js';
 
 const logger = log('ClaudeCodeProcess');
 
+export interface SpawnOptions {
+  prompt?: string;
+  model?: string;
+  baseUrl?: string;
+  apiKey?: string;
+}
+
 export class ClaudeCodeProcess extends EventEmitter {
   private processes = new Map<string, ChildProcess>();
   private parsers = new Map<string, AnsiParser>();
+  private sessionPaths = new Map<string, string>();
   // 跟踪每个 session 的 query 序号，匹配 send_input → result
   private queryCounters = new Map<string, number>();
   // 当前正在等待结果的 queryId（每次 sendInput 时递增写入，result 时读取）
   private pendingQueryIds = new Map<string, string>();
 
-  spawn(sessionId: string, projectPath: string, prompt?: string): void {
+  spawn(sessionId: string, projectPath: string, options?: SpawnOptions): void {
     if (this.processes.has(sessionId)) {
       this.kill(sessionId);
     }
+
+    // 构建环境变量，注入 baseUrl / apiKey
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      ...(options?.baseUrl ? { ANTHROPIC_BASE_URL: options.baseUrl } : {}),
+      ...(options?.apiKey ? { ANTHROPIC_API_KEY: options.apiKey } : {}),
+    };
 
     // --bare: 跳过插件/LSP/hooks 加速冷启动
     // --input-format stream-json + --output-format stream-json: 双向流式 JSON 交互
@@ -29,19 +44,22 @@ export class ClaudeCodeProcess extends EventEmitter {
       '--input-format', 'stream-json',
       '--output-format', 'stream-json',
       '--permission-mode', 'bypassPermissions',
+      // --model: 指定模型
+      ...(options?.model ? ['--model', options.model] : []),
       // 初始 prompt 作为第一个 stdin 消息发出
-      ...(prompt ? [prompt] : [])
+      ...(options?.prompt ? [options.prompt] : [])
     ];
 
     logger.info({ sessionId, projectPath, args }, 'Spawning claude');
 
     const proc = spawn('claude', args, {
       cwd: projectPath,
-      env: { ...process.env },
+      env,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     this.processes.set(sessionId, proc);
+    this.sessionPaths.set(sessionId, projectPath);
 
     const parser = new AnsiParser();
     this.parsers.set(sessionId, parser);
@@ -117,12 +135,17 @@ export class ClaudeCodeProcess extends EventEmitter {
       proc.kill('SIGTERM');
       this.processes.delete(sessionId);
       this.parsers.delete(sessionId);
+      this.sessionPaths.delete(sessionId);
       this.emit('event', {
         event: { type: 'session_end', sessionId, reason: 'killed' },
         sessionId,
         timestamp: Date.now()
       });
     }
+  }
+
+  getSessionPath(sessionId: string): string | undefined {
+    return this.sessionPaths.get(sessionId);
   }
 
   isRunning(sessionId: string): boolean {
