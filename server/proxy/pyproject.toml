@@ -1,0 +1,14 @@
+[project]
+name = "cc-web-proxy"
+version = "0.1.0"
+dependencies = [
+    "litellm>=1.0.0",
+    "uvicorn>=0.27.0",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx",
+    "pytest",
+]
