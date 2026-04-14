@@ -17,7 +17,7 @@ export function DownloadProgressModal() {
   const handleRetry = () => {
     setError('');
     setChecking();
-    window.electronAPI.updateApi.check();
+    window.electron.updateApi.check();
   };
 
   return (

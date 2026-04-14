@@ -90,10 +90,12 @@ interface ElectronAPI {
   captureWindow(): Promise<string>;
   // Auto-update
   updateApi: UpdateApi;
+  // Generic IPC invoke for model-config, workspace-preset, etc.
+  invoke(channel: string, ...args: unknown[]): Promise<unknown>;
 }
 
 declare global {
   interface Window {
-    electronAPI: ElectronAPI;
+    electron: ElectronAPI;
   }
 }

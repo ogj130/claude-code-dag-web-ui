@@ -142,7 +142,7 @@ export async function computeEmbeddings(
 
   // Vite dev 走代理（非 Electron、无 IPC 桥接）
   const isDev = import.meta.env.DEV;
-  const useProxy = isDev && typeof window !== 'undefined' && !window.electronAPI?.embeddingApi;
+  const useProxy = isDev && typeof window !== 'undefined' && !window.electron?.embeddingApi;
 
   if (useProxy) {
     return fetchViaProxy(texts, config);

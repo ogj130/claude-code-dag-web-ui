@@ -558,8 +558,8 @@ export function DataDashboard() {
       let vectorUsageMB = 0;
       let ragHealth = 0;
       try {
-        if (window.electronAPI?.vectorApi) {
-          const stats = await window.electronAPI.vectorApi.getTableStats() as {
+        if (window.electron?.vectorApi) {
+          const stats = await window.electron.vectorApi.getTableStats() as {
             totalChunks: number; tables: Array<{ name: string; count: number }>;
           };
           totalVectors = stats.totalChunks ?? 0;

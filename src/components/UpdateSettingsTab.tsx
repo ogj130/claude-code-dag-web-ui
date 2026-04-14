@@ -16,7 +16,7 @@ export function UpdateSettingsTab() {
 
   // 监听主进程事件
   useEffect(() => {
-    const api = window.electronAPI.updateApi;
+    const api = window.electron.updateApi;
     api.onInit(({ currentVersion: v }) => init(v));
     api.onAvailable((info) => setAvailable(info));
     api.onProgress((p) => setProgress(p));
@@ -28,7 +28,7 @@ export function UpdateSettingsTab() {
 
   const handleCheck = async () => {
     setChecking();
-    const result = await window.electronAPI.updateApi.check();
+    const result = await window.electron.updateApi.check();
     if (result.error) {
       setError(result.error);
     } else if (result.available && result.info) {
@@ -46,14 +46,14 @@ export function UpdateSettingsTab() {
 
   const handleDownload = async () => {
     setDownloading();
-    const result = await window.electronAPI.updateApi.startDownload();
+    const result = await window.electron.updateApi.startDownload();
     if (!result.success && result.error) {
       setError(result.error);
     }
   };
 
   const handleInstall = async () => {
-    await window.electronAPI.updateApi.install();
+    await window.electron.updateApi.install();
   };
 
   const isDownloading = status === 'downloading';
@@ -118,7 +118,7 @@ export function UpdateSettingsTab() {
       {/* 发布地址 */}
       {updateInfo?.downloadUrl && (
         <button
-          onClick={() => window.electronAPI.openExternal(updateInfo.downloadUrl)}
+          onClick={() => window.electron.openExternal(updateInfo.downloadUrl)}
           style={{
             width: '100%', padding: '10px 16px', borderRadius: 8,
             border: '1px solid var(--border)', background: 'var(--bg-input)',

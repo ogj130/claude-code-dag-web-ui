@@ -68,13 +68,13 @@ const GLOBAL_TABLE = 'rag_global';
 
 // ── 环境检测：Electron IPC vs 浏览器本地存储 ────────────────────────────────
 
-const isElectron = typeof window !== 'undefined' && !!window.electronAPI?.vectorApi;
+const isElectron = typeof window !== 'undefined' && !!window.electron?.vectorApi;
 
 function vectorApi() {
   if (!isElectron) {
     throw new Error('LanceDB vectorStorage 仅在 Electron 渲染进程中可用');
   }
-  return window.electronAPI.vectorApi;
+  return window.electron.vectorApi;
 }
 
 // ── Write operations ──────────────────────────────────────────────────────

@@ -466,7 +466,7 @@ export function RAGRetrievalPanel({ onOpenSettings }: RAGRetrievalPanelProps) {
     }
   }
 
-  const isElectron = typeof window !== 'undefined' && !!window.electronAPI?.vectorApi;
+  const isElectron = typeof window !== 'undefined' && !!window.electron?.vectorApi;
 
   async function handleSearch() {
     if (!query.trim()) return;

@@ -20,7 +20,7 @@ const CH = {
 } as const;
 
 // ── 向量 API 桥接（主进程 → 渲染进程） ─────────────────────
-contextBridge.exposeInMainWorld('electronAPI', {
+contextBridge.exposeInMainWorld('electron', {
   // 原有 API
   getVersion: () => process.env.npm_package_version ?? '1.1.0',
 
@@ -117,6 +117,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on('update:downloaded', () => cb()),
     onError: (cb: (msg: string) => void) =>
       ipcRenderer.on('update:error', (_e, msg) => cb(msg)),
+  },
+
+  // ── ModelConfig IPC ─────────────────────────────────────────
+  invoke: (channel: string, ...args: unknown[]) => {
+    const validChannels = [
+      'model-config:get-all',
+      'model-config:save',
+      'model-config:update',
+      'model-config:delete',
+      'model-config:set-default',
+      'workspace-preset:get-all',
+      'workspace-preset:save',
+      'workspace-preset:update',
+      'workspace-preset:delete',
+    ];
+    if (validChannels.includes(channel)) {
+      return ipcRenderer.invoke(channel, ...args);
+    }
+    throw new Error(`Invalid channel: ${channel}`);
   },
 });
 

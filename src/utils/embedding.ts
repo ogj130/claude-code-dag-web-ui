@@ -22,14 +22,14 @@ export type TestResult = { success: true; latency: number; dimension: number }
 
 /** 检测是否在 Electron 渲染进程中（IPC 桥接可用） */
 function isElectronEnv(): boolean {
-  return typeof window !== 'undefined' && typeof window.electronAPI?.embeddingApi !== 'undefined';
+  return typeof window !== 'undefined' && typeof window.electron?.embeddingApi !== 'undefined';
 }
 
 // ── Electron IPC 路径（主进程使用 embeddingService） ─────────────────────
 
-async function fetchViaIpc(config: Parameters<typeof window.electronAPI.embeddingApi.call>[0]): Promise<EmbedResult> {
+async function fetchViaIpc(config: Parameters<typeof window.electron.embeddingApi.call>[0]): Promise<EmbedResult> {
   const start = Date.now();
-  const result = await window.electronAPI.embeddingApi.call(config);
+  const result = await window.electron.embeddingApi.call(config);
 
   if (!result.success || !result.vector) {
     throw new Error(result.error ?? 'Embedding 调用失败');

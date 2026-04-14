@@ -342,8 +342,8 @@ function extractDominantColors(image: IJSImage): string[] {
  */
 export async function captureWindowScreenshot(): Promise<string> {
   // Check if we're in Electron
-  if (typeof window !== 'undefined' && window.electronAPI?.captureWindow) {
-    return window.electronAPI.captureWindow();
+  if (typeof window !== 'undefined' && window.electron?.captureWindow) {
+    return window.electron.captureWindow();
   }
 
   // Fallback: use browser's canvas capture (limited)
