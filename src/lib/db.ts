@@ -18,6 +18,8 @@ export interface SessionRecord {
   // 摘要字段（方便列表展示）
   queryCount: number;      // 问答次数
   tokenCount: number;      // Token 消耗总量
+  // 模型字段
+  model?: string;           // 当前会话使用的模型名称
   // 扩展字段（JSON 序列化）
   metadata?: string;        // JSON.stringify({ ... }) 后存储
 }
@@ -49,10 +51,10 @@ class CCDatabase extends Dexie {
 
     // 注意：浏览器的 CCWebDB 已积累到 version 20+，必须将起始版本设为
     // MAX(代码版本, 浏览器版本)，Dexie 才能正常打开已存在的数据库。
-    // 当前代码最后一次迁移对应 version 21（与浏览器版本对齐）。
-    this.version(21).stores({
+    // 当前代码最后一次迁移对应 version 22（与浏览器版本对齐）。
+    this.version(22).stores({
       // sessions 表索引
-      sessions: '&id, updatedAt, createdAt, projectPath',
+      sessions: '&id, updatedAt, createdAt, projectPath, model',
 
       // queries 表索引
       queries: '&id, sessionId, timestamp, tokenCount, query, summary, projectPath',

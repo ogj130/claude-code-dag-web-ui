@@ -44,6 +44,7 @@ export interface ServerSession {
   createdAt: number;
   updatedAt: number;
   isActive: boolean;
+  model?: string;
   queryCount: number;
   tokenCount: number;
   metadata?: Record<string, unknown>;
@@ -292,6 +293,7 @@ export class CacheSyncEngine {
       projectPath: s.projectPath,
       createdAt: s.createdAt,
       isActive: s.isActive,
+      model: s.model,
     }));
 
     // Step 2: 后台异步拉取服务端数据
@@ -307,6 +309,7 @@ export class CacheSyncEngine {
             name: sv.name,
             projectPath: sv.projectPath,
             isActive: sv.isActive,
+            model: sv.model,
             queryCount: sv.queryCount,
             tokenCount: sv.tokenCount,
             metadata: sv.metadata,
@@ -320,6 +323,7 @@ export class CacheSyncEngine {
           projectPath: sv.projectPath,
           createdAt: sv.createdAt,
           isActive: sv.isActive,
+          model: sv.model,
         }));
 
         // 缓存有但服务端没有的会话也保留（本地新建但未同步到服务端的）
@@ -399,6 +403,7 @@ export class CacheSyncEngine {
         createdAt: s.createdAt,
         updatedAt: Date.now(),
         isActive: s.isActive,
+        model: s.model,
         queryCount: 0,
         tokenCount: 0,
       }));

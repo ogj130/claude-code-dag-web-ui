@@ -6,6 +6,7 @@ import { ModelSwitcher } from '../ModelSwitcher';
 import { useSessionStore, isPrivacyModeEnabled } from '../../stores/useSessionStore';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { PrivacySettings } from '../PrivacySettings';
+import type { ModelConfig } from '@/types/models';
 
 interface Props {
   theme: 'dark' | 'light';
@@ -17,9 +18,10 @@ interface Props {
   onOpenTokenAnalytics?: () => void;
   onOpenRAG?: () => void;
   onOpenCompaction?: () => void;
+  onSwitchModel?: (config: ModelConfig) => void;
 }
 
-export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, onOpenThemeSettings, onOpenAnalytics, onOpenTokenAnalytics, onOpenRAG, onOpenCompaction }: Props) {
+export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, onOpenThemeSettings, onOpenAnalytics, onOpenTokenAnalytics, onOpenRAG, onOpenCompaction, onSwitchModel }: Props) {
   const { addSession } = useSessionStore();
   const { groupingEnabled, toggleGrouping } = useTaskStore();
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
@@ -77,7 +79,7 @@ export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, o
       <span style={{ color: 'var(--border)', fontSize: 12 }}>|</span>
       <TokenBar />
       <span style={{ color: 'var(--border)', fontSize: 12 }}>|</span>
-      <ModelSwitcher />
+      <ModelSwitcher onSwitch={onSwitchModel} />
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{

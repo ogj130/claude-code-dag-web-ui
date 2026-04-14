@@ -77,6 +77,7 @@ export async function persistSessionUpdate(
     name?: string;
     projectPath?: string;
     isActive?: boolean;
+    model?: string;
     queryCount?: number;
     tokenCount?: number;
     metadata?: Record<string, unknown>;
@@ -87,6 +88,7 @@ export async function persistSessionUpdate(
   if (updates.name !== undefined) record.name = updates.name;
   if (updates.projectPath !== undefined) record.projectPath = updates.projectPath;
   if (updates.isActive !== undefined) record.isActive = updates.isActive;
+  if (updates.model !== undefined) record.model = updates.model;
   if (updates.queryCount !== undefined) record.queryCount = updates.queryCount;
   if (updates.tokenCount !== undefined) record.tokenCount = updates.tokenCount;
 

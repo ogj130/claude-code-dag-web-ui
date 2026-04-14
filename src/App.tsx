@@ -28,6 +28,7 @@ import { appendErrorLog } from './utils/errorLogger';
 import { getQueriesBySession } from './stores/queryStorage';
 import type { SearchResult } from './stores/searchIndex';
 import type { QueryRecord } from './lib/db';
+import type { ModelConfig } from './types/models';
 import './styles/themes.css';
 
 /**
@@ -120,6 +121,13 @@ export function App() {
   const modelOptions = getModelOptionsFromConfig(modelConfig ?? null);
   const { sendInput, disconnect, connect } = useWebSocket(activeSessionId, modelOptions);
   const { nodes, error, isStarting, markdownCards, isRunning, currentCard } = useTaskStore();
+
+  // 模型切换处理：更新会话模型并断开连接（下次发送自动用新模型重连）
+  const handleSwitchModel = useCallback((config: ModelConfig) => {
+    if (!activeSessionId) return;
+    useSessionStore.getState().updateSession(activeSessionId, { model: config.model });
+    disconnect();
+  }, [activeSessionId, disconnect]);
 
   // V1.4.0: Clipboard image paste detection
   useClipboardImage({
@@ -286,6 +294,7 @@ export function App() {
         onOpenTokenAnalytics={() => setIsTokenAnalyticsOpen(prev => !prev)}
         onOpenRAG={() => setIsRAGOpen(prev => !prev)}
         onOpenCompaction={() => setIsCompactionOpen(prev => !prev)}
+        onSwitchModel={handleSwitchModel}
       />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {renderMainContent()}
