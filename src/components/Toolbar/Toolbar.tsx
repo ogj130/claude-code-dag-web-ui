@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { TokenBar } from './TokenBar';
 import { SessionDropdown } from './SessionDropdown';
 import { ThemeToggle } from './ThemeToggle';
+import { ModelSwitcher } from '../ModelSwitcher';
 import { useSessionStore, isPrivacyModeEnabled } from '../../stores/useSessionStore';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { PrivacySettings } from '../PrivacySettings';
@@ -75,6 +76,8 @@ export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, o
       />
       <span style={{ color: 'var(--border)', fontSize: 12 }}>|</span>
       <TokenBar />
+      <span style={{ color: 'var(--border)', fontSize: 12 }}>|</span>
+      <ModelSwitcher />
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{

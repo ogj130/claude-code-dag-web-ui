@@ -57,6 +57,7 @@ export interface Session {
   projectPath: string;
   createdAt: number;
   isActive: boolean;
+  model?: string; // 当前会话使用的模型名称
 }
 
 // ---------------------------------------------------------------------------
@@ -75,7 +76,7 @@ interface SessionState {
   removeSession: (id: string) => void;
   setActive: (id: string) => void;
   renameSession: (id: string, name: string) => void;
-  updateSession: (id: string, updates: Partial<Pick<Session, 'name' | 'projectPath'>>) => void;
+  updateSession: (id: string, updates: Partial<Pick<Session, 'name' | 'projectPath' | 'model'>>) => void;
 
   // 内部：批量设置会话（用于缓存加载）
   _setSessions: (sessions: Session[]) => void;
@@ -136,6 +137,7 @@ export const useSessionStore = create<SessionState>((set) => {
           createdAt: s.createdAt,
           updatedAt: s.updatedAt,
           isActive: s.isActive,
+          model: s.model,
           queryCount: s.queryCount ?? 0,
           tokenCount: s.tokenCount ?? 0,
         }))) ?? [];

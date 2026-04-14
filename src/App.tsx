@@ -23,6 +23,7 @@ import { useTheme } from './hooks/useTheme';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useClipboardImage } from './hooks/useClipboardImage';
 import { useCompressionTrigger } from './hooks/useCompressionTrigger';
+import { useWorkspaceModelConfig, getModelOptionsFromConfig } from './hooks/useWorkspaceModelConfig';
 import { appendErrorLog } from './utils/errorLogger';
 import { getQueriesBySession } from './stores/queryStorage';
 import type { SearchResult } from './stores/searchIndex';
@@ -111,7 +112,13 @@ export function App() {
   const layout = getLayoutStyle();
 
   const { activeSessionId } = useSessionStore();
-  const { sendInput, disconnect, connect } = useWebSocket(activeSessionId);
+  // 获取当前活跃 session 的 projectPath
+  const activeSession = useSessionStore(state =>
+    state.sessions.find(s => s.id === state.activeSessionId)
+  );
+  const { config: modelConfig } = useWorkspaceModelConfig(activeSession?.projectPath ?? null);
+  const modelOptions = getModelOptionsFromConfig(modelConfig ?? null);
+  const { sendInput, disconnect, connect } = useWebSocket(activeSessionId, modelOptions);
   const { nodes, error, isStarting, markdownCards, isRunning, currentCard } = useTaskStore();
 
   // V1.4.0: Clipboard image paste detection

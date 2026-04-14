@@ -4,6 +4,7 @@ import { useSessionStore } from '../stores/useSessionStore';
 import { createLogger } from '../utils/logger';
 import { useWebSocketState } from './useWebSocketState';
 import type { WSMessage, WSClientMessage, WSTerminalMessage, WSTerminalChunkMessage, ClaudeEvent } from '../types/events';
+import type { ModelOptions } from '@/types/events';
 
 const log = createLogger('WebSocket');
 
@@ -17,7 +18,7 @@ function getWsUrl(): string {
   return `ws://localhost:${wsPort}`;
 }
 
-export function useWebSocket(sessionId: string | null) {
+export function useWebSocket(sessionId: string | null, modelOptions?: ModelOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const pendingInputsRef = useRef<string[]>([]);
   // 在 WebSocket OPEN 前用户尝试发送的消息（StrictMode 等场景）
@@ -96,6 +97,7 @@ export function useWebSocket(sessionId: string | null) {
         type: 'start_session',
         sessionId,
         projectPath,
+        modelOptions,
       };
       ws.send(JSON.stringify(msg));
 
