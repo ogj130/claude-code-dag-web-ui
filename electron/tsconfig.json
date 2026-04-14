@@ -4,13 +4,18 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "..",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "declaration": false
+    "declaration": false,
+    "jsx": "react-jsx",
+    "baseUrl": "..",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "release"]
+  "include": ["src/**/*", "../src/**/*"],
+  "exclude": ["node_modules", "dist", "release", "../src/__tests__/**", "../src/**/*.test.ts", "../src/**/*.test.tsx"]
 }

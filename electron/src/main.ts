@@ -197,6 +197,69 @@ function registerVectorHandlers() {
   });
 }
 
+// ── ModelConfig IPC 处理器 ───────────────────────────────────
+function registerModelConfigHandlers() {
+  ipcMain.handle('model-config:get-all', async () => {
+    const { getAllConfigs } = await import('../../src/stores/modelConfigStorage');
+    return getAllConfigs();
+  });
+
+  ipcMain.handle('model-config:save', async (_event, config) => {
+    const { saveConfig } = await import('../../src/stores/modelConfigStorage');
+    return saveConfig(config);
+  });
+
+  ipcMain.handle('model-config:update', async (_event, id: string, updates) => {
+    const { updateConfig } = await import('../../src/stores/modelConfigStorage');
+    await updateConfig(id, updates);
+    return { success: true };
+  });
+
+  ipcMain.handle('model-config:delete', async (_event, id: string) => {
+    const { deleteConfig } = await import('../../src/stores/modelConfigStorage');
+    const { invalidatePresetByConfigId } = await import('../../src/stores/workspacePresetStorage');
+    await invalidatePresetByConfigId(id);
+    await deleteConfig(id);
+    return { success: true };
+  });
+
+  ipcMain.handle('model-config:set-default', async (_event, id: string) => {
+    const { setDefaultConfig } = await import('../../src/stores/modelConfigStorage');
+    await setDefaultConfig(id);
+    return { success: true };
+  });
+}
+
+// ── WorkspacePreset IPC 处理器 ───────────────────────────────
+function registerWorkspacePresetHandlers() {
+  ipcMain.handle('workspace-preset:get-all', async () => {
+    const { getAllPresets } = await import('../../src/stores/workspacePresetStorage');
+    return getAllPresets();
+  });
+
+  ipcMain.handle('workspace-preset:save', async (_event, preset) => {
+    const { savePreset } = await import('../../src/stores/workspacePresetStorage');
+    return savePreset(preset);
+  });
+
+  ipcMain.handle('workspace-preset:update', async (_event, id: string, updates) => {
+    const { updatePreset } = await import('../../src/stores/workspacePresetStorage');
+    await updatePreset(id, updates);
+    return { success: true };
+  });
+
+  ipcMain.handle('workspace-preset:delete', async (_event, id: string) => {
+    const { deletePreset } = await import('../../src/stores/workspacePresetStorage');
+    await deletePreset(id);
+    return { success: true };
+  });
+
+  ipcMain.handle('workspace-preset:get-by-path', async (_event, path: string) => {
+    const { getPresetByPath } = await import('../../src/stores/workspacePresetStorage');
+    return getPresetByPath(path);
+  });
+}
+
 // ── Embedding IPC 处理器 ─────────────────────────────────────
 // 通过主进程代理 HTTP 请求，彻底绕过浏览器 CORS 限制
 // 使用 OpenAI SDK 处理各 Provider 的 embedding 请求
@@ -581,6 +644,12 @@ app.whenReady().then(async () => {
 
   // 注册 LanceDB IPC 处理器
   registerVectorHandlers();
+
+  // 注册 ModelConfig IPC 处理器
+  registerModelConfigHandlers();
+
+  // 注册 WorkspacePreset IPC 处理器
+  registerWorkspacePresetHandlers();
 
   // 注册 Embedding HTTP 代理处理器（绕过 CORS）
   registerEmbeddingHandlers();
