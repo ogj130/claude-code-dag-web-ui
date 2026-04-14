@@ -109,9 +109,17 @@ export interface WSTerminalChunkMessage {
 
 // WS 客户端 → 服务端消息
 export type WSClientMessage =
-  | { type: 'start_session'; sessionId: string; projectPath: string; prompt?: string }
+  | { type: 'start_session'; sessionId: string; projectPath: string; prompt?: string; modelOptions?: ModelOptions }
   | { type: 'send_input'; sessionId: string; input: string }
-  | { type: 'kill_session'; sessionId: string };
+  | { type: 'kill_session'; sessionId: string }
+  | { type: 'switch_model'; sessionId: string; modelOptions: ModelOptions };
+
+/** 模型选项 */
+export interface ModelOptions {
+  model?: string;
+  baseUrl?: string;
+  apiKey?: string;
+}
 
 /**
  * RAG 检索结果的数据结构

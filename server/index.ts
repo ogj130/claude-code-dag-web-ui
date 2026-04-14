@@ -64,8 +64,8 @@ export function start(wss: WebSocketServer, port: number = DEFAULT_PORT): void {
 
         switch (msg.type) {
           case 'start_session': {
-            const { sessionId, projectPath, prompt } = msg;
-            logger.info({ sessionId, projectPath }, 'Starting session');
+            const { sessionId, projectPath, prompt, modelOptions } = msg as any;
+            logger.info({ sessionId, projectPath, modelOptions }, 'Starting session');
 
             if (!clients.has(sessionId)) {
               clients.set(sessionId, new Set());
@@ -117,7 +117,12 @@ export function start(wss: WebSocketServer, port: number = DEFAULT_PORT): void {
               processManager.kill(sessionId);
             }
 
-            processManager.spawn(sessionId, projectPath, prompt);
+            processManager.spawn(sessionId, projectPath, {
+              prompt,
+              model: modelOptions?.model,
+              baseUrl: modelOptions?.baseUrl,
+              apiKey: modelOptions?.apiKey,
+            });
             break;
           }
           case 'send_input': {
@@ -148,6 +153,28 @@ export function start(wss: WebSocketServer, port: number = DEFAULT_PORT): void {
           case 'kill_session': {
             logger.info({ sessionId: msg.sessionId }, 'Killing session');
             processManager.kill(msg.sessionId);
+            break;
+          }
+          case 'switch_model': {
+            const { sessionId, modelOptions } = msg as any;
+            logger.info({ sessionId, modelOptions }, 'Switching model');
+
+            // 获取 session 对应的 projectPath
+            const projectPath = processManager.getSessionPath(sessionId);
+            if (!projectPath) {
+              logger.warn({ sessionId }, 'Session path not found for model switch');
+              break;
+            }
+
+            // 先 kill 现有进程
+            processManager.kill(sessionId);
+
+            // 重新 spawn，使用新的模型选项
+            processManager.spawn(sessionId, projectPath, {
+              model: modelOptions?.model,
+              baseUrl: modelOptions?.baseUrl,
+              apiKey: modelOptions?.apiKey,
+            });
             break;
           }
         }
