@@ -196,6 +196,8 @@ export interface CreateSessionInput {
   title: string;
   /** 标签列表（可选） */
   tags?: string[];
+  /** 所属工作区路径（A1 多工作区基础层使用） */
+  workspacePath?: string;
 }
 
 /**

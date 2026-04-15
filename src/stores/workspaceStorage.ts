@@ -1,33 +1,23 @@
 import Dexie, { type Table } from 'dexie';
-
-export interface Workspace {
-  id: string;
-  name: string;
-  modelConfigId: string;
-  enabled: boolean;
-  createdAt: number;
-  updatedAt: number;
-}
+import type { CreateWorkspaceInput, Workspace } from '@/types/workspace';
 
 interface StoredWorkspace {
   id: string;
   name: string;
+  workspacePath: string;
   modelConfigId: string;
+  systemPrompt?: string;
   /** 0 = false, 1 = true (IndexedDB indexes require scalar keys) */
   enabled: 0 | 1;
   createdAt: number;
   updatedAt: number;
 }
 
-export interface CreateWorkspaceInput {
-  name: string;
-  modelConfigId: string;
-  enabled: boolean;
-}
-
 export interface UpdateWorkspaceInput {
   name?: string;
+  workspacePath?: string;
   modelConfigId?: string;
+  systemPrompt?: string;
   enabled?: boolean;
 }
 
@@ -53,7 +43,9 @@ function toPublic(workspace: StoredWorkspace): Workspace {
   return {
     id: workspace.id,
     name: workspace.name,
+    workspacePath: workspace.workspacePath,
     modelConfigId: workspace.modelConfigId,
+    systemPrompt: workspace.systemPrompt,
     enabled: workspace.enabled === 1,
     createdAt: workspace.createdAt,
     updatedAt: workspace.updatedAt,
@@ -65,8 +57,10 @@ export async function createWorkspace(input: CreateWorkspaceInput): Promise<Work
   const stored: StoredWorkspace = {
     id: generateId(),
     name: input.name,
+    workspacePath: input.workspacePath,
     modelConfigId: input.modelConfigId,
-    enabled: input.enabled ? 1 : 0,
+    systemPrompt: input.systemPrompt,
+    enabled: input.enabled === false ? 0 : 1,
     createdAt: now,
     updatedAt: now,
   };
@@ -96,7 +90,9 @@ export async function updateWorkspace(id: string, updates: UpdateWorkspaceInput)
   };
 
   if (updates.name !== undefined) storedUpdates.name = updates.name;
+  if (updates.workspacePath !== undefined) storedUpdates.workspacePath = updates.workspacePath;
   if (updates.modelConfigId !== undefined) storedUpdates.modelConfigId = updates.modelConfigId;
+  if (updates.systemPrompt !== undefined) storedUpdates.systemPrompt = updates.systemPrompt;
   if (updates.enabled !== undefined) storedUpdates.enabled = updates.enabled ? 1 : 0;
 
   await edb.workspaces.update(id, storedUpdates);
