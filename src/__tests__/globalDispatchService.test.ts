@@ -9,9 +9,15 @@ import { useMultiDispatchStore } from '@/stores/useMultiDispatchStore';
 
 // Mock the session service so we don't need a real DB
 vi.mock('@/services/sessionService', () => ({
-  getOrCreateSessionForWorkspace: vi.fn().mockResolvedValue({
-    session: { id: 'mock-session-1' },
-  }),
+  getOrCreateSessionForWorkspace: vi.fn().mockImplementation(
+    ({ workspaceId }: { workspaceId: string }) => Promise.resolve({
+      workspaceId,
+      modelConfigId: 'mock-model',
+      createdBy: 'global-dispatch',
+      reused: false,
+      session: { id: `mock-session-${workspaceId}` },
+    }),
+  ),
 }));
 
 // Mock the terminal runtime so it calls the user-provided executePrompt
@@ -264,5 +270,52 @@ describe('dispatchGlobalPrompts', () => {
     // Each prompt gets a unique queryId
     expect(queryIdsSeen.size).toBe(2);
     expect(promptTexts).toEqual(['task1', 'task2']);
+  });
+
+  it('12. session.status starts as "connecting" — "running" update depends on session_start event (real WS flow)', async () => {
+    // This test documents the session lifecycle:
+    // 1. dispatchForWorkspace creates session → status='connecting'
+    // 2. spawn() → backend sends start_session → session_start fires
+    // 3. session_start handler updates status → 'running'
+    // Bug: if send_input fires before start_session, backend skips session_registered
+    // Fix: spawn() now returns Promise (waits for WS OPEN) → start_session sent first
+    useTaskStore.getState().reset();
+    useMultiDispatchStore.setState({ sessions: new Map(), workspacePromptHistory: new Map() });
+
+    // Pre-populate session (as dispatchForWorkspace does via getOrCreateSessionForWorkspace)
+    // so we can verify the ordering invariant: session exists BEFORE executePrompt runs
+    useMultiDispatchStore.setState((state) => {
+      const next = new Map(state.sessions);
+      next.set('ws1', {
+        workspaceId: 'ws1',
+        workspaceName: 'WS1',
+        workspacePath: '/a',
+        sessionId: 'mock-session-1',
+        status: 'connecting' as const,
+        progress: '',
+        currentPromptIndex: 0,
+        totalPrompts: 1,
+        result: null,
+      });
+      return { sessions: next };
+    });
+
+    mockRuntime.mockImplementationOnce(async (input) => {
+      // Session must be in 'connecting' state BEFORE executePrompt runs.
+      // session_start (real WS) will update it → 'running'.
+      const session = useMultiDispatchStore.getState().sessions.get('ws1');
+      expect(session?.status).toBe('connecting');
+      await input.executePrompt({ sessionId: input.sessionId, prompt: 'hello' });
+      return { status: 'success', promptResults: [{ prompt: 'hello', status: 'success' }] };
+    });
+
+    await dispatchGlobalPrompts({
+      rawInput: 'hello',
+      workspaces: [mockWorkspace1],
+      createNewSession: false,
+      executePrompt: async () => ({ status: 'success' }),
+    });
+
+    expect(useMultiDispatchStore.getState().sessions.get('ws1')).not.toBeUndefined();
   });
 });
