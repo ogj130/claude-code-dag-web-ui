@@ -349,29 +349,35 @@ function FormModal({ config, onSave, onCancel, onChange }: FormModalProps) {
       }
 
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000);
+      const timeout = setTimeout(() => controller.abort(), 3000);
 
-      const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
-      clearTimeout(timeout);
+      try {
+        const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
+        clearTimeout(timeout);
 
-      if (resp.ok) {
-        const latency = Date.now() - start;
-        setTestStatus('success');
-        setTestMessage(`连接成功 (${latency}ms)`);
-      } else {
-        const err = await resp.text().catch(() => '');
-        setTestStatus('error');
-        setTestMessage(`连接失败: HTTP ${resp.status}${err ? ' - ' + err.slice(0, 100) : ''}`);
+        if (resp.ok) {
+          const latency = Date.now() - start;
+          setTestStatus('success');
+          setTestMessage(`连接成功 (${latency}ms)`);
+        } else {
+          const err = await resp.text().catch(() => '');
+          setTestStatus('error');
+          setTestMessage(`连接失败: HTTP ${resp.status}${err ? ' - ' + err.slice(0, 100) : ''}`);
+        }
+      } catch (err) {
+        clearTimeout(timeout);
+        if (err instanceof Error && err.name === 'AbortError') {
+          setTestStatus('error');
+          setTestMessage('连接超时 (3s)');
+        } else {
+          setTestStatus('error');
+          setTestMessage(`连接失败: ${err instanceof Error ? err.message : String(err)}`);
+        }
       }
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        setTestStatus('error');
-        setTestMessage('连接超时 (5s)');
-      } else {
-        setTestStatus('error');
-        setTestMessage(`连接失败: ${err instanceof Error ? err.message : String(err)}`);
+      } catch (_outerErr) {
+        // Setup errors before fetch is attempted — non-critical, log only
+        console.warn('[ModelConfigPanel] Connection setup error:', _outerErr);
       }
-    }
   };
 
   return (
