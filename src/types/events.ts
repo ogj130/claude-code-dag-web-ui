@@ -1,4 +1,19 @@
-export type NodeStatus = 'pending' | 'running' | 'completed' | 'failed';
+// V2: 任务 1.2 使用的工具调用记录（带 input 字段，与 ToolCall.args 等价）
+export interface EventToolCall {
+  id: string;
+  tool: string;
+  /** 工具调用输入参数（等价于 ToolCall.args，但结构更友好） */
+  input: Record<string, unknown>;
+  status: 'pending' | 'running' | 'completed' | 'error';
+  result?: string;
+  startTime: number;
+  endTime?: number;
+  /** 所属 queryId */
+  parentId?: string;
+}
+
+export type NodeStatus = 'pending' | 'idle' | 'running' | 'completed' | 'failed';
+import type { ModelOptions } from './models';
 
 // V1.4.0: Extended node types
 export type DAGNodeType = 'agent' | 'agent_group' | 'tool' | 'query' | 'summary' | 'rag' | 'task' | 'compact' | 'image';
@@ -76,13 +91,16 @@ export type ClaudeEvent =
   | { type: 'token_usage'; usage: TokenUsage }
   | { type: 'error'; message: string }
   | { type: 'session_start'; sessionId: string }
+  | { type: 'session_registered'; sessionId: string }
   | { type: 'session_end'; sessionId: string; reason?: string }
   | { type: 'streamEnd'; queryId?: string }
   | { type: 'user_input_sent'; queryId: string; text: string }
   | { type: 'query_start'; queryId: string; label: string }
   | { type: 'query_end'; queryId: string }
   | { type: 'query_summary'; queryId: string; summary: string; endToolIds?: string[] }
-  | { type: 'summary_chunk'; queryId: string; chunk: string };
+  | { type: 'summary_chunk'; queryId: string; chunk: string }
+  // V2: result event — 显式标记单个 prompt 执行完成（由 server 在 streamEnd 时广播）
+  | { type: 'result'; queryId?: string; result?: string; error?: string; reason?: string };
 
 // WebSocket 消息格式（服务端 → 客户端）
 export interface WSMessage {
@@ -110,16 +128,9 @@ export interface WSTerminalChunkMessage {
 // WS 客户端 → 服务端消息
 export type WSClientMessage =
   | { type: 'start_session'; sessionId: string; projectPath: string; prompt?: string; modelOptions?: ModelOptions }
-  | { type: 'send_input'; sessionId: string; input: string }
+  | { type: 'send_input'; sessionId: string; input: string; queryId: string }
   | { type: 'kill_session'; sessionId: string }
   | { type: 'switch_model'; sessionId: string; modelOptions: ModelOptions };
-
-/** 模型选项 */
-export interface ModelOptions {
-  model?: string;
-  baseUrl?: string;
-  apiKey?: string;
-}
 
 /**
  * RAG 检索结果的数据结构
