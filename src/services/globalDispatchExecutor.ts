@@ -170,11 +170,14 @@ export async function executePromptForWorkspace(
       const evt = payload.event;
       if (evt.type === 'result') {
         cleanup();
-        const resultData = evt as { type: 'result'; result?: unknown; error?: string };
+        const resultData = evt as { type: 'result'; result?: unknown; error?: string; output?: string };
         if (resultData.error) {
           resolve({ status: 'failed', reason: resultData.error });
         } else {
-          resolve({ status: 'success' });
+          resolve({
+            status: 'success',
+            output: typeof resultData.output === 'string' ? resultData.output : undefined,
+          });
         }
       } else if (evt.type === 'error') {
         cleanup();
