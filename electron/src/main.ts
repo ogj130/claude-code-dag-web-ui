@@ -268,6 +268,16 @@ function registerWorkspacePresetHandlers() {
     const { getPresetByPath } = await import('../../src/stores/workspacePresetStorage');
     return getPresetByPath(path);
   });
+
+  ipcMain.handle('workspace-preset:get-enabled', async () => {
+    const { getEnabledPresets } = await import('../../src/stores/workspacePresetStorage');
+    return getEnabledPresets();
+  });
+
+  ipcMain.handle('workspace-preset:get-by-id', async (_event, id: string) => {
+    const { getPresetById } = await import('../../src/stores/workspacePresetStorage');
+    return getPresetById(id);
+  });
 }
 
 // ── Embedding IPC 处理器 ─────────────────────────────────────
