@@ -19,6 +19,10 @@ const DEFAULT_PAGINATION: PaginationParams = {
   pageSize: 20,
 };
 
+export const edb = {
+  sessions: db.sessions,
+};
+
 /**
  * 生成唯一 ID
  */

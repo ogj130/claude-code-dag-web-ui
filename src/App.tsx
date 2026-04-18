@@ -16,6 +16,7 @@ import { TokenAnalytics } from './components/TokenAnalytics';
 import { RAGRetrievalModal } from './components/RAGRetrievalModal';
 import { CompactionDrawer } from './components/Compaction/CompactionDrawer';
 import { RAGContextBar } from './components/RAGContextBar';
+import { GlobalTerminalModal } from './components/GlobalTerminal/GlobalTerminalModal';
 import { useSessionStore } from './stores/useSessionStore';
 import { useTaskStore, type MarkdownCardData } from './stores/useTaskStore';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -88,6 +89,7 @@ export function App() {
   const [isTokenAnalyticsOpen, setIsTokenAnalyticsOpen] = useState(false);
   const [isRAGOpen, setIsRAGOpen] = useState(false);
   const [isCompactionOpen, setIsCompactionOpen] = useState(false);
+  const [isGlobalTerminalOpen, setIsGlobalTerminalOpen] = useState(false);
 
   // 响应式布局：监听窗口宽度
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -294,6 +296,7 @@ export function App() {
         onOpenTokenAnalytics={() => setIsTokenAnalyticsOpen(prev => !prev)}
         onOpenRAG={() => setIsRAGOpen(prev => !prev)}
         onOpenCompaction={() => setIsCompactionOpen(prev => !prev)}
+        onOpenGlobalTerminal={() => setIsGlobalTerminalOpen(true)}
         onSwitchModel={handleSwitchModel}
       />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -350,6 +353,10 @@ export function App() {
         onClose={() => setIsShortcutHelpOpen(false)}
         shortcuts={shortcuts}
         conflicts={conflicts}
+      />
+      <GlobalTerminalModal
+        isOpen={isGlobalTerminalOpen}
+        onClose={() => setIsGlobalTerminalOpen(false)}
       />
     </div>
   );

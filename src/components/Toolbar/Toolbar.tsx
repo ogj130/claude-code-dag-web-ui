@@ -19,9 +19,10 @@ interface Props {
   onOpenRAG?: () => void;
   onOpenCompaction?: () => void;
   onSwitchModel?: (config: ModelConfig) => void;
+  onOpenGlobalTerminal?: () => void;
 }
 
-export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, onOpenThemeSettings, onOpenAnalytics, onOpenTokenAnalytics, onOpenRAG, onOpenCompaction, onSwitchModel }: Props) {
+export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, onOpenThemeSettings, onOpenAnalytics, onOpenTokenAnalytics, onOpenRAG, onOpenCompaction, onSwitchModel, onOpenGlobalTerminal }: Props) {
   const { addSession } = useSessionStore();
   const { groupingEnabled, toggleGrouping } = useTaskStore();
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
@@ -227,6 +228,25 @@ export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, o
           </svg>
           设置
         </button>
+        {onOpenGlobalTerminal && (
+          <button
+            onClick={onOpenGlobalTerminal}
+            style={{
+              background: 'transparent', color: 'var(--accent)',
+              border: '1px solid var(--accent)', padding: '6px 12px',
+              borderRadius: 6, fontSize: 12, cursor: 'pointer',
+              fontFamily: 'inherit', transition: 'all 0.2s',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth={1.8}
+              strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="4 17 10 11 4 5" />
+              <line x1="12" y1="19" x2="20" y2="19" />
+            </svg>
+            全局终端
+          </button>
+        )}
       </div>
       <PrivacySettings
         isOpen={showPrivacySettings}

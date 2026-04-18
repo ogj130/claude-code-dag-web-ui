@@ -1,321 +1,313 @@
 import 'fake-indexeddb/auto';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { dispatchGlobalPrompts } from '@/services/globalDispatchService';
-import type { Workspace } from '@/types/workspace';
-import * as sessionService from '@/services/sessionService';
-import * as globalTerminalRuntime from '@/services/globalTerminalRuntime';
-import { useTaskStore } from '@/stores/useTaskStore';
-import { useMultiDispatchStore } from '@/stores/useMultiDispatchStore';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  createWorkspace,
+  edb as workspaceEdb,
+  getAllWorkspaces,
+} from '@/stores/workspaceStorage';
+import { saveConfig, edb as modelConfigEdb } from '@/stores/modelConfigStorage';
+import {
+  createSession,
+  edb as sessionEdb,
+  getSession,
+} from '@/stores/sessionStorage';
+import {
+  bindSessionToWorkspace,
+  edb as bindingEdb,
+  getLatestSessionBindingByWorkspaceId,
+} from '@/stores/sessionWorkspaceBindingStorage';
+import {
+  dispatchGlobalPrompts,
+  dispatchGlobalPromptsWithDefaults,
+} from '@/services/globalDispatchService';
 
-// Mock the session service so we don't need a real DB
-vi.mock('@/services/sessionService', () => ({
-  getOrCreateSessionForWorkspace: vi.fn().mockImplementation(
-    ({ workspaceId }: { workspaceId: string }) => Promise.resolve({
-      workspaceId,
-      modelConfigId: 'mock-model',
-      createdBy: 'global-dispatch',
-      reused: false,
-      session: { id: `mock-session-${workspaceId}` },
-    }),
-  ),
-}));
-
-// Mock the terminal runtime so it calls the user-provided executePrompt
-vi.mock('@/services/globalTerminalRuntime', () => ({
-  runGlobalTerminalRuntime: vi.fn(),
-}));
-
-const mockWorkspace1: Workspace = {
-  id: 'ws1',
-  name: 'WS1',
-  workspacePath: '/a',
-  modelConfigId: 'cfg1',
-  enabled: true,
-  createdAt: Date.now(),
-  updatedAt: Date.now(),
-};
-
-const mockWorkspace2: Workspace = {
-  id: 'ws2',
-  name: 'WS2',
-  workspacePath: '/b',
-  modelConfigId: 'cfg2',
-  enabled: true,
-  createdAt: Date.now(),
-  updatedAt: Date.now(),
-};
-
-const mockExecutePromptSuccess = vi
-  .fn<[Parameters<globalTerminalRuntime.RunGlobalTerminalRuntimeInput['executePrompt']>[0]], Promise<{ status: 'success' }>>()
-  .mockResolvedValue({ status: 'success' });
-
-const mockRuntime = globalTerminalRuntime.runGlobalTerminalRuntime as ReturnType<typeof vi.fn>;
-
-function setupRuntimeMock(status: globalTerminalRuntime.GlobalTerminalRuntimeResult['status'], promptResults: globalTerminalRuntime.DispatchPromptResult[]) {
-  mockRuntime.mockResolvedValue({ status, promptResults });
-}
-
-describe('dispatchGlobalPrompts', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    // Default: all workspaces succeed
-    setupRuntimeMock('success', [{ prompt: 'hello', status: 'success' }]);
+describe('globalDispatchService', () => {
+  beforeEach(async () => {
+    await bindingEdb.bindings.clear();
+    await sessionEdb.sessions.clear();
+    await workspaceEdb.workspaces.clear();
+    await modelConfigEdb.configs.clear();
+    vi.restoreAllMocks();
   });
 
-  it('1. single query → mode is single, results for all workspaces', async () => {
-    const result = await dispatchGlobalPrompts({
-      rawInput: 'hello',
-      workspaces: [mockWorkspace1, mockWorkspace2],
-      createNewSession: false,
-      executePrompt: mockExecutePromptSuccess,
+  // ─────────────────────────────────────────────
+  // Helper: 创建两个带独立模型配置的工作区
+  // ─────────────────────────────────────────────
+  async function setupTwoWorkspaces() {
+    const configA = await saveConfig({
+      name: 'Claude Sonnet',
+      provider: 'anthropic',
+      model: 'claude-sonnet-4-6',
+      isDefault: true,
+    });
+    const configB = await saveConfig({
+      name: 'Claude Opus',
+      provider: 'anthropic',
+      model: 'claude-opus-4-6',
+      isDefault: false,
     });
 
-    expect(result.mode).toBe('single');
-    expect(result.workspaceResults.length).toBe(2);
-  });
+    const workspaceA = await createWorkspace({
+      name: 'Workspace A',
+      workspacePath: '/tmp/project-a',
+      modelConfigId: configA.id,
+      enabled: true,
+    });
 
-  it('2. multi-line input → mode is list, each workspace has promptResults per line', async () => {
-    setupRuntimeMock('success', [
-      { prompt: 'line1', status: 'success' },
-      { prompt: 'line2', status: 'success' },
-    ]);
+    const workspaceB = await createWorkspace({
+      name: 'Workspace B',
+      workspacePath: '/tmp/project-b',
+      modelConfigId: configB.id,
+      enabled: true,
+    });
+
+    return { workspaceA, workspaceB, configA, configB };
+  }
+
+  // ─────────────────────────────────────────────
+  // 测试：单行输入 → single 模式，两个工作区各执行一次
+  // ─────────────────────────────────────────────
+  it('single 模式下两个工作区各执行一次 prompt', async () => {
+    const { workspaceA, workspaceB } = await setupTwoWorkspaces();
+    const executed: Array<{ workspaceId: string; sessionId: string; prompt: string }> = [];
 
     const result = await dispatchGlobalPrompts({
-      rawInput: 'line1\nline2',
-      workspaces: [mockWorkspace1, mockWorkspace2],
+      rawInput: '实现 LRU 缓存',
+      workspaces: [workspaceA, workspaceB],
       createNewSession: false,
-      executePrompt: mockExecutePromptSuccess,
-    });
-
-    expect(result.mode).toBe('list');
-    expect(result.workspaceResults[0].promptResults.length).toBe(2);
-    expect(result.workspaceResults[1].promptResults.length).toBe(2);
-  });
-
-  it('3. createNewSession=true → policy is new_session_for_all', async () => {
-    const result = await dispatchGlobalPrompts({
-      rawInput: 'hello',
-      workspaces: [mockWorkspace1],
-      createNewSession: true,
-      executePrompt: mockExecutePromptSuccess,
-    });
-
-    expect(result.policy).toBe('new_session_for_all');
-  });
-
-  it('4. createNewSession=false → policy is continue_current_by_workspace', async () => {
-    const result = await dispatchGlobalPrompts({
-      rawInput: 'hello',
-      workspaces: [mockWorkspace1],
-      createNewSession: false,
-      executePrompt: mockExecutePromptSuccess,
-    });
-
-    expect(result.policy).toBe('continue_current_by_workspace');
-  });
-
-  it('5. single workspace success → workspace result status success', async () => {
-    setupRuntimeMock('success', [{ prompt: 'hello', status: 'success' }]);
-
-    const result = await dispatchGlobalPrompts({
-      rawInput: 'hello',
-      workspaces: [mockWorkspace1],
-      createNewSession: false,
-      executePrompt: mockExecutePromptSuccess,
-    });
-
-    expect(result.workspaceResults[0].status).toBe('success');
-    expect(result.workspaceResults[0].promptResults[0].status).toBe('success');
-  });
-
-  it('6. single workspace failure → workspace result status failed with reason', async () => {
-    const failedExecute = vi.fn().mockResolvedValue({
-      status: 'failed' as const,
-      reason: 'claude not found',
-    });
-    setupRuntimeMock('failed', [{ prompt: 'hello', status: 'failed', reason: 'claude not found' }]);
-
-    const result = await dispatchGlobalPrompts({
-      rawInput: 'hello',
-      workspaces: [mockWorkspace1],
-      createNewSession: false,
-      executePrompt: failedExecute,
-    });
-
-    expect(result.workspaceResults[0].status).toBe('failed');
-    expect(result.workspaceResults[0].promptResults[0].status).toBe('failed');
-    expect(result.workspaceResults[0].promptResults[0].reason).toBe('claude not found');
-  });
-
-  it('7. multiple workspaces: one succeeds, one fails → both workspaceResults present with independent statuses', async () => {
-    // Workspace 1 succeeds, workspace 2 fails
-    mockRuntime
-      .mockResolvedValueOnce({ status: 'success', promptResults: [{ prompt: 'hello', status: 'success' }] })
-      .mockResolvedValueOnce({ status: 'failed', promptResults: [{ prompt: 'hello', status: 'failed', reason: 'connection error' }] });
-
-    const result = await dispatchGlobalPrompts({
-      rawInput: 'hello',
-      workspaces: [mockWorkspace1, mockWorkspace2],
-      createNewSession: false,
-      executePrompt: mockExecutePromptSuccess,
-    });
-
-    expect(result.workspaceResults.length).toBe(2);
-    expect(result.workspaceResults[0].workspaceId).toBe('ws1');
-    expect(result.workspaceResults[0].status).toBe('success');
-    expect(result.workspaceResults[1].workspaceId).toBe('ws2');
-    expect(result.workspaceResults[1].status).toBe('failed');
-  });
-
-  it('8. batchId starts with "batch_" and contains a timestamp-like segment', async () => {
-    const result = await dispatchGlobalPrompts({
-      rawInput: 'hello',
-      workspaces: [mockWorkspace1],
-      createNewSession: false,
-      executePrompt: mockExecutePromptSuccess,
-    });
-
-    expect(result.batchId).toMatch(/^batch_\d+_[a-z0-9]+$/);
-  });
-
-  it('9. empty workspaces array → still returns valid DispatchResult with empty workspaceResults', async () => {
-    const result = await dispatchGlobalPrompts({
-      rawInput: 'hello',
-      workspaces: [],
-      createNewSession: false,
-      executePrompt: mockExecutePromptSuccess,
-    });
-
-    expect(result.batchId).toMatch(/^batch_/);
-    expect(result.mode).toBe('single');
-    expect(result.policy).toBe('continue_current_by_workspace');
-    expect(result.workspaceResults).toEqual([]);
-  });
-
-  it('10. executePrompt fires user_input_sent BEFORE calling executePrompt → dispatchCurrentCard populated', async () => {
-    // Reset dispatch state before test
-    useTaskStore.getState().reset();
-    useMultiDispatchStore.setState({
-      sessions: new Map(),
-      workspacePromptHistory: new Map(),
-    });
-
-    // Track call order: is handleDispatchEvent called before executePrompt resolves?
-    let handleDispatchEventCalledBeforeExecute = false;
-
-    // Mock runtime: capture executePrompt and immediately invoke it (simulates real execution)
-    mockRuntime.mockImplementation(async (input) => {
-      // Execute the callback immediately to verify ordering
-      await input.executePrompt({ sessionId: 'mock-session-1', prompt: 'hello' });
-      return { status: 'success', promptResults: [{ prompt: 'hello', status: 'success' }] };
-    });
-
-    await dispatchGlobalPrompts({
-      rawInput: 'hello',
-      workspaces: [mockWorkspace1],
-      createNewSession: false,
-      executePrompt: async ({ prompt }) => {
-        // At this point, user_input_sent MUST have already been dispatched
-        const currentCard = useTaskStore.getState().dispatchCurrentCard.get('ws1');
-        handleDispatchEventCalledBeforeExecute = currentCard !== null && currentCard.query === 'hello';
+      executePrompt: async ({ workspaceId, sessionId, prompt }) => {
+        executed.push({ workspaceId, sessionId, prompt });
         return { status: 'success' };
       },
     });
 
-    // Assert: dispatchCurrentCard is set (user_input_sent was fired before executePrompt)
-    const currentCard = useTaskStore.getState().dispatchCurrentCard.get('ws1');
-    expect(currentCard).not.toBeNull();
-    expect(currentCard!.query).toBe('hello');
-    expect(currentCard!.queryId).toMatch(/^dispatch_ws1_0_\d+$/);
+    expect(result.mode).toBe('single');
+    expect(result.policy).toBe('continue_current_by_workspace');
+    expect(result.workspaceResults).toHaveLength(2);
 
-    // Assert: workspacePromptHistory also populated (via addPromptHistory in user_input_sent handler)
-    const history = useMultiDispatchStore.getState().workspacePromptHistory.get('ws1') ?? [];
-    expect(history).toHaveLength(1);
-    expect(history[0].prompt).toBe('hello');
-    expect(history[0].status).toBe('pending');
-    expect(history[0].queryId).toBe(currentCard!.queryId);
+    // 两个工作区都执行了
+    expect(executed).toHaveLength(2);
+    expect(executed[0]?.workspaceId).toBe(workspaceA.id);
+    expect(executed[1]?.workspaceId).toBe(workspaceB.id);
+    expect(executed[0]?.prompt).toBe('实现 LRU 缓存');
+    expect(executed[1]?.prompt).toBe('实现 LRU 缓存');
+
+    // 每个工作区各创建一个新 session（无历史）
+    const sessionA = await getSession(result.workspaceResults[0].sessionId!);
+    const sessionB = await getSession(result.workspaceResults[1].sessionId!);
+    expect(sessionA?.workspacePath).toBe('/tmp/project-a');
+    expect(sessionB?.workspacePath).toBe('/tmp/project-b');
+
+    // binding 记录 createdBy = 'global-dispatch'
+    const bindingA = await getLatestSessionBindingByWorkspaceId(workspaceA.id);
+    const bindingB = await getLatestSessionBindingByWorkspaceId(workspaceB.id);
+    expect(bindingA?.createdBy).toBe('global-dispatch');
+    expect(bindingB?.createdBy).toBe('global-dispatch');
   });
 
-  it('11. multiple prompts → each fires user_input_sent with unique queryId', async () => {
-    useTaskStore.getState().reset();
-    useMultiDispatchStore.setState({ sessions: new Map(), workspacePromptHistory: new Map() });
+  // ─────────────────────────────────────────────
+  // 测试：多行输入 → list 模式，按顺序逐个执行
+  // ─────────────────────────────────────────────
+  it('list 模式下顺序执行多个 prompt 并返回 partial', async () => {
+    const { workspaceA } = await setupTwoWorkspaces();
+    const executionOrder: string[] = [];
 
-    const queryIdsSeen = new Set<string>();
-    const promptTexts: string[] = [];
-
-    mockRuntime.mockImplementation(async (input) => {
-      for (const item of input.prompts) {
-        await input.executePrompt({ sessionId: 'mock-session-1', prompt: item.prompt });
-      }
-      return {
-        status: 'success',
-        promptResults: input.prompts.map(p => ({ prompt: p.prompt, status: 'success' as const })),
-      };
-    });
-
-    await dispatchGlobalPrompts({
-      rawInput: 'task1\ntask2',
-      workspaces: [mockWorkspace1],
+    const result = await dispatchGlobalPrompts({
+      rawInput: '问题1\n问题2\n问题3',
+      workspaces: [workspaceA],
       createNewSession: false,
-      executePrompt: async ({ prompt }) => {
-        const card = useTaskStore.getState().dispatchCurrentCard.get('ws1');
-        if (card) {
-          queryIdsSeen.add(card.queryId);
-          promptTexts.push(card.query);
+      executePrompt: async ({ workspaceId, sessionId, prompt }) => {
+        executionOrder.push(prompt);
+        if (prompt === '问题2') {
+          return { status: 'failed', reason: 'timeout' };
         }
         return { status: 'success' };
       },
     });
 
-    // Each prompt gets a unique queryId
-    expect(queryIdsSeen.size).toBe(2);
-    expect(promptTexts).toEqual(['task1', 'task2']);
+    expect(result.mode).toBe('list');
+    expect(result.workspaceResults).toHaveLength(1);
+    expect(result.workspaceResults[0].status).toBe('partial');
+    expect(executionOrder).toEqual(['问题1', '问题2', '问题3']);
+    expect(result.workspaceResults[0].promptResults).toEqual([
+      { prompt: '问题1', status: 'success' },
+      { prompt: '问题2', status: 'failed', reason: 'timeout' },
+      { prompt: '问题3', status: 'success' },
+    ]);
   });
 
-  it('12. session.status starts as "connecting" — "running" update depends on session_start event (real WS flow)', async () => {
-    // This test documents the session lifecycle:
-    // 1. dispatchForWorkspace creates session → status='connecting'
-    // 2. spawn() → backend sends start_session → session_start fires
-    // 3. session_start handler updates status → 'running'
-    // Bug: if send_input fires before start_session, backend skips session_registered
-    // Fix: spawn() now returns Promise (waits for WS OPEN) → start_session sent first
-    useTaskStore.getState().reset();
-    useMultiDispatchStore.setState({ sessions: new Map(), workspacePromptHistory: new Map() });
+  // ─────────────────────────────────────────────
+  // 测试：createNewSession=true → 每个工作区创建新会话
+  // ─────────────────────────────────────────────
+  it('createNewSession=true 时强制每个工作区创建新会话', async () => {
+    const { workspaceA } = await setupTwoWorkspaces();
 
-    // Pre-populate session (as dispatchForWorkspace does via getOrCreateSessionForWorkspace)
-    // so we can verify the ordering invariant: session exists BEFORE executePrompt runs
-    useMultiDispatchStore.setState((state) => {
-      const next = new Map(state.sessions);
-      next.set('ws1', {
-        workspaceId: 'ws1',
-        workspaceName: 'WS1',
-        workspacePath: '/a',
-        sessionId: 'mock-session-1',
-        status: 'connecting' as const,
-        progress: '',
-        currentPromptIndex: 0,
-        totalPrompts: 1,
-        result: null,
-      });
-      return { sessions: next };
+    // 预先创建一个历史会话
+    const existingSession = await createSession({
+      title: 'Existing',
+      workspacePath: '/tmp/project-a',
+    });
+    await bindSessionToWorkspace(existingSession.id, workspaceA.id, 'manual');
+    const existingBinding = await getLatestSessionBindingByWorkspaceId(workspaceA.id);
+
+    let usedSessionId: string | undefined;
+    const result = await dispatchGlobalPrompts({
+      rawInput: '新问题',
+      workspaces: [workspaceA],
+      createNewSession: true,
+      executePrompt: async ({ workspaceId, sessionId, prompt }) => {
+        usedSessionId = sessionId;
+        return { status: 'success' };
+      },
     });
 
-    mockRuntime.mockImplementationOnce(async (input) => {
-      // Session must be in 'connecting' state BEFORE executePrompt runs.
-      // session_start (real WS) will update it → 'running'.
-      const session = useMultiDispatchStore.getState().sessions.get('ws1');
-      expect(session?.status).toBe('connecting');
-      await input.executePrompt({ sessionId: input.sessionId, prompt: 'hello' });
-      return { status: 'success', promptResults: [{ prompt: 'hello', status: 'success' }] };
+    expect(usedSessionId).not.toBe(existingSession.id);
+    expect(result.workspaceResults[0].sessionId).not.toBe(existingSession.id);
+    expect(result.policy).toBe('new_session_for_all');
+
+    // 旧 binding 仍存在（按主键直接读取，不依赖 lastActiveAt 排序）
+    const oldBinding = await bindingEdb.bindings.get(existingSession.id);
+    expect(oldBinding?.sessionId).toBe(existingSession.id);
+  });
+
+  // ─────────────────────────────────────────────
+  // 测试：复用历史会话
+  // ─────────────────────────────────────────────
+  it('createNewSession=false 时复用最近活跃会话', async () => {
+    const { workspaceA } = await setupTwoWorkspaces();
+
+    const existingSession = await createSession({
+      title: 'Existing',
+      workspacePath: '/tmp/project-a',
+    });
+    await bindSessionToWorkspace(existingSession.id, workspaceA.id, 'manual');
+
+    let usedSessionId: string | undefined;
+    const result = await dispatchGlobalPrompts({
+      rawInput: '续问',
+      workspaces: [workspaceA],
+      createNewSession: false,
+      executePrompt: async ({ workspaceId, sessionId, prompt }) => {
+        usedSessionId = sessionId;
+        return { status: 'success' };
+      },
     });
 
-    await dispatchGlobalPrompts({
-      rawInput: 'hello',
-      workspaces: [mockWorkspace1],
+    expect(usedSessionId).toBe(existingSession.id);
+    expect(result.workspaceResults[0].sessionId).toBe(existingSession.id);
+    expect(result.workspaceResults[0].status).toBe('success');
+  });
+
+  // ─────────────────────────────────────────────
+  // 测试：空输入抛出错误
+  // ─────────────────────────────────────────────
+  it('空输入抛出明确错误', async () => {
+    const { workspaceA } = await setupTwoWorkspaces();
+    await expect(
+      dispatchGlobalPrompts({
+        rawInput: '   \n  \n',
+        workspaces: [workspaceA],
+        createNewSession: false,
+        executePrompt: async () => ({ status: 'success' }),
+      }),
+    ).rejects.toThrowError('Prompt input is empty');
+  });
+
+  // ─────────────────────────────────────────────
+  // 测试：batchId 全局唯一
+  // ─────────────────────────────────────────────
+  it('batchId 在每次调用中唯一', async () => {
+    const { workspaceA } = await setupTwoWorkspaces();
+    const result1 = await dispatchGlobalPrompts({
+      rawInput: '问题',
+      workspaces: [workspaceA],
+      createNewSession: false,
+      executePrompt: async () => ({ status: 'success' }),
+    });
+    const result2 = await dispatchGlobalPrompts({
+      rawInput: '问题',
+      workspaces: [workspaceA],
+      createNewSession: false,
+      executePrompt: async () => ({ status: 'success' }),
+    });
+    expect(result1.batchId).not.toBe(result2.batchId);
+  });
+
+  // ─────────────────────────────────────────────
+  // 测试：withDefaults 内部解析 input 并注入 workspaces
+  // ─────────────────────────────────────────────
+  it('withDefaults 自动从存储加载所有启用工作区', async () => {
+    const { workspaceA, workspaceB } = await setupTwoWorkspaces();
+    const executed: string[] = [];
+
+    const result = await dispatchGlobalPromptsWithDefaults({
+      rawInput: '全局问题',
+      createNewSession: false,
+      executePrompt: async ({ workspaceId, sessionId, prompt }) => {
+        executed.push(workspaceId);
+        return { status: 'success' };
+      },
+    });
+
+    expect(result.workspaceResults).toHaveLength(2);
+    expect(executed).toContain(workspaceA.id);
+    expect(executed).toContain(workspaceB.id);
+  });
+
+  // ─────────────────────────────────────────────
+  // 测试：withDefaults 跳过禁用工作区
+  // ─────────────────────────────────────────────
+  it('withDefaults 跳过 enabled=false 的工作区', async () => {
+    const { workspaceA, workspaceB } = await setupTwoWorkspaces();
+    await workspaceEdb.workspaces.update(workspaceB.id, { enabled: 0 } as any);
+
+    const result = await dispatchGlobalPromptsWithDefaults({
+      rawInput: '全局问题',
       createNewSession: false,
       executePrompt: async () => ({ status: 'success' }),
     });
 
-    expect(useMultiDispatchStore.getState().sessions.get('ws1')).not.toBeUndefined();
+    expect(result.workspaceResults).toHaveLength(1);
+    expect(result.workspaceResults[0].workspaceId).toBe(workspaceA.id);
+  });
+
+  // ─────────────────────────────────────────────
+  // 测试：全部失败时 workspace status = failed
+  // ─────────────────────────────────────────────
+  it('所有 prompt 失败时 workspace status 为 failed', async () => {
+    const { workspaceA } = await setupTwoWorkspaces();
+
+    const result = await dispatchGlobalPrompts({
+      rawInput: '问题1\n问题2',
+      workspaces: [workspaceA],
+      createNewSession: false,
+      executePrompt: async () => ({ status: 'failed', reason: 'error' }),
+    });
+
+    expect(result.workspaceResults[0].status).toBe('failed');
+    expect(result.workspaceResults[0].promptResults).toEqual([
+      { prompt: '问题1', status: 'failed', reason: 'error' },
+      { prompt: '问题2', status: 'failed', reason: 'error' },
+    ]);
+  });
+
+  // ─────────────────────────────────────────────
+  // 测试：全部成功时 workspace status = success
+  // ─────────────────────────────────────────────
+  it('所有 prompt 成功时 workspace status 为 success', async () => {
+    const { workspaceA } = await setupTwoWorkspaces();
+
+    const result = await dispatchGlobalPrompts({
+      rawInput: '问题1\n问题2',
+      workspaces: [workspaceA],
+      createNewSession: false,
+      executePrompt: async () => ({ status: 'success' }),
+    });
+
+    expect(result.workspaceResults[0].status).toBe('success');
+    expect(result.workspaceResults[0].promptResults).toEqual([
+      { prompt: '问题1', status: 'success' },
+      { prompt: '问题2', status: 'success' },
+    ]);
   });
 });
