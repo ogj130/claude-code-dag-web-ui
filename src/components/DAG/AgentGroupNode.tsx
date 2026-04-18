@@ -38,12 +38,14 @@ const AgentGroupNode: React.FC<AgentGroupNodeProps> = memo(({
   } = data;
 
   // Determine status color
-  const statusColor = {
+  const STATUS_COLORS: Record<string, string> = {
+    idle: '#64748B',
     pending: '#94A3B8',
     running: '#8B5CF6',
     completed: '#10B981',
     failed: '#EF4444',
-  }[status || 'pending'] || '#8B5CF6';
+  };
+  const statusColor = STATUS_COLORS[status || 'pending'] ?? '#8B5CF6';
 
   // Handle collapse toggle
   const handleToggle = useCallback(() => {

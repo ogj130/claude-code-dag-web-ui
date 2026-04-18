@@ -300,7 +300,7 @@ function generateRecommendations(
 
   for (const dim of weakestDims) {
     if (dim.score < 7) {
-      const advice: Record<AnalysisDimension, string> = {
+      const advice: Record<string, string> = {
         codeQuality: '建议加强代码审查，引入 ESLint 和 Prettier 保持风格统一',
         correctness: '建议增加边界测试用例，完善错误处理逻辑',
         performance: '考虑使用缓存、优化数据库查询、减少不必要的 API 调用',
@@ -309,7 +309,8 @@ function generateRecommendations(
         costEfficiency: '考虑使用更小的模型处理简单任务，合理配置资源',
         speed: '检查网络延迟，优化异步操作，使用并发处理',
       };
-      recommendations.push(advice[dim.dimension]);
+      const suggestion = advice[dim.dimension];
+      if (suggestion) recommendations.push(suggestion);
     }
   }
 
@@ -627,7 +628,7 @@ export async function analyzeWorkspaceResults(
  */
 async function _indexEvaluationToVector(result: GlobalAgentResult): Promise<void> {
   try {
-    const { indexEvaluationChunk } = await import('@/stores/vectorStorage');
+    const { indexAnswerChunks } = await import('@/stores/vectorStorage');
 
     // 拼接评价内容（commentary + roast + recommendations）
     const contentParts: string[] = [
@@ -652,7 +653,7 @@ async function _indexEvaluationToVector(result: GlobalAgentResult): Promise<void
       createdAt: result.createdAt,
     };
 
-    await indexEvaluationChunk(sessionId, queryId, content, workspacePath, metadata);
+    await indexAnswerChunks(sessionId, queryId, workspacePath, content, metadata);
   } catch (err) {
     // 已在调用处统一处理警告，此处仅阻止异常外溢
     throw err;

@@ -14,6 +14,7 @@ export interface EventToolCall {
 
 export type NodeStatus = 'pending' | 'idle' | 'running' | 'completed' | 'failed';
 import type { ModelOptions } from './models';
+export type { ModelOptions } from './models';
 
 // V1.4.0: Extended node types
 export type DAGNodeType = 'agent' | 'agent_group' | 'tool' | 'query' | 'summary' | 'rag' | 'task' | 'compact' | 'image';

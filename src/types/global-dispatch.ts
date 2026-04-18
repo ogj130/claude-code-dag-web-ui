@@ -12,6 +12,10 @@ export interface DispatchPromptResult {
   prompt: string;
   status: 'success' | 'failed' | 'skipped';
   reason?: string;
+  /** 输入 token 数 */
+  inputTokens?: number;
+  /** 输出 token 数 */
+  outputTokens?: number;
 }
 
 export interface DispatchWorkspaceResult {

@@ -32,12 +32,14 @@ const TaskNode: React.FC<TaskNodeProps> = memo(({
   } = data;
 
   // Determine status color
-  const statusColor = {
+  const STATUS_COLORS: Record<string, string> = {
+    idle: '#64748B',
     pending: '#94A3B8',
     running: '#6366F1',
     completed: '#10B981',
     failed: '#EF4444',
-  }[status || 'pending'] || '#6366F1';
+  };
+  const statusColor = STATUS_COLORS[status || 'pending'] ?? '#6366F1';
 
   return (
     <div

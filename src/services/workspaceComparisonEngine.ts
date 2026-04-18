@@ -3,6 +3,8 @@ import type {
   ComparisonResult,
   DimensionRanking,
   DimensionRankingItem,
+  DimensionScore,
+  ExtendedAnalysisDimension,
 } from '@/types/globalAgent';
 import { zScoreNormalize } from './workspaceScoringEngine';
 
@@ -88,7 +90,7 @@ export function buildComparison(results: WorkspaceScoreResult[]): ComparisonResu
     .map((e, i) => ({ ...e, rank: i + 1, strengths: [], weaknesses: [] }));
 
   const heatmapData: Record<string, Record<string, number>> = {};
-  const radarData: Record<string, { dimension: string; score: number }[]> = {};
+  const radarData: Record<string, DimensionScore[]> = {};
 
   for (const r of results) {
     heatmapData[r.workspaceId] = {};
@@ -96,7 +98,7 @@ export function buildComparison(results: WorkspaceScoreResult[]): ComparisonResu
     for (const dim of allDimensions) {
       const rawScore = dimScores[dim][r.workspaceId] ?? 0;
       heatmapData[r.workspaceId][dim] = rawScore;
-      radarData[r.workspaceId].push({ dimension: dim, score: rawScore });
+      radarData[r.workspaceId].push({ dimension: dim as ExtendedAnalysisDimension, score: rawScore, comment: '' });
     }
   }
 

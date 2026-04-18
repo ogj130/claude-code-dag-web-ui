@@ -24,7 +24,7 @@ export interface GlobalAgentConfig {
 
 /** 单个维度的评分结果 */
 export interface DimensionScore {
-  dimension: AnalysisDimension;
+  dimension: ExtendedAnalysisDimension;
   score: number; // 1-10 整体均分
   /** 各工作区在该维度的得分（用于对比 Top1）。AI 分析时由执行数据补充。 */
   perWorkspaceScores?: WorkspaceDimensionScore[];
@@ -131,4 +131,12 @@ export interface GlobalAgentResult {
   recommendations: string[];
   createdAt: number;
   comparison?: ComparisonResult; // 多维度对比分析结果
+}
+
+/** 全局 Agent 分析错误 */
+export interface GlobalAgentError {
+  status: 'error';
+  code?: string;
+  message: string;
+  retryable?: boolean;
 }

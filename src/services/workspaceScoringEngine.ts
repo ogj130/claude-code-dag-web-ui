@@ -37,7 +37,7 @@ export function scoreWorkspace(
   workspaceId: string,
   workspaceName: string,
   fileData: WorkspaceFileData,
-  dispatchResult: DispatchWorkspaceResult,
+  _dispatchResult: DispatchWorkspaceResult,
   aiScores: { costEfficiency: number; speed: number },
 ): WorkspaceScoreResult {
   const { stats } = fileData;
@@ -50,17 +50,17 @@ export function scoreWorkspace(
   };
 
   const scores: DimensionScore[] = [
-    { dimension: 'fileQuantity', score: rawScores.fileQuantity, comment: `共 ${rawScores.fileQuantity} 个文件` },
-    { dimension: 'fileDiversity', score: rawScores.fileDiversity, comment: `含 ${stats.codeFiles} 代码 / ${stats.docFiles} 文档 / ${stats.configFiles} 配置` },
-    { dimension: 'codeDocRatio', score: rawScores.codeDocRatio, comment: `代码/文档比 = ${rawScores.codeDocRatio.toFixed(1)}` },
-    { dimension: 'modificationDensity', score: rawScores.modificationDensity, comment: `修改密度 = ${rawScores.modificationDensity.toFixed(1)}/10` },
-    { dimension: 'costEfficiency', score: aiScores.costEfficiency, comment: '成本效率评分' },
-    { dimension: 'speed', score: aiScores.speed, comment: '执行速度评分' },
-    { dimension: 'codeQuality', score: 7, comment: '' },
-    { dimension: 'correctness', score: 7, comment: '' },
-    { dimension: 'performance', score: 7, comment: '' },
-    { dimension: 'consistency', score: 7, comment: '' },
-    { dimension: 'creativity', score: 7, comment: '' },
+    { dimension: 'fileQuantity' as ExtendedAnalysisDimension, score: rawScores.fileQuantity, comment: `共 ${rawScores.fileQuantity} 个文件` },
+    { dimension: 'fileDiversity' as ExtendedAnalysisDimension, score: rawScores.fileDiversity, comment: `含 ${stats.codeFiles} 代码 / ${stats.docFiles} 文档 / ${stats.configFiles} 配置` },
+    { dimension: 'codeDocRatio' as ExtendedAnalysisDimension, score: rawScores.codeDocRatio, comment: `代码/文档比 = ${rawScores.codeDocRatio.toFixed(1)}` },
+    { dimension: 'modificationDensity' as ExtendedAnalysisDimension, score: rawScores.modificationDensity, comment: `修改密度 = ${rawScores.modificationDensity.toFixed(1)}/10` },
+    { dimension: 'costEfficiency' as ExtendedAnalysisDimension, score: aiScores.costEfficiency, comment: '成本效率评分' },
+    { dimension: 'speed' as ExtendedAnalysisDimension, score: aiScores.speed, comment: '执行速度评分' },
+    { dimension: 'codeQuality' as ExtendedAnalysisDimension, score: 7, comment: '' },
+    { dimension: 'correctness' as ExtendedAnalysisDimension, score: 7, comment: '' },
+    { dimension: 'performance' as ExtendedAnalysisDimension, score: 7, comment: '' },
+    { dimension: 'consistency' as ExtendedAnalysisDimension, score: 7, comment: '' },
+    { dimension: 'creativity' as ExtendedAnalysisDimension, score: 7, comment: '' },
   ];
 
   const compositeScore = scores.reduce(
