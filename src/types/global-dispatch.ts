@@ -11,6 +11,7 @@ export type GlobalSessionPolicy =
 export interface DispatchPromptResult {
   prompt: string;
   status: 'success' | 'failed' | 'skipped';
+  output?: string;              // Claude Code 的实际输出内容
   reason?: string;
   /** 输入 token 数 */
   inputTokens?: number;

@@ -23,6 +23,8 @@ export interface WorkspacePreset {
   configId: string | null;     // 引用的 ModelConfig ID，null 表示已失效
   isEnabled: boolean;          // 是否启用
   description?: string;        // 用途备注
+  name: string;               // 显示名称（从路径自动生成或手动设置）
+  systemPrompt?: string;      // 系统提示词
   createdAt: number;
   updatedAt: number;
 }
