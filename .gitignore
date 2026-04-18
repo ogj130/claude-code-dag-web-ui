@@ -56,3 +56,18 @@ docs/
 
 # Misc
 *.local
+
+# Build artifacts
+electron/release/
+coverage/
+coverage-tmp/
+*.dmg
+*.blockmap
+
+# Test outputs
+page_*.yml
+settings_model.yml
+snapshot_*.yml
+
+# Coverage reports
+coverage-tmp/
