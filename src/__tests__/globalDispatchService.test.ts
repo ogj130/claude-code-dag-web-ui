@@ -310,4 +310,46 @@ describe('globalDispatchService', () => {
       { prompt: '问题2', status: 'success' },
     ]);
   });
+
+  // ─────────────────────────────────────────────
+  // 新增测试：output 字段在 prompt result 中正确传播
+  // ─────────────────────────────────────────────
+  it('executePrompt 返回 output 时，result 中包含 output 字段', async () => {
+    const { workspaceA } = await setupTwoWorkspaces();
+
+    const result = await dispatchGlobalPrompts({
+      rawInput: '查询状态',
+      workspaces: [workspaceA],
+      createNewSession: false,
+      executePrompt: async ({ prompt }) => ({
+        status: 'success',
+        output: `AI 响应：已处理「${prompt}」`,
+      }),
+    });
+
+    expect(result.workspaceResults[0].status).toBe('success');
+    expect(result.workspaceResults[0].promptResults[0].output).toBe('AI 响应：已处理「查询状态」');
+  });
+
+  it('部分 prompt 返回 output，部分失败时 status 为 partial', async () => {
+    const { workspaceA } = await setupTwoWorkspaces();
+
+    const result = await dispatchGlobalPrompts({
+      rawInput: '成功 prompt\n失败 prompt',
+      workspaces: [workspaceA],
+      createNewSession: false,
+      executePrompt: async ({ prompt }) => {
+        if (prompt === '成功 prompt') {
+          return { status: 'success', output: '这是成功输出' };
+        }
+        return { status: 'failed', reason: '网络错误' };
+      },
+    });
+
+    expect(result.workspaceResults[0].status).toBe('partial');
+    expect(result.workspaceResults[0].promptResults[0].status).toBe('success');
+    expect(result.workspaceResults[0].promptResults[0].output).toBe('这是成功输出');
+    expect(result.workspaceResults[0].promptResults[1].status).toBe('failed');
+    expect(result.workspaceResults[0].promptResults[1].reason).toBe('网络错误');
+  });
 });
