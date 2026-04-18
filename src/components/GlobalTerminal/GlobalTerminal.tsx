@@ -15,7 +15,12 @@ interface WorkspaceResultEntry {
   workspaceId: string;
   workspaceName: string;
   status: 'success' | 'partial' | 'failed';
-  prompts: Array<{ prompt: string; status: 'success' | 'failed' | 'skipped'; reason?: string }>;
+  prompts: Array<{
+    prompt: string;
+    status: 'success' | 'failed' | 'skipped';
+    output?: string;
+    reason?: string;
+  }>;
 }
 
 // ── StatusBadge ─────────────────────────────────────────────────
@@ -90,6 +95,7 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
         prompts: wr.promptResults.map(pr => ({
           prompt: pr.prompt,
           status: pr.status,
+          output: pr.output,
           reason: pr.reason,
         })),
       }));
@@ -243,13 +249,31 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
               </div>
               {entry.prompts.map((p, i) => (
                 <div key={i} style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 8,
+                  display: 'flex', flexDirection: 'column', gap: 4,
                   fontSize: 13, marginTop: 4, fontFamily: 'monospace', lineHeight: 1.5,
                 }}>
-                  <PromptStatus status={p.status} />
-                  <span style={{ color: 'var(--text-primary)', wordBreak: 'break-word' as const }}>{p.prompt}</span>
-                  {p.reason && (
-                    <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>({p.reason})</span>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <PromptStatus status={p.status} />
+                    <span style={{ color: 'var(--text-primary)', wordBreak: 'break-word' as const }}>{p.prompt}</span>
+                    {p.reason && (
+                      <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>({p.reason})</span>
+                    )}
+                  </div>
+                  {p.output && (
+                    <div style={{
+                      marginLeft: 64,
+                      padding: '8px 12px',
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      color: 'var(--text-secondary)',
+                      whiteSpace: 'pre-wrap',
+                      maxHeight: 200,
+                      overflowY: 'auto',
+                    }}>
+                      {p.output}
+                    </div>
                   )}
                 </div>
               ))}

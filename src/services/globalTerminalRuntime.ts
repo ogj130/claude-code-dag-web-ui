@@ -7,6 +7,7 @@ export interface GlobalTerminalRuntimeExecuteInput {
 
 export interface GlobalTerminalRuntimeExecuteResult {
   status: 'success' | 'failed';
+  output?: string;
   reason?: string;
 }
 
@@ -67,6 +68,7 @@ export async function runGlobalTerminalRuntime(
     const promptResult: DispatchPromptResult = {
       prompt: item.prompt,
       status: executionResult.status,
+      ...(executionResult.output ? { output: executionResult.output } : {}),
       ...(executionResult.reason ? { reason: executionResult.reason } : {}),
     };
 
