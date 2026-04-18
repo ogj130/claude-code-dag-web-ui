@@ -181,13 +181,6 @@ function PresetCard({ preset, configName, onToggle, onEdit, onDelete }: PresetCa
         <div style={{
           fontSize: 13, fontWeight: 600, color: 'var(--text-primary)',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-          marginBottom: 2,
-        }}>
-          {preset.name || preset.workspacePath}
-        </div>
-        <div style={{
-          fontSize: 11, color: 'var(--text-muted)',
-          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           marginBottom: 4,
         }}>
           {preset.workspacePath}
@@ -332,14 +325,6 @@ function FormModal({ editing, configs, onSave, onCancel, onChange }: FormModalPr
 
       {/* Fields */}
       <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <Field label="名称">
-          <ThemedInput
-            placeholder="显示名称，如「前端项目」"
-            value={editing?.name || ''}
-            onChange={v => onChange({ name: v })}
-          />
-        </Field>
-
         <Field label="工作目录路径" required>
           <ThemedInput
             placeholder="例如 /Users/ouguangji/project"
@@ -354,15 +339,6 @@ function FormModal({ editing, configs, onSave, onCancel, onChange }: FormModalPr
             onChange={v => onChange({ configId: v || null })}
             options={configs.map(c => ({ value: c.id, label: `${c.name} (${c.model})` }))}
             placeholder="选择模型配置"
-          />
-        </Field>
-
-        <Field label="系统提示词">
-          <ThemedTextarea
-            placeholder="可选的系统提示词，影响 AI 在此工作区的行为"
-            value={editing?.systemPrompt || ''}
-            onChange={v => onChange({ systemPrompt: v })}
-            rows={3}
           />
         </Field>
 
@@ -691,37 +667,29 @@ export function WorkspacePresetPanel() {
       if (editing.id) {
         if (window.electron?.invoke) {
           await window.electron.invoke('workspace-preset:update', editing.id, {
-            name: editing.name,
             workspacePath: editing.workspacePath,
             configId: editing.configId,
-            systemPrompt: editing.systemPrompt,
             description: editing.description,
           });
         } else {
           await dbUpdatePreset(editing.id, {
-            name: editing.name,
             workspacePath: editing.workspacePath,
             configId: editing.configId,
-            systemPrompt: editing.systemPrompt,
             description: editing.description,
           });
         }
       } else {
         if (window.electron?.invoke) {
           await window.electron.invoke('workspace-preset:save', {
-            name: editing.name || editing.workspacePath?.split('/').pop() || '未命名',
             workspacePath: editing.workspacePath,
             configId: editing.configId,
-            systemPrompt: editing.systemPrompt,
             description: editing.description,
             isEnabled: true,
           });
         } else {
           await dbSavePreset({
-            name: editing.name || editing.workspacePath?.split('/').pop() || '未命名',
             workspacePath: editing.workspacePath,
             configId: editing.configId,
-            systemPrompt: editing.systemPrompt,
             description: editing.description,
             isEnabled: true,
           });
