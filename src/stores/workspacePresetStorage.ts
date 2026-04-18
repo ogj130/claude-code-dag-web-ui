@@ -29,6 +29,14 @@ export async function getPresetByPath(workspacePath: string): Promise<WorkspaceP
   return edb.workspacePresets.where('workspacePath').equals(workspacePath).first();
 }
 
+export async function getPresetById(id: string): Promise<WorkspacePreset | undefined> {
+  return edb.workspacePresets.get(id);
+}
+
+export async function getEnabledPresets(): Promise<WorkspacePreset[]> {
+  return edb.workspacePresets.where('isEnabled').equals(true).toArray();
+}
+
 export async function getPresetsByConfigId(configId: string): Promise<WorkspacePreset[]> {
   return edb.workspacePresets.where('configId').equals(configId).toArray();
 }
@@ -44,6 +52,8 @@ export async function savePreset(
     configId: preset.configId,
     isEnabled: preset.isEnabled,
     description: preset.description,
+    name: preset.name || preset.workspacePath.split('/').pop() || '未命名',
+    systemPrompt: preset.systemPrompt,
     createdAt: now,
     updatedAt: now,
   };
@@ -68,6 +78,8 @@ export async function updatePreset(
   if (updates.configId !== undefined) storedUpdate.configId = updates.configId;
   if (updates.isEnabled !== undefined) storedUpdate.isEnabled = updates.isEnabled;
   if (updates.description !== undefined) storedUpdate.description = updates.description;
+  if (updates.name !== undefined) storedUpdate.name = updates.name;
+  if (updates.systemPrompt !== undefined) storedUpdate.systemPrompt = updates.systemPrompt;
   await edb.workspacePresets.update(id, storedUpdate);
 }
 
