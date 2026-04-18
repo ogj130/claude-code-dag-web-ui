@@ -232,12 +232,28 @@ export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, o
           <button
             onClick={onOpenGlobalTerminal}
             style={{
-              background: 'transparent', color: 'var(--accent)',
-              border: '1px solid var(--accent)', padding: '6px 12px',
-              borderRadius: 6, fontSize: 12, cursor: 'pointer',
-              fontFamily: 'inherit', transition: 'all 0.2s',
-              display: 'flex', alignItems: 'center', gap: 5,
-            }}>
+              background: 'transparent',
+              color: 'var(--text-muted)',
+              border: '1px solid var(--border)',
+              padding: '6px 12px',
+              borderRadius: 6,
+              fontSize: 12,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5,
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.color = 'var(--text-primary)';
+              e.currentTarget.style.background = 'var(--bg-input)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.color = 'var(--text-muted)';
+              e.currentTarget.style.background = 'transparent';
+            }}
+          >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth={1.8}
               strokeLinecap="round" strokeLinejoin="round">

@@ -1,5 +1,15 @@
-import { app, BrowserWindow, ipcMain, shell, desktopCapturer } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const require = createRequire(import.meta.url);
+const { app, BrowserWindow, ipcMain, shell, desktopCapturer } = require('electron');
+import type { BrowserWindow as ElectronBrowserWindow } from 'electron';
+// electron-updater 必须在 app ready 之后才访问 autoUpdater
+const electronUpdaterPkg = require('electron-updater');
+
+// 注意：electron-updater 的 autoUpdater getter 会在首次访问时初始化
+// electron app，所以必须在 app ready 之后才访问
 import * as path from 'path';
 import * as http from 'http';
 import * as fs from 'fs';
@@ -355,7 +365,7 @@ function registerScreenshotHandlers() {
 }
 
 // ── 全局引用 ──────────────────────────────────────────────
-let mainWindow: BrowserWindow | null = null;
+let mainWindow: ElectronBrowserWindow | null = null;
 
 // ── 端口检测工具 ─────────────────────────────────────────
 
@@ -418,7 +428,7 @@ function createWindow(frontendPort: number, wsPort: number) {
   // 将 WS 端口通过 URL 参数传给前端，前端据此连接正确的端口
   mainWindow.loadURL(`http://localhost:${frontendPort}?wsPort=${wsPort}`);
 
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+  mainWindow.webContents.setWindowOpenHandler(({ url }: { url: string }) => {
     shell.openExternal(url);
     return { action: 'deny' };
   });
@@ -572,15 +582,15 @@ function setupAutoUpdater() {
     });
   }
 
-  // 配置 autoUpdater
-  autoUpdater.logger = console;
-  autoUpdater.autoDownload = false;
-  autoUpdater.autoInstallOnAppQuit = true;
+  // 配置 electronUpdaterPkg.autoUpdater
+  electronUpdaterPkg.autoUpdater.logger = console;
+  electronUpdaterPkg.autoUpdater.autoDownload = false;
+  electronUpdaterPkg.autoUpdater.autoInstallOnAppQuit = true;
 
   // IPC: 手动检查更新
   ipcMain.handle(UPDATE_CH.CHECK, async () => {
     try {
-      const result = await autoUpdater.checkForUpdates();
+      const result = await electronUpdaterPkg.autoUpdater.checkForUpdates();
       return { available: !!result?.updateInfo, info: result?.updateInfo ?? null };
     } catch (err) {
       return { available: false, error: (err as Error).message };
@@ -590,7 +600,7 @@ function setupAutoUpdater() {
   // IPC: 开始下载
   ipcMain.handle(UPDATE_CH.START_DOWNLOAD, async () => {
     try {
-      await autoUpdater.downloadUpdate();
+      await electronUpdaterPkg.autoUpdater.downloadUpdate();
       return { success: true };
     } catch (err) {
       return { success: false, error: (err as Error).message };
@@ -599,39 +609,39 @@ function setupAutoUpdater() {
 
   // IPC: 安装并重启
   ipcMain.handle(UPDATE_CH.INSTALL, () => {
-    autoUpdater.quitAndInstall();
+    electronUpdaterPkg.autoUpdater.quitAndInstall();
   });
 
-  // autoUpdater 事件转发到渲染进程
-  autoUpdater.on('checking-for-update', () => {
+  // electronUpdaterPkg.autoUpdater 事件转发到渲染进程
+  electronUpdaterPkg.autoUpdater.on('checking-for-update', () => {
     mainWindow?.webContents.send(UPDATE_CH.STATUS, 'checking');
   });
 
-  autoUpdater.on('update-available', (info) => {
+  electronUpdaterPkg.autoUpdater.on('update-available', (info: unknown) => {
     mainWindow?.webContents.send(UPDATE_CH.AVAILABLE, {
-      version: info.version,
-      releaseDate: info.releaseDate,
-      releaseNotes: typeof info.releaseNotes === 'string' ? info.releaseNotes : null,
+      version: (info as { version: string }).version,
+      releaseDate: (info as { releaseDate: string }).releaseDate,
+      releaseNotes: typeof (info as { releaseNotes: string }).releaseNotes === 'string' ? (info as { releaseNotes: string }).releaseNotes : null,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       downloadUrl: (info as any).downloadUrl,
     });
   });
 
-  autoUpdater.on('download-progress', (progress) => {
-    mainWindow?.webContents.send(UPDATE_CH.PROGRESS, Math.round(progress.percent));
+  electronUpdaterPkg.autoUpdater.on('download-progress', (progress: unknown) => {
+    mainWindow?.webContents.send(UPDATE_CH.PROGRESS, Math.round((progress as { percent: number }).percent));
   });
 
-  autoUpdater.on('update-downloaded', () => {
+  electronUpdaterPkg.autoUpdater.on('update-downloaded', () => {
     mainWindow?.webContents.send(UPDATE_CH.DOWNLOADED);
   });
 
-  autoUpdater.on('error', (err) => {
-    mainWindow?.webContents.send(UPDATE_CH.ERROR, err.message);
+  electronUpdaterPkg.autoUpdater.on('error', (err: unknown) => {
+    mainWindow?.webContents.send(UPDATE_CH.ERROR, (err as Error).message);
   });
 
   // 启动时后台静默检查
   setTimeout(() => {
-    autoUpdater.checkForUpdates().catch(() => {
+    electronUpdaterPkg.autoUpdater.checkForUpdates().catch(() => {
       // 静默失败
     });
   }, 3000);
