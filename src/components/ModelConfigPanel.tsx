@@ -470,15 +470,17 @@ function FormModal({ config, onSave, onCancel, onChange }: FormModalProps) {
           )}
         </Field>
 
-        {config.provider === 'openai-compatible' && (
-          <Field label="Base URL" required>
-            <ThemedInput
-              placeholder="例如 http://localhost:8082"
-              value={config.baseUrl || ''}
-              onChange={v => onChange({ ...config, baseUrl: v })}
-            />
-          </Field>
-        )}
+        <Field label="Base URL">
+          <ThemedInput
+            placeholder={
+              config.provider === 'openai-compatible'
+                ? '例如 http://localhost:8082'
+                : '留空使用默认值，或输入自定义地址'
+            }
+            value={config.baseUrl || ''}
+            onChange={v => onChange({ ...config, baseUrl: v })}
+          />
+        </Field>
 
         <Field label="API Key">
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

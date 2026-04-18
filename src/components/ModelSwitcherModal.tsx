@@ -366,30 +366,32 @@ export function ModelSwitcherModal({ isOpen, onClose, onSwitch, currentModel }: 
                 </select>
               </div>
 
-              {/* Base URL (仅 OpenAI 兼容) */}
-              {formData.provider === 'openai-compatible' && (
-                <div>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>
-                    Base URL
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.baseUrl || ''}
-                    onChange={e => updateField('baseUrl', e.target.value)}
-                    placeholder="例如：http://localhost:8082"
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: 6,
-                      border: '1px solid var(--border)',
-                      backgroundColor: 'var(--bg-input)',
-                      color: 'var(--text-primary)',
-                      fontSize: 13,
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-              )}
+              {/* Base URL (所有提供商可选) */}
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 6 }}>
+                  Base URL <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>(可选)</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.baseUrl || ''}
+                  onChange={e => updateField('baseUrl', e.target.value)}
+                  placeholder={
+                    formData.provider === 'openai-compatible'
+                      ? '例如：http://localhost:8082'
+                      : '留空使用默认值'
+                  }
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 6,
+                    border: '1px solid var(--border)',
+                    backgroundColor: 'var(--bg-input)',
+                    color: 'var(--text-primary)',
+                    fontSize: 13,
+                    outline: 'none',
+                  }}
+                />
+              </div>
 
               {/* API Key */}
               <div>
