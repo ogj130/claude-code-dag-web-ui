@@ -29,6 +29,7 @@ export interface DispatchExecutePromptInput {
 
 export interface DispatchExecutePromptResult {
   status: 'success' | 'failed';
+  output?: string;
   reason?: string;
 }
 
