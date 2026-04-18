@@ -1,0 +1,368 @@
+/**
+ * GlobalTerminal styles
+ * Uses CSS variables for dark/light theme support
+ */
+
+/* ── 全局终端 Modal ──────────────────────────────── */
+.global-terminal__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1000;
+  animation: gtFadeIn 0.18s ease;
+}
+
+.global-terminal__container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(820px, 95vw);
+  max-height: 85vh;
+  background: var(--bg-panel, #16161e);
+  border: 1px solid var(--border, #2a2a3a);
+  border-radius: 14px;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: gtScaleIn 0.2s ease;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+.global-terminal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border, #2a2a3a);
+  flex-shrink: 0;
+}
+
+.global-terminal__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #e2e2ef);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.global-terminal__title-badge {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted, #8888a0);
+  margin-left: 4px;
+}
+
+.global-terminal__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text-muted, #8888a0);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.global-terminal__close:hover {
+  background: var(--bg-input, #1e1e2e);
+  border-color: var(--border, #2a2a3a);
+  color: var(--text-primary, #e2e2ef);
+}
+
+.global-terminal__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── 输入区域 ─────────────────────────────── */
+.gt-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gt-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-primary, #e2e2ef);
+  background: var(--bg-input, #1e1e2e);
+  border: 1px solid var(--border, #2a2a3a);
+  border-radius: 8px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  min-height: 100px;
+}
+
+.gt-textarea::placeholder {
+  color: var(--text-muted, #8888a0);
+}
+
+.gt-textarea:focus {
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.gt-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gt-input-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gt-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-secondary, #b0b0c8);
+  cursor: pointer;
+  user-select: none;
+}
+
+.gt-checkbox-label input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent, #6366f1);
+  cursor: pointer;
+}
+
+.gt-workspace-count {
+  font-size: 11px;
+  color: var(--text-muted, #8888a0);
+  margin-left: auto;
+}
+
+/* ── 操作按钮行 ─────────────────────────────── */
+.gt-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.gt-btn {
+  padding: 7px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+}
+
+.gt-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gt-btn--primary {
+  background: var(--accent, #6366f1);
+  color: #fff;
+  border-color: var(--accent, #6366f1);
+}
+
+.gt-btn--primary:hover:not(:disabled) {
+  background: #5558e3;
+  border-color: #5558e3;
+}
+
+.gt-btn--secondary {
+  background: var(--bg-input, #1e1e2e);
+  color: var(--text-secondary, #b0b0c8);
+  border-color: var(--border, #2a2a3a);
+}
+
+.gt-btn--secondary:hover:not(:disabled) {
+  border-color: var(--text-muted, #8888a0);
+  color: var(--text-primary, #e2e2ef);
+}
+
+.gt-btn--loading {
+  position: relative;
+}
+
+.gt-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: gtSpin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+/* ── 错误提示 ─────────────────────────────── */
+.gt-error {
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gt-error-icon {
+  flex-shrink: 0;
+}
+
+/* ── 结果区域 ─────────────────────────────── */
+.gt-results {
+  border-top: 1px solid var(--border, #2a2a3a);
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gt-results-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #e2e2ef);
+}
+
+.gt-workspace-result {
+  border: 1px solid var(--border, #2a2a3a);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.gt-workspace-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-input, #1e1e2e);
+  border-bottom: 1px solid var(--border, #2a2a3a);
+}
+
+.gt-workspace-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #e2e2ef);
+  flex: 1;
+}
+
+/* ── 状态徽章 ─────────────────────────────── */
+.gt-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.gt-status-badge--success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.gt-status-badge--partial {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.gt-status-badge--failed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* ── Prompt 结果列表 ─────────────────────────────── */
+.gt-prompt-list {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.gt-prompt-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  line-height: 1.5;
+}
+
+.gt-prompt-status {
+  min-width: 58px;
+  flex-shrink: 0;
+  font-size: 11px;
+  padding-top: 1px;
+}
+
+.gt-prompt-status--success {
+  color: #10b981;
+}
+
+.gt-prompt-status--failed {
+  color: #ef4444;
+}
+
+.gt-prompt-status--skipped {
+  color: var(--text-muted, #8888a0);
+}
+
+.gt-prompt-text {
+  color: var(--text-secondary, #b0b0c8);
+  flex: 1;
+  word-break: break-all;
+}
+
+.gt-prompt-reason {
+  color: var(--text-muted, #8888a0);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+/* ── 空状态 ─────────────────────────────── */
+.gt-empty-state {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted, #8888a0);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* ── 动画 ─────────────────────────────── */
+@keyframes gtFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes gtScaleIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.94); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes gtSpin {
+  to { transform: rotate(360deg); }
+}

@@ -1,4 +1,7 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { createRequire } from 'module';
+import type { IpcRendererEvent } from 'electron';
+const require = createRequire(import.meta.url);
+const { contextBridge, ipcRenderer } = require('electron');
 
 // ── Embedding IPC 通道名 ─────────────────────────────────────
 const SCREENSHOT_CH = {
@@ -108,15 +111,15 @@ contextBridge.exposeInMainWorld('electron', {
     startDownload: () => ipcRenderer.invoke('update:start-download'),
     install: () => ipcRenderer.invoke('update:install'),
     onInit: (cb: (data: { currentVersion: string }) => void) =>
-      ipcRenderer.on('update:init', (_e, data) => cb(data)),
-    onAvailable: (cb: (info: UpdateInfo) => void) =>
-      ipcRenderer.on('update:available', (_e, info) => cb(info)),
+      ipcRenderer.on('update:init', (_e: IpcRendererEvent, data: unknown) => cb(data as { currentVersion: string })),
+    onAvailable: (cb: (info: unknown) => void) =>
+      ipcRenderer.on('update:available', (_e: IpcRendererEvent, info: unknown) => cb(info)),
     onProgress: (cb: (progress: number) => void) =>
-      ipcRenderer.on('update:progress', (_e, p) => cb(p)),
+      ipcRenderer.on('update:progress', (_e: IpcRendererEvent, p: unknown) => cb(p as number)),
     onDownloaded: (cb: () => void) =>
       ipcRenderer.on('update:downloaded', () => cb()),
     onError: (cb: (msg: string) => void) =>
-      ipcRenderer.on('update:error', (_e, msg) => cb(msg)),
+      ipcRenderer.on('update:error', (_e: IpcRendererEvent, msg: unknown) => cb(msg as string)),
   },
 
   // ── ModelConfig IPC ─────────────────────────────────────────

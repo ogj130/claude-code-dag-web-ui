@@ -99,29 +99,6 @@ function OptionGroup({ children }: { children: React.ReactNode }) {
 
 type Tab = 'theme' | 'embedding' | 'update' | 'model';
 
-const TABS: { key: Tab; label: string; icon: string }[] = [
-  {
-    key: 'theme',
-    label: '主题',
-    icon: 'M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 6.66l-.71-.71M4.05 4.05l-.71-.71',
-  },
-  {
-    key: 'embedding',
-    label: 'Embedding',
-    icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4',
-  },
-  {
-    key: 'update',
-    label: '更新',
-    icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15',
-  },
-  {
-    key: 'model',
-    label: 'Model',
-    icon: 'M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18',
-  },
-];
-
 // ── 主题内容 ───────────────────────────────────────────────────────────────
 
 function ThemeContent(props: Omit<ThemeSettingsProps, 'isOpen' | 'onClose'>) {
@@ -272,6 +249,17 @@ function ThemeContent(props: Omit<ThemeSettingsProps, 'isOpen' | 'onClose'>) {
 // ── 主组件 ─────────────────────────────────────────────────────────────────
 
 export function ThemeSettings(props: ThemeSettingsProps) {
+  // 仅 Electron 环境才显示更新 tab
+  const IS_ELECTRON = typeof window !== 'undefined' && !!window.electron?.updateApi;
+
+  const ALL_TABS: { key: Tab; label: string; icon: string }[] = [
+    { key: 'theme', label: '主题', icon: 'M12 3v1m0 16v1m8.66-13.66l-.71.71M4.05 19.95l-.71.71M21 12h-1M4 12H3m16.66 6.66l-.71-.71M4.05 4.05l-.71-.71' },
+    { key: 'embedding', label: 'Embedding', icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4' },
+    { key: 'update', label: '更新', icon: 'M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15' },
+    { key: 'model', label: 'Model', icon: 'M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18' },
+  ];
+  const VISIBLE_TABS = IS_ELECTRON ? ALL_TABS : ALL_TABS.filter(t => t.key !== 'update');
+
   // 外部控制优先，内部 state 作为降级
   const [internalTab, setInternalTab] = useState<Tab>('theme');
   const activeTab = props.activeTab ?? internalTab;
@@ -285,6 +273,9 @@ export function ThemeSettings(props: ThemeSettingsProps) {
   }
 
   if (!props.isOpen) return null;
+
+  // 非 Electron 环境隐藏更新 tab，安全降级
+  const safeActiveTab = VISIBLE_TABS.some(t => t.key === activeTab) ? activeTab : 'theme';
 
   return (
     <>
@@ -328,7 +319,7 @@ export function ThemeSettings(props: ThemeSettingsProps) {
 
         {/* 标签页切换 */}
         <div style={{ display: 'flex', background: 'var(--bg-input)', borderRadius: 8, padding: 3, marginBottom: 16, gap: 2 }}>
-          {TABS.map(tab => (
+          {VISIBLE_TABS.map(tab => (
             <button
               key={tab.key}
               onClick={() => handleTabChange(tab.key)}
@@ -341,13 +332,13 @@ export function ThemeSettings(props: ThemeSettingsProps) {
                 padding: '7px 12px',
                 borderRadius: 6,
                 border: 'none',
-                background: activeTab === tab.key ? 'var(--bg-card)' : 'transparent',
-                color: activeTab === tab.key ? 'var(--text-primary)' : 'var(--text-muted)',
+                background: safeActiveTab === tab.key ? 'var(--bg-card)' : 'transparent',
+                color: safeActiveTab === tab.key ? 'var(--text-primary)' : 'var(--text-muted)',
                 fontSize: 12,
-                fontWeight: activeTab === tab.key ? 600 : 400,
+                fontWeight: safeActiveTab === tab.key ? 600 : 400,
                 cursor: 'pointer',
                 transition: 'all 0.15s',
-                boxShadow: activeTab === tab.key ? '0 1px 4px rgba(0,0,0,0.15)' : 'none',
+                boxShadow: safeActiveTab === tab.key ? '0 1px 4px rgba(0,0,0,0.15)' : 'none',
               }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
@@ -359,21 +350,21 @@ export function ThemeSettings(props: ThemeSettingsProps) {
         </div>
 
         {/* 标签页内容 */}
-        {activeTab === 'theme' ? (
+        {safeActiveTab === 'theme' ? (
           <ThemeContent {...props} />
-        ) : activeTab === 'embedding' ? (
+        ) : safeActiveTab === 'embedding' ? (
           <div style={{ maxHeight: 'calc(80vh - 140px)', overflowY: 'auto' }}>
             <EmbeddingConfigPanel />
           </div>
-        ) : activeTab === 'model' ? (
+        ) : safeActiveTab === 'model' ? (
           <div style={{ maxHeight: 'calc(80vh - 140px)', overflowY: 'auto' }}>
             <ModelSettingsTab onClose={props.onClose} />
           </div>
-        ) : (
+        ) : IS_ELECTRON && safeActiveTab === 'update' ? (
           <div style={{ maxHeight: 'calc(80vh - 140px)', overflowY: 'auto' }}>
             <UpdateSettingsTab />
           </div>
-        )}
+        ) : null}
       </div>
     </>
   );

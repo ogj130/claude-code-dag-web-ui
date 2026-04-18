@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie';
-import { encryptField, decryptField } from '@/utils/encryption';
-import type { ModelConfig } from '@/types/models';
+import { encryptField, decryptField } from '../utils/encryption';
+import type { ModelConfig } from '../types/models';
 
 const DB_NAME = 'cc-web-model';
 
