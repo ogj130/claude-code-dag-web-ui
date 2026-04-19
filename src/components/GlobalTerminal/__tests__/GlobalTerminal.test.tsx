@@ -92,26 +92,22 @@ describe('GlobalTerminal — non-blocking handleSend', () => {
     mockDispatchFn.mockResolvedValue(mockResult);
   });
 
-  it('handleSend does not block UI — button stays enabled immediately after click', async () => {
-    // 模拟 dispatch 慢速完成
+  it('handleSend non阻塞 — onClose 立即调用，按钮发送期间禁用', async () => {
+    const onClose = vi.fn();
     mockDispatchFn.mockImplementation(() => new Promise(r => setTimeout(() => r(mockResult), 5000)));
 
-    render(<GlobalTerminal workspaces={mockWorkspaces} />);
+    render(<GlobalTerminal workspaces={mockWorkspaces} onClose={onClose} />);
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '测试 prompt' } });
     const button = screen.getByRole('button', { name: /发送/i }) as HTMLButtonElement;
 
     fireEvent.click(button);
 
-    // 立即检查：按钮仍然可用（fire-and-forget）
-    // 注意：由于 button disabled 逻辑仍然依赖 loading state（目前是 loading），
-    // 但新实现中 loading 不再被设置，这里验证的是按钮不会因为"正在执行"而被禁用。
-    // 在新实现中，按钮只在 input 为空或 isLoading 时禁用；
-    // 由于不再设置 loading，指针握在手里后按钮不会进入 disabled 状态。
-    // 但为了安全，这里验证 onClose 被调用（模态框关闭）而不是按钮 disabled。
-    // 实际上按钮的 disabled 逻辑在 render 中依赖 isLoading，
-    // 新实现不再使用 loading state，所以按钮永远不会因为 loading 而被禁用。
-    expect(button.disabled).toBe(false);
+    // 关键：onClose 在 dispatch 完成前就被调用（非阻塞）
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    // 发送期间按钮被禁用（sending=true，防止重复发送）
+    expect(button.disabled).toBe(true);
   });
 
   it('dispatchGlobalPrompts is called with correct arguments', async () => {

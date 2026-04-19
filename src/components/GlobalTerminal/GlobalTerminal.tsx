@@ -14,12 +14,14 @@ export function GlobalTerminal({ workspaces, onClose }: GlobalTerminalProps) {
   const [input, setInput] = useState('');
   const [createNewSession, setCreateNewSession] = useState(false);
   const [textareaFocused, setTextareaFocused] = useState(false);
+  const [sending, setSending] = useState(false);
   const abortRef = useRef<boolean>(false);
 
   // 非阻塞：fire-and-forget，dispatch 结果写入 useMultiDispatchStore（流向 TerminalView）
   const handleSend = useCallback(() => {
-    if (!input.trim()) return;
+    if (!input.trim() || sending) return;
     abortRef.current = false;
+    setSending(true);
 
     dispatchGlobalPrompts({
       rawInput: input,
@@ -34,14 +36,17 @@ export function GlobalTerminal({ workspaces, onClose }: GlobalTerminalProps) {
       useMultiDispatchStore.getState().setActive(true);
     }).catch(err => {
       if (!abortRef.current) console.error('[GlobalTerminal] dispatch error:', err);
+    }).finally(() => {
+      setSending(false);
     });
 
     // 立即关闭模态框（结果在 TerminalView 中展示）
     onClose?.();
-  }, [input, createNewSession, workspaces, onClose]);
+  }, [input, createNewSession, workspaces, onClose, sending]);
 
   const handleClear = useCallback(() => {
     setInput('');
+    abortRef.current = true; // 中止 in-flight dispatch
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -103,18 +108,18 @@ export function GlobalTerminal({ workspaces, onClose }: GlobalTerminalProps) {
       <div style={{ display: 'flex', gap: 8 }}>
         <button
           onClick={handleSend}
-          disabled={!hasContent}
-          onMouseEnter={e => { if (hasContent) e.currentTarget.style.background = 'var(--accent-dim)'; }}
-          onMouseLeave={e => { if (hasContent) e.currentTarget.style.background = 'var(--accent)'; }}
+          disabled={!hasContent || sending}
+          onMouseEnter={e => { if (hasContent && !sending) e.currentTarget.style.background = 'var(--accent-dim)'; }}
+          onMouseLeave={e => { if (hasContent && !sending) e.currentTarget.style.background = 'var(--accent)'; }}
           style={{
-            background: hasContent ? 'var(--accent)' : 'var(--border)',
-            color: hasContent ? 'white' : 'var(--text-muted)',
+            background: hasContent && !sending ? 'var(--accent)' : 'var(--border)',
+            color: hasContent && !sending ? 'white' : 'var(--text-muted)',
             border: 'none', padding: '7px 18px', borderRadius: 6,
-            fontSize: 12, fontWeight: 500, cursor: hasContent ? 'pointer' : 'not-allowed',
+            fontSize: 12, fontWeight: 500, cursor: hasContent && !sending ? 'pointer' : 'not-allowed',
             fontFamily: 'inherit', transition: 'background 0.2s',
           }}
         >
-          发送
+          {sending ? '发送中…' : '发送'}
         </button>
         <button
           onClick={handleClear}
