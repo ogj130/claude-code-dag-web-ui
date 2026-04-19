@@ -76,6 +76,22 @@ describe('WorkspaceCard', () => {
     expect(screen.getByText('成功')).toBeTruthy();
   });
 
+  it('partial 状态显示黄色徽章', () => {
+    const workspace = makeWorkspace();
+    const result = makeResult({ status: 'partial' });
+    render(
+      <WorkspaceCard
+        workspace={workspace}
+        result={result}
+        isActive={false}
+        onFocus={vi.fn()}
+      />
+    );
+    const card = screen.getByTestId('workspace-card');
+    expect(card.getAttribute('data-status')).toBe('partial');
+    expect(screen.getByText('部分成功')).toBeTruthy();
+  });
+
   it('failed 状态显示红色徽章', () => {
     const workspace = makeWorkspace();
     const result = makeResult({ status: 'failed', errorMessage: '连接失败' });

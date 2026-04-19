@@ -57,6 +57,17 @@ const cardBaseStyle: React.CSSProperties = {
   background: 'var(--bg-card)',
   transition: 'border-color 0.15s, background 0.15s',
   userSelect: 'none',
+  /** button 元素重置样式 */
+  borderTopWidth: 1,
+  borderLeftWidth: 1,
+  borderRightWidth: 1,
+  borderBottomWidth: 1,
+  borderTopStyle: 'solid',
+  borderLeftStyle: 'solid',
+  borderRightStyle: 'solid',
+  borderBottomStyle: 'solid',
+  font: 'inherit',
+  textAlign: 'left' as const,
 };
 
 const cardActiveStyle: React.CSSProperties = {
@@ -150,13 +161,13 @@ function WorkspaceCardInner({ workspace, result, isActive, onFocus }: WorkspaceC
           50% { opacity: 0.4; }
         }
       `}</style>
-      <div
+      <button
         data-testid="workspace-card"
         data-status={status}
         style={cardStyle}
         onClick={onFocus}
-        role="button"
         title={workspace.name}
+        type="button"
       >
         {/* Header: 名称 + 状态徽章 */}
         <div style={headerRowStyle}>
@@ -187,7 +198,7 @@ function WorkspaceCardInner({ workspace, result, isActive, onFocus }: WorkspaceC
             {errorMessage}
           </span>
         )}
-      </div>
+      </button>
     </>
   );
 }
