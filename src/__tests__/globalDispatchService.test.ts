@@ -1,10 +1,5 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  createWorkspace,
-  edb as workspaceEdb,
-  getAllWorkspaces,
-} from '@/stores/workspaceStorage';
 import { saveConfig, edb as modelConfigEdb } from '@/stores/modelConfigStorage';
 import {
   createSession,
@@ -17,6 +12,11 @@ import {
   getLatestSessionBindingByWorkspaceId,
 } from '@/stores/sessionWorkspaceBindingStorage';
 import {
+  savePreset,
+  edb as presetEdb,
+  getEnabledPresets,
+} from '@/stores/workspacePresetStorage';
+import {
   dispatchGlobalPrompts,
   dispatchGlobalPromptsWithDefaults,
 } from '@/services/globalDispatchService';
@@ -25,13 +25,13 @@ describe('globalDispatchService', () => {
   beforeEach(async () => {
     await bindingEdb.bindings.clear();
     await sessionEdb.sessions.clear();
-    await workspaceEdb.workspaces.clear();
+    await presetEdb.workspacePresets.clear();
     await modelConfigEdb.configs.clear();
     vi.restoreAllMocks();
   });
 
   // ─────────────────────────────────────────────
-  // Helper: 创建两个带独立模型配置的工作区
+  // Helper: 创建两个带独立模型配置的工作区 preset
   // ─────────────────────────────────────────────
   async function setupTwoWorkspaces() {
     const configA = await saveConfig({
@@ -47,21 +47,43 @@ describe('globalDispatchService', () => {
       isDefault: false,
     });
 
-    const workspaceA = await createWorkspace({
-      name: 'Workspace A',
+    const presetA = await savePreset({
       workspacePath: '/tmp/project-a',
-      modelConfigId: configA.id,
-      enabled: true,
+      configId: configA.id,
+      isEnabled: true,
+      description: '',
+      name: 'Workspace A',
     });
 
-    const workspaceB = await createWorkspace({
-      name: 'Workspace B',
+    const presetB = await savePreset({
       workspacePath: '/tmp/project-b',
-      modelConfigId: configB.id,
-      enabled: true,
+      configId: configB.id,
+      isEnabled: true,
+      description: '',
+      name: 'Workspace B',
     });
 
-    return { workspaceA, workspaceB, configA, configB };
+    // 映射为 Workspace[]（与 GlobalTerminal 的映射逻辑一致）
+    const workspaceA = {
+      id: presetA.id,
+      name: presetA.name,
+      workspacePath: presetA.workspacePath,
+      modelConfigId: presetA.configId,
+      enabled: presetA.isEnabled,
+      createdAt: presetA.createdAt,
+      updatedAt: presetA.updatedAt,
+    };
+    const workspaceB = {
+      id: presetB.id,
+      name: presetB.name,
+      workspacePath: presetB.workspacePath,
+      modelConfigId: presetB.configId,
+      enabled: presetB.isEnabled,
+      createdAt: presetB.createdAt,
+      updatedAt: presetB.updatedAt,
+    };
+
+    return { workspaceA, workspaceB, presetA, presetB, configA, configB };
   }
 
   // ─────────────────────────────────────────────
@@ -258,8 +280,8 @@ describe('globalDispatchService', () => {
   // 测试：withDefaults 跳过禁用工作区
   // ─────────────────────────────────────────────
   it('withDefaults 跳过 enabled=false 的工作区', async () => {
-    const { workspaceA, workspaceB } = await setupTwoWorkspaces();
-    await workspaceEdb.workspaces.update(workspaceB.id, { enabled: 0 } as any);
+    const { workspaceA, presetB } = await setupTwoWorkspaces();
+    await presetEdb.workspacePresets.update(presetB.id, { isEnabled: false });
 
     const result = await dispatchGlobalPromptsWithDefaults({
       rawInput: '全局问题',

@@ -1,6 +1,5 @@
 import { createSession, getSession } from '@/stores/sessionStorage';
 import type { DBSession } from '@/types/storage';
-import { getWorkspaceById } from '@/stores/workspaceStorage';
 import {
   bindSessionToWorkspace,
   getLatestSessionBindingByWorkspaceId,
@@ -8,7 +7,10 @@ import {
 } from '@/stores/sessionWorkspaceBindingStorage';
 
 export interface CreateWorkspaceSessionInput {
+  /** 工作区 ID（来自 workspacePresetStorage） */
   workspaceId: string;
+  /** 工作区路径（由调用方直接传入，无需跨 DB 查询） */
+  workspacePath: string;
   title: string;
 }
 
@@ -20,34 +22,23 @@ export interface GetOrCreateWorkspaceSessionInput extends CreateWorkspaceSession
 
 export interface WorkspaceSessionResult {
   workspaceId: string;
-  modelConfigId: string;
   createdBy: 'manual' | 'global-dispatch';
   reused: boolean;
   session: DBSession;
 }
 
-async function loadWorkspaceOrThrow(workspaceId: string) {
-  const workspace = await getWorkspaceById(workspaceId);
-  if (!workspace) {
-    throw new Error(`Workspace not found: ${workspaceId}`);
-  }
-  return workspace;
-}
-
 export async function createManualSessionForWorkspace(
   input: CreateWorkspaceSessionInput,
 ): Promise<WorkspaceSessionResult> {
-  const workspace = await loadWorkspaceOrThrow(input.workspaceId);
   const session = await createSession({
     title: input.title,
-    workspacePath: workspace.workspacePath,
+    workspacePath: input.workspacePath,
   });
 
-  await bindSessionToWorkspace(session.id, workspace.id, 'manual');
+  await bindSessionToWorkspace(session.id, input.workspaceId, 'manual');
 
   return {
-    workspaceId: workspace.id,
-    modelConfigId: workspace.modelConfigId,
+    workspaceId: input.workspaceId,
     createdBy: 'manual',
     reused: false,
     session,
@@ -57,10 +48,8 @@ export async function createManualSessionForWorkspace(
 export async function getOrCreateSessionForWorkspace(
   input: GetOrCreateWorkspaceSessionInput,
 ): Promise<WorkspaceSessionResult> {
-  const workspace = await loadWorkspaceOrThrow(input.workspaceId);
-
   if (!input.forceNew) {
-    const latestBinding = await getLatestSessionBindingByWorkspaceId(workspace.id);
+    const latestBinding = await getLatestSessionBindingByWorkspaceId(input.workspaceId);
 
     if (latestBinding) {
       await touchBinding(latestBinding.sessionId);
@@ -68,8 +57,7 @@ export async function getOrCreateSessionForWorkspace(
 
       if (session) {
         return {
-          workspaceId: workspace.id,
-          modelConfigId: workspace.modelConfigId,
+          workspaceId: input.workspaceId,
           createdBy: latestBinding.createdBy,
           reused: true,
           session,
@@ -80,14 +68,13 @@ export async function getOrCreateSessionForWorkspace(
 
   const session = await createSession({
     title: input.title,
-    workspacePath: workspace.workspacePath,
+    workspacePath: input.workspacePath,
   });
 
-  await bindSessionToWorkspace(session.id, workspace.id, input.createdBy);
+  await bindSessionToWorkspace(session.id, input.workspaceId, input.createdBy);
 
   return {
-    workspaceId: workspace.id,
-    modelConfigId: workspace.modelConfigId,
+    workspaceId: input.workspaceId,
     createdBy: input.createdBy,
     reused: false,
     session,
