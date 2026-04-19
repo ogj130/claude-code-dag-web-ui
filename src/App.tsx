@@ -124,6 +124,13 @@ export function App() {
   const { sendInput, disconnect, connect } = useWebSocket(activeSessionId, modelOptions);
   const { nodes, error, isStarting, markdownCards, isRunning, currentCard } = useTaskStore();
 
+  // 发送消息时自动关闭历史面板（避免发送后仍显示旧记录）
+  useEffect(() => {
+    if (currentCard) {
+      setIsHistoryOpen(false);
+    }
+  }, [currentCard]);
+
   // 模型切换处理：更新会话模型并断开连接（下次发送自动用新模型重连）
   const handleSwitchModel = useCallback((config: ModelConfig) => {
     if (!activeSessionId) return;

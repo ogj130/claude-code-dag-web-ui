@@ -127,6 +127,19 @@ export function start(wss: WebSocketServer, port: number = DEFAULT_PORT): void {
           }
           case 'send_input': {
             logger.info({ sessionId: msg.sessionId, input: msg.input }, 'send_input');
+            // 检查会话进程是否存活：若已关闭，向客户端广播错误并重置 isRunning 状态
+            if (!processManager.isRunning(msg.sessionId)) {
+              logger.warn({ sessionId: msg.sessionId }, 'send_input to closed session, broadcasting error');
+              broadcast(msg.sessionId, JSON.stringify({
+                event: {
+                  type: 'error',
+                  message: '会话已结束（进程已退出），请刷新页面重新开始',
+                },
+                sessionId: msg.sessionId,
+                timestamp: Date.now(),
+              }));
+              break;
+            }
             const queryId = processManager.sendInput(msg.sessionId, msg.input);
             if (queryId) {
               broadcast(msg.sessionId, JSON.stringify({
