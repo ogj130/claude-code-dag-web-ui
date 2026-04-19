@@ -46,6 +46,8 @@ export function GlobalTerminalModal({ isOpen, onClose }: GlobalTerminalModalProp
           workspacePath: p.workspacePath,
           modelConfigId: p.configId,
           enabled: p.isEnabled,
+          createdAt: p.createdAt || Date.now(),
+          updatedAt: p.updatedAt || Date.now(),
         })));
       } catch (err) {
         console.error('[GlobalTerminalModal] Failed to load workspaces:', err);
@@ -138,7 +140,7 @@ export function GlobalTerminalModal({ isOpen, onClose }: GlobalTerminalModalProp
             </div>
           ) : (
             <>
-              <GlobalTerminal workspaces={workspaces} />
+              <GlobalTerminal workspaces={workspaces} onClose={onClose} />
               {/* 全局 Agent 分析触发器 */}
               <GlobalAgentTrigger />
             </>
