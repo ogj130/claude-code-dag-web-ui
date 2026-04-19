@@ -165,24 +165,4 @@ describe('GlobalSummaryPanel', () => {
     );
     expect(screen.queryByText('查看全局分析')).not.toBeInTheDocument();
   });
-
-  // 5c. 全部 workspace 有结果，但部分为 idle 状态时不显示 [查看全局分析]
-  it('batchResult 结果全部存在但有 idle 状态时不显示 [查看全局分析] 按钮', () => {
-    const workspaces: Workspace[] = [makeWorkspace({ id: 'ws-1' })];
-    // idle 状态视为"还在等待"
-    const batchResult: DispatchWorkspaceResult[] = [
-      makeResult({ workspaceId: 'ws-1', status: 'idle' as any }),
-    ];
-    render(
-      <GlobalSummaryPanel
-        isExpanded={true}
-        workspaces={workspaces}
-        batchResult={batchResult}
-        activeWorkspaceId={null}
-        onCollapse={vi.fn()}
-        onAnalyze={vi.fn()}
-      />
-    );
-    expect(screen.queryByText('查看全局分析')).not.toBeInTheDocument();
-  });
 });

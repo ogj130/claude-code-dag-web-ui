@@ -16,6 +16,8 @@ interface MultiDispatchState {
   allCompleted: boolean;
   /** 是否处于活跃状态 */
   isActive: boolean;
+  /** 是否请求 AI 分析（由 GlobalSummaryPanel 触发） */
+  analysisRequested: boolean;
 }
 
 interface MultiDispatchActions {
@@ -23,6 +25,8 @@ interface MultiDispatchActions {
   setBatchId: (id: string | null) => void;
   setAllCompleted: (completed: boolean) => void;
   setActive: (active: boolean) => void;
+  /** 请求 AI 分析（GlobalSummaryPanel 的 [查看全局分析] 触发） */
+  requestAnalysis: () => void;
   reset: () => void;
 }
 
@@ -33,6 +37,7 @@ const initialState: MultiDispatchState = {
   batchId: null,
   allCompleted: false,
   isActive: false,
+  analysisRequested: false,
 };
 
 export const useMultiDispatchStore = create<MultiDispatchStore>((set) => ({
@@ -45,6 +50,8 @@ export const useMultiDispatchStore = create<MultiDispatchStore>((set) => ({
   setAllCompleted: (completed) => set({ allCompleted: completed }),
 
   setActive: (active) => set({ isActive: active }),
+
+  requestAnalysis: () => set({ analysisRequested: true }),
 
   reset: () => set(initialState),
 }));

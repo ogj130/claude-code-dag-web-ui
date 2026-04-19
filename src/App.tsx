@@ -17,6 +17,7 @@ import { RAGRetrievalModal } from './components/RAGRetrievalModal';
 import { CompactionDrawer } from './components/Compaction/CompactionDrawer';
 import { RAGContextBar } from './components/RAGContextBar';
 import { GlobalTerminalModal } from './components/GlobalTerminal/GlobalTerminalModal';
+import { GlobalAgentTrigger } from './components/GlobalAgent/GlobalAgentTrigger';
 import { useSessionStore } from './stores/useSessionStore';
 import { useTaskStore, type MarkdownCardData } from './stores/useTaskStore';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -366,6 +367,8 @@ export function App() {
         isOpen={isGlobalTerminalOpen}
         onClose={() => setIsGlobalTerminalOpen(false)}
       />
+      {/* Task 7: 全局 AI 分析触发器（挂载在 App 层，持久化，autoAnalyze=true 时在 dispatch 完成后自动触发分析） */}
+      <GlobalAgentTrigger autoAnalyze={true} />
     </div>
   );
 }

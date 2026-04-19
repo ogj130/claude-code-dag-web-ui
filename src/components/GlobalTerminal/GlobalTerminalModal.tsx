@@ -9,7 +9,6 @@
 
 import { useState, useEffect } from 'react';
 import { GlobalTerminal } from './GlobalTerminal';
-import { GlobalAgentTrigger } from '@/components/GlobalAgent/GlobalAgentTrigger';
 import { preloadModelConfigs } from '@/services/globalDispatchExecutor';
 import type { Workspace } from '@/types/workspace';
 
@@ -141,8 +140,6 @@ export function GlobalTerminalModal({ isOpen, onClose }: GlobalTerminalModalProp
           ) : (
             <>
               <GlobalTerminal workspaces={workspaces} onClose={onClose} />
-              {/* 全局 Agent 分析触发器 */}
-              <GlobalAgentTrigger />
             </>
           )}
         </div>

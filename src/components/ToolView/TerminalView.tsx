@@ -20,9 +20,9 @@ import type { PendingAttachment } from '../../types/attachment';
 import { WorkspaceTagBar } from './WorkspaceTagBar';
 import { GlobalSummaryPanel } from './GlobalSummaryPanel';
 import { useTerminalWorkspaceStore } from '../../stores/useTerminalWorkspaceStore';
+import { useMultiDispatchStore } from '../../stores/useMultiDispatchStore';
 import { getEnabledPresets } from '../../stores/workspacePresetStorage';
 import type { Workspace } from '../../types/workspace';
-import type { DispatchWorkspaceResult } from '../../types/global-dispatch';
 
 interface Props {
   theme: 'dark' | 'light';
@@ -98,6 +98,10 @@ export function TerminalView({ theme, onInput, style }: Props) {
     collapseGlobalSummary,
     runningWorkspaces,
   } = useTerminalWorkspaceStore();
+
+  // Task 7: Connect batchResult for GlobalSummaryPanel
+  const batchResult = useMultiDispatchStore(s => s.batchResult);
+  const requestAnalysis = useMultiDispatchStore(s => s.requestAnalysis);
 
   // V1.4.1: File upload hook
   const { handleFileSelect, handleRemoveAttachment, handleClearAll, getReadyAttachments } = useFileUpload();
@@ -1017,10 +1021,10 @@ export function TerminalView({ theme, onInput, style }: Props) {
       <GlobalSummaryPanel
         isExpanded={isGlobalSummaryExpanded}
         workspaces={workspaceList}
-        batchResult={null as DispatchWorkspaceResult[] | null}
+        batchResult={batchResult}
         activeWorkspaceId={activeWorkspaceId}
         onCollapse={collapseGlobalSummary}
-        onAnalyze={() => {}}
+        onAnalyze={requestAnalysis}
       />
 
       {/* V1.4.1: 附件预览条带（发送前） */}
