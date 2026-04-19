@@ -23,9 +23,10 @@ export interface WorkspaceCardProps {
 
 // ── 状态徽章配置 ─────────────────────────────────────────────────────────────
 
-type Status = 'running' | 'success' | 'partial' | 'failed';
+type Status = 'idle' | 'running' | 'success' | 'partial' | 'failed';
 
 const STATUS_LABEL: Record<Status, string> = {
+  idle: '等待中',
   running: '执行中',
   success: '成功',
   partial: '部分成功',
@@ -38,6 +39,7 @@ interface BadgeStyle {
 }
 
 const BADGE_STYLES: Record<Status, BadgeStyle> = {
+  idle: { bg: 'rgba(150,150,150,0.1)', color: 'var(--text-muted)' },
   running: { bg: 'rgba(74,142,255,0.12)', color: 'var(--accent)' },
   success: { bg: 'var(--success-bg)', color: 'var(--success)' },
   partial: { bg: 'var(--warn-bg)', color: 'var(--warn)' },
