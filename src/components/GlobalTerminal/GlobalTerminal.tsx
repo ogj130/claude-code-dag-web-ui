@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { dispatchGlobalPromptsWithDefaults } from '@/services/globalDispatchService';
+import { dispatchGlobalPrompts } from '@/services/globalDispatchService';
 import { dispatchExecutePromptAdapter } from '@/services/globalDispatchExecutor';
 import { useMultiDispatchStore } from '@/stores/useMultiDispatchStore';
 import type { DispatchResult } from '@/types/global-dispatch';
@@ -79,8 +79,9 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
     abortRef.current = false;
 
     try {
-      const result: DispatchResult = await dispatchGlobalPromptsWithDefaults({
+      const result: DispatchResult = await dispatchGlobalPrompts({
         rawInput: input,
+        workspaces,
         createNewSession,
         executePrompt: dispatchExecutePromptAdapter,
       });

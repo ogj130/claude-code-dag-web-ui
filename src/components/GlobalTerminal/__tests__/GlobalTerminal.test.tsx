@@ -9,19 +9,16 @@ import type { Workspace } from '@/types/workspace';
 // hoisted mock：确保在 vi.mock 提升前已初始化
 // ─────────────────────────────────────────────
 const mockDispatchFn = vi.hoisted(() =>
-  vi.fn<() => Promise<DispatchResult>>(),
+  vi.fn<(input: {
+    rawInput: string;
+    workspaces: Workspace[];
+    createNewSession: boolean;
+    executePrompt: unknown;
+  }) => Promise<DispatchResult>>(),
 );
 
-vi.mock('@/stores/workspaceStorage', () => ({
-  getEnabledWorkspaces: vi.fn().mockResolvedValue([]),
-}));
-
-vi.mock('@/stores/modelConfigStorage', () => ({
-  getAllConfigs: vi.fn().mockResolvedValue([]),
-}));
-
 vi.mock('@/services/globalDispatchService', () => ({
-  dispatchGlobalPromptsWithDefaults: mockDispatchFn,
+  dispatchGlobalPrompts: mockDispatchFn,
 }));
 
 const mockWorkspaces: Workspace[] = [
@@ -103,6 +100,7 @@ describe('GlobalTerminal', () => {
     expect(mockDispatchFn).toHaveBeenCalledTimes(1);
     expect(mockDispatchFn).toHaveBeenCalledWith({
       rawInput: '问题1\n问题2',
+      workspaces: mockWorkspaces,
       createNewSession: false,
       executePrompt: expect.any(Function),
     });
@@ -131,8 +129,8 @@ describe('GlobalTerminal', () => {
     expect(screen.queryByText('Workspace A')).not.toBeNull();
     expect(screen.queryByText('Workspace B')).not.toBeNull();
 
-    // success 标签出现
-    expect(screen.queryAllByText(/success/i).length).toBeGreaterThan(0);
+    // 成功 标签出现（StatusBadge 渲染中文 "成功" 而非英文）
+    expect(screen.queryAllByText(/成功/i).length).toBeGreaterThan(0);
   });
 
   it('空输入时禁用发送按钮', () => {
