@@ -16,6 +16,13 @@ import { AttachmentButton, AttachmentPreviewStrip, AttachmentDetailPanel, Attach
 import { useFileUpload } from '../../hooks/useFileUpload';
 import { useAttachmentStore, usePendingAttachments } from '../../stores/useAttachmentStore';
 import type { PendingAttachment } from '../../types/attachment';
+// Task 5: Upper/lower split
+import { WorkspaceTagBar } from './WorkspaceTagBar';
+import { GlobalSummaryPanel } from './GlobalSummaryPanel';
+import { useTerminalWorkspaceStore } from '../../stores/useTerminalWorkspaceStore';
+import { getEnabledPresets } from '../../stores/workspacePresetStorage';
+import type { Workspace } from '../../types/workspace';
+import type { DispatchWorkspaceResult } from '../../types/global-dispatch';
 
 interface Props {
   theme: 'dark' | 'light';
@@ -67,7 +74,6 @@ function getXtermTheme(isDark: boolean) {
 export function TerminalView({ theme, onInput, style }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
-  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const shownLinesRef = useRef(0);
   // 标记 xterm 是否已挂载到 DOM（避免重复 open）
   const mountedRef = useRef(false);
@@ -80,6 +86,18 @@ export function TerminalView({ theme, onInput, style }: Props) {
   const [previewAttachment, setPreviewAttachment] = useState<PendingAttachment | null>(null);
   // V1.4.1: Sent attachments for current query
   const [sentAttachments, setSentAttachments] = useState<PendingAttachment[]>([]);
+  // 复制成功提示（xterm 选中文字后自动复制，或右键复制）
+  const [copyHint, setCopyHint] = useState<string | null>(null);
+
+  // Task 5: Upper/lower split state
+  const [workspaceList, setWorkspaceList] = useState<Workspace[]>([]);
+  const {
+    activeWorkspaceId,
+    setActiveWorkspace,
+    isGlobalSummaryExpanded,
+    collapseGlobalSummary,
+    runningWorkspaces,
+  } = useTerminalWorkspaceStore();
 
   // V1.4.1: File upload hook
   const { handleFileSelect, handleRemoveAttachment, handleClearAll, getReadyAttachments } = useFileUpload();
@@ -168,7 +186,10 @@ export function TerminalView({ theme, onInput, style }: Props) {
     term.onSelectionChange(() => {
       const sel = term.getSelection();
       if (sel) {
-        navigator.clipboard.writeText(sel).catch(() => {/* ignore */});
+        navigator.clipboard.writeText(sel).then(() => {
+          setCopyHint('已复制');
+          setTimeout(() => setCopyHint(null), 2000);
+        }).catch(() => {/* ignore */});
       }
     });
 
@@ -177,7 +198,10 @@ export function TerminalView({ theme, onInput, style }: Props) {
       const sel = term.getSelection();
       if (sel) {
         e.preventDefault();
-        navigator.clipboard.writeText(sel).catch(() => {/* ignore */});
+        navigator.clipboard.writeText(sel).then(() => {
+          setCopyHint('已复制');
+          setTimeout(() => setCopyHint(null), 2000);
+        }).catch(() => {/* ignore */});
       }
     };
     container.addEventListener('contextmenu', ctxMenuHandler);
@@ -196,14 +220,10 @@ export function TerminalView({ theme, onInput, style }: Props) {
       terminalRef.current = term;
       mountedRef.current = true;
 
-      // 容器尺寸变化时自动 fit
-      const resizeObserver = new ResizeObserver(() => {
-        if (containerRef.current?.clientHeight ?? 0 > 0) {
-          fitAddon.fit();
-        }
-      });
-      resizeObserverRef.current = resizeObserver;
-      resizeObserver.observe(containerRef.current);
+      // 重要：不使用 ResizeObserver！
+      // ResizeObserver 在 xterm 内容增长时触发 fitAddon.fit()，
+      // 而 fitAddon.fit() 会改变容器尺寸 → ResizeObserver 再次触发 → 无限循环
+      // 改为固定 height: 320px，让 xterm 自己处理行数计算
 
       // 优雅的启动横幅
       const accent = '\x1b[36m';
@@ -221,7 +241,7 @@ export function TerminalView({ theme, onInput, style }: Props) {
 
     return () => {
       cancelAnimationFrame(rafId);
-      resizeObserverRef.current?.disconnect();
+      // resizeObserver 已移除（不再监听容器尺寸变化）
       container.removeEventListener('contextmenu', ctxMenuHandler);
       term.dispose();
       terminalRef.current = null;
@@ -307,6 +327,27 @@ export function TerminalView({ theme, onInput, style }: Props) {
     if (!term || !error) return;
     term.writeln(`\x1b[31m✗ 错误: ${error}\x1b[0m`);
   }, [error]);
+
+  // Task 5: Load enabled workspaces on mount
+  useEffect(() => {
+    getEnabledPresets().then(presets => {
+      const wsList: Workspace[] = presets.map(p => ({
+        id: p.id,
+        name: p.name || p.workspacePath.split('/').pop() || '未命名',
+        workspacePath: p.workspacePath,
+        modelConfigId: p.configId || '',
+        enabled: p.isEnabled,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+      }));
+      setWorkspaceList(wsList);
+      // Default to first workspace
+      if (wsList.length > 0 && !activeWorkspaceId) {
+        setActiveWorkspace(wsList[0].id);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 外部文本框按 Enter 时发送
   const { getPromptContext, items: ragItems } = useRAGContext();
@@ -397,8 +438,10 @@ export function TerminalView({ theme, onInput, style }: Props) {
     // 发送消息
     try {
       const sent = onInput?.(finalPayload);
-      if (sent === false || sent === undefined) {
-        term.writeln('\x1b[33m⚠ 发送失败，请检查连接状态\x1b[0m');
+      if (sent === false) {
+        // sendInput 返回 false 表示 WS 未 OPEN（正在连接中或已关闭）
+        // 消息已自动加入重连队列，稍后会自动发送，无需显示误导性错误
+        term.writeln('\x1b[33m⚠ 正在等待连接，消息已加入队列...\x1b[0m');
       } else {
         // 清除 RAG 上下文
         if (ragItems.length > 0) {
@@ -437,19 +480,30 @@ export function TerminalView({ theme, onInput, style }: Props) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0, height: '100%', ...style }}>
-      {/* 顶部状态栏（保持不变） */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '6px 14px',
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        borderRadius: '8px 8px 0 0',
-        borderBottom: 'none',
-        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-        fontSize: 11,
-      }}>
+      {/* Task 5: 工作区标签栏 */}
+      <WorkspaceTagBar
+        workspaces={workspaceList}
+        activeWorkspaceId={activeWorkspaceId}
+        onSwitch={setActiveWorkspace}
+        runningWorkspaces={runningWorkspaces}
+      />
+
+      {/* Task 5: UpperPane — 现有终端内容 */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        {/* 顶部状态栏 */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '6px 14px',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 0,
+          borderTop: 'none',
+          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+          fontSize: 11,
+          flexShrink: 0,
+        }}>
         {/* 连接状态 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{
@@ -692,14 +746,39 @@ export function TerminalView({ theme, onInput, style }: Props) {
           ref={containerRef}
           style={{
             minHeight: processCollapsed ? 0 : '120px',
-            height: processCollapsed ? 0 : 'auto',
+            // flex: 1 让终端与兄弟元素（历史面板）共享剩余空间
+            // maxHeight 限制最多 15 行（约 320px），避免终端过高挤压 DAG
+            flex: processCollapsed ? 0 : 1,
+            maxHeight: processCollapsed ? 0 : 320,
             overflow: 'hidden',
             background: 'var(--term-bg)',
             padding: processCollapsed ? 0 : '12px 8px 12px 12px',
             transition: 'padding 0.2s, height 0.2s',
             flexShrink: 0,
+            position: 'relative',
           }}
-        />
+        >
+          {/* 复制成功提示（选中文字后自动显示） */}
+          {copyHint && (
+            <div style={{
+              position: 'absolute',
+              top: 8,
+              right: 16,
+              zIndex: 10,
+              background: 'rgba(46, 204, 113, 0.15)',
+              border: '1px solid rgba(46, 204, 113, 0.4)',
+              color: 'var(--success)',
+              fontSize: 11,
+              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+              padding: '3px 10px',
+              borderRadius: 12,
+              pointerEvents: 'none',
+            }}>
+              {copyHint} ✂
+            </div>
+          )}
+        </div>
+      </div>
       </div>
 
       {/* 历史召回推荐面板 */}
@@ -933,6 +1012,16 @@ export function TerminalView({ theme, onInput, style }: Props) {
           )}
         </div>
       )}
+
+      {/* Task 5: 全局分发汇总面板 */}
+      <GlobalSummaryPanel
+        isExpanded={isGlobalSummaryExpanded}
+        workspaces={workspaceList}
+        batchResult={null as DispatchWorkspaceResult[] | null}
+        activeWorkspaceId={activeWorkspaceId}
+        onCollapse={collapseGlobalSummary}
+        onAnalyze={() => {}}
+      />
 
       {/* V1.4.1: 附件预览条带（发送前） */}
       <AttachmentPreviewStrip
