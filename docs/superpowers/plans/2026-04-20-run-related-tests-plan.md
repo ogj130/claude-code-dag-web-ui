@@ -4,7 +4,7 @@
 
 **Goal:** 创建一个自动化 skill，在每次 bug 修复且浏览器验证通过后，自动分析 git diff 并只运行相关的测试文件。
 
-**Architecture:** 在 `~/.claude/plugins/.../skills/` 下创建独立 skill，通过读取 `git diff --name-only` 分析修改文件，映射到对应测试文件，运行 `npx vitest run` 只执行相关测试。
+**Architecture:** 在 `cc-web-ui/.claude/skills/run-related-tests/` 下创建独立 skill，通过读取 `git diff --name-only` 分析修改文件，映射到对应测试文件，运行 `npx vitest run` 只执行相关测试。随项目版本控制。
 
 **Tech Stack:** Bash 脚本 + Claude Code Skill 系统 + Vitest
 
@@ -13,13 +13,13 @@
 ## 文件结构
 
 ```
-~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/run-related-tests/
+cc-web-ui/.claude/skills/run-related-tests/
 ├── skill.md          # Skill 主定义：触发时机、描述、调用方式
 ├── run.sh            # 核心脚本：git diff 分析 + 测试执行
 └── README.md         # 使用说明和示例
 ```
 
-**项目内无需修改任何文件**，所有内容在 plugins 目录下。
+**此 skill 属于项目的一部分，随项目一起版本控制。**
 
 ---
 
@@ -41,14 +41,14 @@
 ## Task 1: 创建 skill 目录结构
 
 **Files:**
-- Create: `~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/run-related-tests/skill.md`
-- Create: `~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/run-related-tests/run.sh`
-- Create: `~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/run-related-tests/README.md`
+- Create: `.claude/skills/run-related-tests/skill.md`
+- Create: `.claude/skills/run-related-tests/run.sh`
+- Create: `.claude/skills/run-related-tests/README.md`
 
 - [ ] **Step 1: 创建目录**
 
 ```bash
-mkdir -p ~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/run-related-tests/
+mkdir -p .claude/skills/run-related-tests/
 ```
 
 - [ ] **Step 2: 提交（空目录跳过）**
@@ -58,7 +58,7 @@ mkdir -p ~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skill
 ## Task 2: 编写 run.sh 核心脚本
 
 **Files:**
-- Create: `~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/run-related-tests/run.sh`
+- Create: `.claude/skills/run-related-tests/run.sh`
 
 - [ ] **Step 1: 编写脚本**
 
@@ -177,7 +177,7 @@ exit $exit_code
 - [ ] **Step 2: 添加执行权限**
 
 ```bash
-chmod +x ~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/run-related-tests/run.sh
+chmod +x .claude/skills/run-related-tests/run.sh
 ```
 
 - [ ] **Step 3: 测试脚本（无需 git diff 时手动指定文件）**
@@ -196,7 +196,7 @@ GIT_SEQUENCE_POSITION=1 git diff --name-only HEAD 2>/dev/null || echo "src/hooks
 ## Task 3: 编写 skill.md 主定义
 
 **Files:**
-- Create: `~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/run-related-tests/skill.md`
+- Create: `.claude/skills/run-related-tests/skill.md`
 
 - [ ] **Step 1: 编写 skill.md**
 
@@ -238,7 +238,7 @@ type: automation
 
 ```bash
 cd /Users/ouguangji/2026/cc-web-ui
-~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/run-related-tests/run.sh
+.claude/skills/run-related-tests/run.sh
 ```
 
 ## 输出示例
@@ -279,7 +279,7 @@ cd /Users/ouguangji/2026/cc-web-ui
 ## Task 4: 编写 README.md
 
 **Files:**
-- Create: `~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/run-related-tests/README.md`
+- Create: `.claude/skills/run-related-tests/README.md`
 
 - [ ] **Step 1: 编写 README.md**
 
@@ -318,7 +318,7 @@ cd /Users/ouguangji/2026/cc-web-ui
 
 ```bash
 cd /Users/ouguangji/2026/cc-web-ui
-~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/run-related-tests/run.sh
+.claude/skills/run-related-tests/run.sh
 ```
 
 ## 与完整测试的区别
@@ -354,7 +354,7 @@ cd /Users/ouguangji/2026/cc-web-ui
 touch src/hooks/__tests__/useWebSocket.test.ts
 
 # 运行脚本
-~/.claude/plugins/cache/claude-plugins-official/superpowers/5.0.7/skills/run-related-tests/run.sh
+.claude/skills/run-related-tests/run.sh
 ```
 预期：检测到 1 个测试文件，运行并输出结果
 
