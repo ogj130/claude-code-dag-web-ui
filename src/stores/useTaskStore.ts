@@ -455,6 +455,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         break;
       }
       case 'user_input_sent': {
+        // ── 防止 StrictMode 双 WS 连接导致重复创建 currentCard ──────
+        // 两个 WS 同时收到 user_input_sent 时，第一个已创建 currentCard，
+        // 第二个到达时跳过，避免出现两条"实时处理中"卡片
+        const existingCard = get().currentCard;
+        if (existingCard && existingCard.queryId === event.queryId) {
+          console.log('[Store] ⏭ user_input_sent 重复，跳过（StrictMode 双 WS）', { queryId: event.queryId });
+          break;
+        }
+
         // ── 尝试解析 JSON 格式（query + ragChunks）─────────────
         let queryText = event.text;
         let ragChunks: NonNullable<CurrentCardData['ragChunks']> = [];
@@ -633,6 +642,30 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       }
       case 'query_summary': {
         const { pendingAnalysisByQueryId, toolCalls, lastTokenUsage, summaryChunks } = get();
+
+        // 幂等保护：同一 query 已经生成过 markdownCard 时，忽略重复的 query_summary
+        if (get().markdownCards.some(card => card.queryId === event.queryId)) {
+          const existingSummaryNodeId = `${event.queryId}_summary`;
+          const existingNodes = new Map(nodes);
+          const existingSummaryNode = existingNodes.get(existingSummaryNodeId);
+          if (existingSummaryNode) {
+            existingNodes.set(existingSummaryNodeId, {
+              ...existingSummaryNode,
+              status: 'completed',
+              summaryContent: event.summary,
+              endTime: Date.now(),
+            });
+          }
+          set({
+            nodes: existingNodes,
+            lastSummaryNodeId: existingSummaryNodeId,
+            lastEventQueryId: event.queryId,
+            summaryChunks: [],
+            currentQueryId: get().currentQueryId === event.queryId ? null : get().currentQueryId,
+            previousCard: get().previousCard?.queryId === event.queryId ? null : get().previousCard,
+          });
+          break;
+        }
         // 提取流式累积内容（在 summaryChunks 被清空之前）
         const streamedSummary = summaryChunks.join('');
         const analysis = pendingAnalysisByQueryId.get(event.queryId) ?? '';

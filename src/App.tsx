@@ -105,12 +105,12 @@ export function App() {
   // > 1440px: DAG 55%, Terminal 45%
   const getLayoutStyle = (): { dag: React.CSSProperties; terminal: React.CSSProperties } => {
     if (windowWidth < 1024) {
-      return { dag: { flex: 1 }, terminal: { width: 360 } };
+      return { dag: { flex: 1 }, terminal: { width: 360, overflow: 'hidden' } };
     }
     if (windowWidth < 1440) {
-      return { dag: { flex: 1 }, terminal: { flex: 1 } };
+      return { dag: { flex: 1 }, terminal: { flex: 1, overflow: 'hidden' } };
     }
-    return { dag: { flex: 55 }, terminal: { flex: 45 } };
+    return { dag: { flex: 55 }, terminal: { flex: 45, overflow: 'hidden' } };
   };
   const layout = getLayoutStyle();
 
@@ -125,11 +125,12 @@ export function App() {
   const { nodes, error, isStarting, markdownCards, isRunning, currentCard } = useTaskStore();
 
   // 发送消息时自动关闭历史面板（避免发送后仍显示旧记录）
-  useEffect(() => {
-    if (currentCard) {
-      setIsHistoryOpen(false);
-    }
-  }, [currentCard]);
+  // 注意：这里不用 useEffect 监听 isRunning，因为 isRunning 在 user_input_sent 时不会变，
+  // 只在后续 session_start/agent_start 时才变，时机太晚。直接包装 sendInput 最可靠。
+  const wrappedSendInput = useCallback((input: string): boolean => {
+    setIsHistoryOpen(false);
+    return sendInput(input);
+  }, [sendInput]);
 
   // 模型切换处理：更新会话模型并断开连接（下次发送自动用新模型重连）
   const handleSwitchModel = useCallback((config: ModelConfig) => {
@@ -229,7 +230,7 @@ export function App() {
         <ErrorBoundary name="TerminalView">
           <TerminalView
             theme={theme}
-            onInput={sendInput}
+            onInput={wrappedSendInput}
             style={layout.terminal}
           />
         </ErrorBoundary>
