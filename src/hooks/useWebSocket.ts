@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useTaskStore } from '../stores/useTaskStore';
 import { useSessionStore } from '../stores/useSessionStore';
+import { useGlobalTerminalStore } from '../stores/useGlobalTerminalStore';
 import { createLogger } from '../utils/logger';
 import { useWebSocketState } from './useWebSocketState';
 import type { WSMessage, WSClientMessage, WSTerminalMessage, WSTerminalChunkMessage, ClaudeEvent } from '../types/events';
@@ -15,8 +16,14 @@ const log = createLogger('WebSocket');
 function getWsUrl(): string {
   const params = new URLSearchParams(window.location.search);
   const wsPort = params.get('wsPort') ?? '5300';
+  // 直接连接 ws://localhost（不走 Vite 代理），
+  // 因为 Playwright 沙箱环境通过外网 IP 访问 Vite 时，代理的主机头不匹配导致 WS 升级失败
   return `ws://localhost:${wsPort}`;
 }
+
+// wsId 计数器：每个新 WS 连接分配一个唯一递增 ID
+// onClose 时检查 wsId 是否匹配，确保只有当前活跃连接的 onClose 才能清幂等锁
+let _nextWsId: number = 1;
 
 export function useWebSocket(sessionId: string | null, modelOptions?: ModelOptions) {
   const wsRef = useRef<WebSocket | null>(null);
@@ -26,6 +33,9 @@ export function useWebSocket(sessionId: string | null, modelOptions?: ModelOptio
   const isRunningRef = useRef(false);
   // 跟踪当前连接的 sessionId，防止 StrictMode 双重调用导致重复连接
   const connectedSessionRef = useRef<string | null>(null);
+  // 幂等锁 ref：使用 useRef 而非模块变量，HMR 热更新后自动重新初始化为 0
+  // StrictMode double-invoke: cleanup 会将其重置为 0，第二个 effect run 看到 0 后继续执行
+  const connectingIdRef = useRef(0);
   const { handleEvent, addTerminalLine, addTerminalChunk, reset } = useTaskStore();
 
   // ── 消息队列（重连期间缓冲） ──────────────────────────
@@ -52,6 +62,16 @@ export function useWebSocket(sessionId: string | null, modelOptions?: ModelOptio
   function doConnect() {
     if (!sessionId) return;
 
+    // 幂等锁：connectingIdRef.current !== 0 表示锁已被占用
+    // StrictMode double-invoke: cleanup 会重置 connectingIdRef = 0，允许第二个 effect run 继续
+    // HMR 热更新：ref 重新初始化为 0，不会被旧模块值干扰
+    if (connectingIdRef.current !== 0) {
+      log.info('WebSocket connection already in progress, skipping duplicate doConnect');
+      return;
+    }
+    const wsId = _nextWsId++;
+    connectingIdRef.current = wsId;
+
     // 幂等性检查：同一 sessionId 已连接（wsRef 有效）→ 跳过
     if (connectedSessionRef.current === sessionId && wsRef.current?.readyState === WebSocket.OPEN) {
       log.info('WebSocket already connected for this session, skipping');
@@ -76,17 +96,23 @@ export function useWebSocket(sessionId: string | null, modelOptions?: ModelOptio
 
     // 注册生命周期回调（使状态机感知连接状态）
     registerConnectionCallbacks({
-      onOpen: () => reportConnected(),
+      onOpen: () => {
+        log.info('WS onOpen fired, readyState:', ws.readyState);
+        reportConnected();
+      },
       onClose: () => {
-        // 同步清空 ref，防止 StrictMode 第二次 connect() 时误判已有连接
+        // 只有当前 WS 的 onClose 才能清锁（旧 cleanup 持有的 wsId 不同，不会误清）
         if (wsRef.current === ws) {
           wsRef.current = null;
+        }
+        if (connectingIdRef.current === wsId) {
+          connectingIdRef.current = 0;  // 清空幂等锁，允许重连
         }
         connectedSessionRef.current = null;
         reportDisconnected();
       },
       onError: () => reportError(),
-    });
+    }, wsId);
 
     ws.onopen = () => {
       // 从 store 动态读取当前会话的 projectPath
@@ -132,6 +158,11 @@ export function useWebSocket(sessionId: string | null, modelOptions?: ModelOptio
         if ('type' in parsed) {
           if (parsed.type === 'terminalChunk') {
             addTerminalChunk((parsed as WSTerminalChunkMessage).text);
+            // 同时路由到全局终端 store（用于全局合并视图）
+            useGlobalTerminalStore.getState().appendChunk(
+              sessionId ?? 'default',
+              (parsed as WSTerminalChunkMessage).text
+            );
             return;
           }
           if (parsed.type === 'terminal') {
@@ -170,38 +201,73 @@ export function useWebSocket(sessionId: string | null, modelOptions?: ModelOptio
             useTaskStore.getState().updatePendingInputsCount(0);
           }
         }
+
+        // session_end 或 error 到达时：重置 isRunningRef 并清空队列
+        // 否则 pendingInputsRef 永远卡住，sendInput 永远返回 true（入队但不发送）
+        if (evt?.type === 'session_end' || evt?.type === 'error') {
+          const reason = evt.type === 'session_end'
+            ? ((parsed as WSMessage).event as { reason?: string }).reason ?? 'unknown'
+            : ((parsed as WSMessage).event as { message?: string }).message ?? 'unknown';
+          log.info('Session terminated, resetting isRunningRef and clearing queue', [{ eventType: evt.type, reason }]);
+          isRunningRef.current = false;
+          pendingInputsRef.current = [];
+          useTaskStore.getState().updatePendingInputsCount(0);
+        }
       } catch {
         addTerminalLine(event.data);
       }
     };
 
-    ws.onclose = () => {
-      log.info('WebSocket closed');
+    ws.onclose = (e) => {
+      log.info('WebSocket closed', [{ code: e.code, reason: e.reason }]);
       // 注意：pendingInputsRef 和 reconnectQueueRef 不清空，保留到下次连接成功时 flush
     };
 
     ws.onerror = (err) => {
       log.error('Connection error', err);
+      // 连接失败也要清锁（用 wsId 确保只清自己的锁）
+      if (connectingIdRef.current === wsId) {
+        connectingIdRef.current = 0;
+      }
     };
   }
 
   const disconnect = useCallback(() => {
+    log.info('disconnect() called');
     pendingInputsRef.current = [];
     reconnectQueueRef.current = [];
     isRunningRef.current = false;
     if (wsRef.current) {
-      if (wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: 'kill_session', sessionId } as WSClientMessage));
-      }
+      // 关键修复：StrictMode cleanup 中必须显式关闭 WS，
+      // 否则 ws1 保持 OPEN 状态，继续接收服务端广播，
+      // 与新连接的 ws2 同时触发 handleEvent → 重复卡片
       wsRef.current.close();
       wsRef.current = null;
       connectedSessionRef.current = null;
     }
+    connectingIdRef.current = 0;
     resetState();
     reset();
-  }, [sessionId, reset, resetState]);
+  }, [reset, resetState]);
+
+  /** 切换模型：通过现有 WS 发送 switch_model，服务端 kill+respawn，不清前端状态 */
+  const switchModel = useCallback((newModelOptions: ModelOptions) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN || !sessionId) {
+      log.warn('Cannot switch model: WS not open');
+      return false;
+    }
+    log.info('Sending switch_model', [{ sessionId, model: newModelOptions.model }]);
+    ws.send(JSON.stringify({
+      type: 'switch_model',
+      sessionId,
+      modelOptions: newModelOptions,
+    }));
+    return true;
+  }, [sessionId]);
 
   const sendInput = useCallback((input: string): boolean => {
+    log.info('sendInput called', [{ input: input.substring(0, 50), wsState: wsRef.current?.readyState }]);
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       // 未连接：加入重连缓冲队列，重连后自动 flush
@@ -230,11 +296,13 @@ export function useWebSocket(sessionId: string | null, modelOptions?: ModelOptio
 
   // 自动连接：sessionId 变化时立即连接，断开时清理
   useEffect(() => {
+    log.info('useWebSocket useEffect', [{ sessionId, hasWS: !!wsRef.current }]);
     if (!sessionId) return;
 
     doConnect();
 
     return () => {
+      log.info('useWebSocket cleanup', [{ sessionId }]);
       disconnect();
     };
   }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -242,6 +310,7 @@ export function useWebSocket(sessionId: string | null, modelOptions?: ModelOptio
   return {
     sendInput,
     disconnect,
+    switchModel,
     connect: manualReconnect,
     connectionState,
     retryCount,
