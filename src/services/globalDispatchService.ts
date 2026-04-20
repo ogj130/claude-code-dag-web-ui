@@ -5,6 +5,7 @@ import type {
   GlobalInputMode,
   PromptInput,
 } from '@/types/global-dispatch';
+import { useTerminalWorkspaceStore } from '../stores/useTerminalWorkspaceStore';
 import { parsePromptInput } from '@/utils/promptParser';
 import { resolveSessionPolicy } from '@/utils/sessionPolicyResolver';
 import { getEnabledPresets } from '@/stores/workspacePresetStorage';
@@ -87,11 +88,30 @@ export async function dispatchGlobalPrompts(
   const { mode, prompts } = parsePromptInput(input.rawInput);
   const policy = resolveSessionPolicy({ createNewSession: input.createNewSession });
 
+  // 添加工作区标签（Phase 1 扩展的 store）
+  useTerminalWorkspaceStore.getState().onExecutionStart(
+    input.workspaces.map(ws => ({ id: ws.id, name: ws.name }))
+  );
+
   const workspaceResults: DispatchWorkspaceResult[] = await Promise.all(
     input.workspaces.map(workspace =>
       dispatchForWorkspace(workspace, prompts, input.createNewSession, input.executePrompt),
     ),
   );
+
+  // 更新每个工作区标签状态
+  for (const result of workspaceResults) {
+    const tabStatus = result.status === 'success' || result.status === 'failed'
+      ? (result.status === 'success' ? 'completed' : 'error')
+      : 'completed';
+    useTerminalWorkspaceStore.getState().updateWorkspaceTab(result.workspaceId, tabStatus);
+  }
+
+  // 所有工作区完成时触发延迟移除
+  const allCompleted = workspaceResults.every(r => r.status === 'success' || r.status === 'failed');
+  if (allCompleted) {
+    useTerminalWorkspaceStore.getState().onAllCompleted();
+  }
 
   return {
     batchId: generateBatchId(),
