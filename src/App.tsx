@@ -20,6 +20,7 @@ import { GlobalTerminalModal } from './components/GlobalTerminal/GlobalTerminalM
 import { GlobalAgentTrigger } from './components/GlobalAgent/GlobalAgentTrigger';
 import { useSessionStore } from './stores/useSessionStore';
 import { useTaskStore, type MarkdownCardData } from './stores/useTaskStore';
+import { useTerminalWorkspaceStore } from './stores/useTerminalWorkspaceStore';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useTheme } from './hooks/useTheme';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -116,13 +117,18 @@ export function App() {
   const layout = getLayoutStyle();
 
   const { activeSessionId } = useSessionStore();
+  const activeTab = useTerminalWorkspaceStore(s => s.activeTab);
+  const workspaceTabs = useTerminalWorkspaceStore(s => s.workspaceTabs);
+  // 保持引用以供后续视图切换逻辑使用（Task 2.1 / 3.3）
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  void [activeTab, workspaceTabs];
   // 获取当前活跃 session 的 projectPath
   const activeSession = useSessionStore(state =>
     state.sessions.find(s => s.id === state.activeSessionId)
   );
   const { config: modelConfig } = useWorkspaceModelConfig(activeSession?.projectPath ?? null);
   const modelOptions = getModelOptionsFromConfig(modelConfig ?? null);
-  const { sendInput, disconnect, connect } = useWebSocket(activeSessionId, modelOptions);
+  const { sendInput, disconnect, connect, switchModel } = useWebSocket(activeSessionId, modelOptions);
   const { nodes, error, isStarting, markdownCards, isRunning, currentCard } = useTaskStore();
 
   // 发送消息时自动关闭历史面板（避免发送后仍显示旧记录）
@@ -133,12 +139,13 @@ export function App() {
     return sendInput(input);
   }, [sendInput]);
 
-  // 模型切换处理：更新会话模型并断开连接（下次发送自动用新模型重连）
+  // 模型切换处理：通过 WS 发送 switch_model，服务端 respawn 进程，前端保留上下文
   const handleSwitchModel = useCallback((config: ModelConfig) => {
     if (!activeSessionId) return;
     useSessionStore.getState().updateSession(activeSessionId, { model: config.model });
-    disconnect();
-  }, [activeSessionId, disconnect]);
+    const newModelOptions = getModelOptionsFromConfig(config);
+    if (newModelOptions) switchModel(newModelOptions);
+  }, [activeSessionId, switchModel]);
 
   // V1.4.0: Clipboard image paste detection
   useClipboardImage({
