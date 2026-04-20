@@ -80,6 +80,22 @@ function RAGSvgIcon() {
   );
 }
 
+/**
+ * 尝试从 JSON 字符串中提取 query 字段
+ * 输入: '{"query": "分析这段代码"}' → 输出: '分析这段代码'
+ * 输入: '普通文本输入' → 输出: null（无需解包）
+ */
+function tryExtractQueryFromJson(label: string): string | null {
+  if (!label.startsWith('{')) return null;
+  try {
+    const parsed = JSON.parse(label);
+    if (typeof parsed.query === 'string') return parsed.query;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 const statusStyle: Record<string, React.CSSProperties> = {
   pending: { borderColor: 'var(--dag-node-border)', opacity: 0.7 },
   running: {
@@ -430,15 +446,22 @@ function DAGNodeInner({ data, onOpenDetail }: DAGNodeProps) {
          <ToolSvgIcon />}
       </div>
 
-      {/* 标签 */}
-      <div style={{
-        color: 'var(--text-primary)', fontWeight: 500, fontSize: 12,
-        fontFamily: "'JetBrains Mono', monospace",
-        textAlign: 'center',
-      }}>
-        {data.type === 'query' && data.label.length > 20
-          ? data.label.slice(0, 20) + '…' : data.label}
-      </div>
+      {/* 标签（解包 JSON {query: ...} 格式） */}
+      {(() => {
+        const displayLabel = data.type === 'query'
+          ? (tryExtractQueryFromJson(data.label) ?? data.label)
+          : data.label;
+        return (
+          <div style={{
+            color: 'var(--text-primary)', fontWeight: 500, fontSize: 12,
+            fontFamily: "'JetBrains Mono', monospace",
+            textAlign: 'center',
+          }}>
+            {displayLabel.length > 20
+              ? displayLabel.slice(0, 20) + '…' : displayLabel}
+          </div>
+        );
+      })()}
 
       {/* 状态 */}
       <div style={{
