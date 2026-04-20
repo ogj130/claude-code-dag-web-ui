@@ -9,7 +9,6 @@ import { useRAGContext } from '../../hooks/useRAGContext';
 import type { RAGContextItem } from '../../hooks/useRAGContext';
 import { MarkdownCard } from './MarkdownCard';
 import { LiveCard } from './LiveCard';
-import { ToolCards } from './ToolCards';
 import { useHistoryRecall } from '../../hooks/useHistoryRecall';
 // V1.4.1: Attachment components
 import { AttachmentButton, AttachmentPreviewStrip, AttachmentDetailPanel, AttachmentPreviewModal, TerminalAttachmentSection } from '../Attachment';
@@ -20,6 +19,7 @@ import type { PendingAttachment } from '../../types/attachment';
 import { WorkspaceTagBar } from './WorkspaceTagBar';
 import { GlobalSummaryPanel } from './GlobalSummaryPanel';
 import { useTerminalWorkspaceStore } from '../../stores/useTerminalWorkspaceStore';
+import { useGlobalTerminalStore } from '../../stores/useGlobalTerminalStore';
 import { useMultiDispatchStore } from '../../stores/useMultiDispatchStore';
 import { getEnabledPresets } from '../../stores/workspacePresetStorage';
 import type { Workspace } from '../../types/workspace';
@@ -99,9 +99,15 @@ export function TerminalView({ theme, onInput, style }: Props) {
     runningWorkspaces,
   } = useTerminalWorkspaceStore();
 
+  const activeTab = useTerminalWorkspaceStore(s => s.activeTab);
+  const workspaceTabs = useTerminalWorkspaceStore(s => s.workspaceTabs);
+
   // Task 7: Connect batchResult for GlobalSummaryPanel
   const batchResult = useMultiDispatchStore(s => s.batchResult);
   const requestAnalysis = useMultiDispatchStore(s => s.requestAnalysis);
+
+  // Task 2.1: Global terminal store for merge view
+  const mergedOrder = useGlobalTerminalStore(s => s.mergedOrder);
 
   // V1.4.1: File upload hook
   const { handleFileSelect, handleRemoveAttachment, handleClearAll, getReadyAttachments } = useFileUpload();
@@ -482,13 +488,21 @@ export function TerminalView({ theme, onInput, style }: Props) {
   const statusColor = error ? 'var(--error)' : isRunning ? 'var(--success)' : 'var(--text-muted)';
   const statusLabel = error ? '错误' : isRunning ? '运行中' : '空闲';
 
+  // Task 2.1: Color helper for global merge view workspace tags
+  const WORKSPACE_COLORS = ['#4a8eff', '#2ecc71', '#f1c40f', '#e74c3c', '#9b59b6', '#1abc9c'];
+  function getWorkspaceColor(workspaceId: string): string {
+    const hash = workspaceId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+    return WORKSPACE_COLORS[hash % WORKSPACE_COLORS.length];
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0, height: '100%', ...style }}>
       {/* Task 5: 工作区标签栏 */}
       <WorkspaceTagBar
+        activeTab={activeTab}
+        onTabChange={useTerminalWorkspaceStore.getState().setActiveTab}
+        workspaceTabs={workspaceTabs}
         workspaces={workspaceList}
-        activeWorkspaceId={activeWorkspaceId}
-        onSwitch={setActiveWorkspace}
         runningWorkspaces={runningWorkspaces}
       />
 
@@ -565,12 +579,6 @@ export function TerminalView({ theme, onInput, style }: Props) {
           </div>
         )}
 
-        {/* 上一轮问答的工具卡片（等待总结到来时，展示工具执行详情） */}
-        {previousCard && (
-          <div style={{ padding: '0 4px' }}>
-            <ToolCards queryId={previousCard.queryId} />
-          </div>
-        )}
 
         {/* 当前问答（进行中） */}
         {currentCard && (
@@ -579,12 +587,6 @@ export function TerminalView({ theme, onInput, style }: Props) {
           </div>
         )}
 
-        {/* 当前 query 的工具卡片（跟随 LiveCard，展示当前轮的工具详情） */}
-        {currentCard && (
-          <div style={{ padding: '0 4px' }}>
-            <ToolCards queryId={currentCard.queryId} />
-          </div>
-        )}
 
         {/* 流式总结（实时 Markdown 渲染，只要有 chunk 就显示，不依赖 currentCard） */}
         {summaryChunks.length > 0 && (
@@ -782,6 +784,44 @@ export function TerminalView({ theme, onInput, style }: Props) {
             </div>
           )}
         </div>
+
+        {/* Task 2.1: 全局合并终端输出（activeTab === 'global' 时显示） */}
+        {activeTab === 'global' && mergedOrder.length > 0 && (
+          <div style={{
+            padding: '8px 12px',
+            borderTop: '1px solid var(--border)',
+            maxHeight: 200,
+            overflowY: 'auto',
+          }}>
+            <div style={{
+              fontSize: 9,
+              color: 'var(--text-muted)',
+              marginBottom: 6,
+              fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+            }}>
+              全局终端输出 ({mergedOrder.length} 条)
+            </div>
+            <div style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 11,
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6,
+            }}>
+              {mergedOrder.map((item, i) => (
+                <div key={i} style={{ marginBottom: 2 }}>
+                  <span style={{ color: getWorkspaceColor(item.workspaceId), fontSize: 9, marginRight: 4 }}>
+                    [{item.workspaceId}]
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)' }}>
+                    {item.chunk}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       </div>
 

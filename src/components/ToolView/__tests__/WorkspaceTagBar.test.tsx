@@ -47,8 +47,8 @@ describe('WorkspaceTagBar', () => {
     render(
       <WorkspaceTagBar
         workspaces={workspaces}
-        activeWorkspaceId={null}
-        onSwitch={vi.fn()}
+        activeTab="global"
+        onTabChange={vi.fn()}
       />
     );
 
@@ -57,29 +57,29 @@ describe('WorkspaceTagBar', () => {
     expect(screen.queryByText('已禁用')).not.toBeInTheDocument();
   });
 
-  // 2. 点击 tag 调用 onSwitch
-  it('点击标签调用 onSwitch，传入对应 workspaceId', () => {
+  // 2. 点击 tag 调用 onTabChange
+  it('点击标签调用 onTabChange，传入对应 workspaceId', () => {
     const workspaces: Workspace[] = [
       makeWorkspace({ id: 'ws-alpha', name: 'Alpha' }),
       makeWorkspace({ id: 'ws-beta', name: 'Beta' }),
     ];
-    const onSwitch = vi.fn();
+    const onTabChange = vi.fn();
 
     render(
       <WorkspaceTagBar
         workspaces={workspaces}
-        activeWorkspaceId={null}
-        onSwitch={onSwitch}
+        activeTab="global"
+        onTabChange={onTabChange}
       />
     );
 
     fireEvent.click(screen.getByText('Alpha'));
-    expect(onSwitch).toHaveBeenCalledTimes(1);
-    expect(onSwitch).toHaveBeenCalledWith('ws-alpha');
+    expect(onTabChange).toHaveBeenCalledTimes(1);
+    expect(onTabChange).toHaveBeenCalledWith('ws-alpha');
 
     fireEvent.click(screen.getByText('Beta'));
-    expect(onSwitch).toHaveBeenCalledTimes(2);
-    expect(onSwitch).toHaveBeenCalledWith('ws-beta');
+    expect(onTabChange).toHaveBeenCalledTimes(2);
+    expect(onTabChange).toHaveBeenCalledWith('ws-beta');
   });
 
   // 3. running 中的工作区显示 data-running="true"
@@ -93,8 +93,8 @@ describe('WorkspaceTagBar', () => {
     render(
       <WorkspaceTagBar
         workspaces={workspaces}
-        activeWorkspaceId={null}
-        onSwitch={vi.fn()}
+        activeTab="global"
+        onTabChange={vi.fn()}
         runningWorkspaces={runningWorkspaces}
       />
     );
@@ -116,8 +116,8 @@ describe('WorkspaceTagBar', () => {
     render(
       <WorkspaceTagBar
         workspaces={workspaces}
-        activeWorkspaceId="ws-active"
-        onSwitch={vi.fn()}
+        activeTab="ws-active"
+        onTabChange={vi.fn()}
       />
     );
 
