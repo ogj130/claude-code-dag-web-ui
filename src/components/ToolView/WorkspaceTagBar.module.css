@@ -73,3 +73,19 @@
     transform: scale(0.75);
   }
 }
+
+/* 状态样式 */
+[data-status='running'] {
+  border-color: var(--success);
+  color: var(--success);
+}
+
+[data-status='completed'] {
+  border-color: var(--text-muted);
+  color: var(--text-muted);
+}
+
+[data-status='error'] {
+  border-color: var(--error);
+  color: var(--error);
+}
