@@ -8,7 +8,6 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 import { WorkspaceCard } from '../WorkspaceCard';
 import type { Workspace } from '@/types/workspace';
 import type { DispatchWorkspaceResult } from '@/types/global-dispatch';

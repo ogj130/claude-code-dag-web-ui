@@ -11,7 +11,6 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 import { WorkspaceTagBar } from '@/components/ToolView/WorkspaceTagBar';
 import type { Workspace } from '@/types/workspace';
 

@@ -12,7 +12,6 @@
 import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 import { GlobalSummaryPanel } from '../GlobalSummaryPanel';
 import type { Workspace } from '@/types/workspace';
 import type { DispatchWorkspaceResult } from '@/types/global-dispatch';

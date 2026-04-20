@@ -1,4 +1,3 @@
-import React from 'react';
 import type { Workspace } from '@/types/workspace';
 import styles from './WorkspaceTagBar.module.css';
 
