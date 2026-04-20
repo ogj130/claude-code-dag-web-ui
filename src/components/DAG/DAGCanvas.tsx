@@ -14,7 +14,9 @@ import AgentGroupNode, { AGENT_GROUP_NODE_TYPE } from './AgentGroupNode';
 import TaskNode, { TASK_NODE_TYPE } from './TaskNode';
 import CompactNode, { COMPACT_NODE_TYPE } from './CompactNode';
 import ImageNode, { IMAGE_NODE_TYPE } from './ImageNode';
+import { WorkspaceContainerNode, WORKSPACE_CONTAINER_NODE_TYPE } from './WorkspaceContainerNode';
 import { useImageDrop, DropOverlay } from '../../hooks/useImageDrop';
+import { useTerminalWorkspaceStore } from '../../stores/useTerminalWorkspaceStore';
 import { useTaskStore } from '../../stores/useTaskStore';
 import { useSessionStore } from '../../stores/useSessionStore';
 import type { PendingAttachmentData } from '../../stores/useTaskStore';
@@ -42,6 +44,8 @@ const nodeTypes: Record<string, React.ComponentType<any>> = {
   [TASK_NODE_TYPE]: TaskNode,
   [COMPACT_NODE_TYPE]: CompactNode,
   [IMAGE_NODE_TYPE]: ImageNode,
+  // 全局视图容器节点
+  [WORKSPACE_CONTAINER_NODE_TYPE]: WorkspaceContainerNode,
 };
 
 interface Props {
@@ -57,6 +61,8 @@ export function DAGCanvas({ style }: Props) {
     attachmentDataByQueryId,
   } = useTaskStore();
   const { activeSessionId } = useSessionStore();
+  const activeTab = useTerminalWorkspaceStore(s => s.activeTab);
+  const workspaceTabs = useTerminalWorkspaceStore(s => s.workspaceTabs);
 
   // V1.4.0: Drag & drop image zone ref
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -443,6 +449,28 @@ export function DAGCanvas({ style }: Props) {
     });
   }, [positionedNodes]);
 
+  // 全局视图：容器节点（泳道式横向排列）
+  const containerNodes: Node[] = workspaceTabs.length > 0
+    ? workspaceTabs.map((tab, idx) => ({
+        id: `container-${tab.id}`,
+        type: WORKSPACE_CONTAINER_NODE_TYPE,
+        position: { x: idx * 360, y: 0 },
+        data: {
+          workspaceId: tab.id,
+          workspaceName: tab.name,
+          status: tab.status,
+          collapsed: false,
+        } as Parameters<typeof WorkspaceContainerNode>[0]['data'],
+        style: { width: 340, height: 500 },
+        draggable: false,
+      }))
+    : [];
+
+  // 全局视图：追加容器节点；单工作区视图：保持原样
+  const finalNodes: Node[] = activeTab === 'global' && workspaceTabs.length > 0
+    ? [...containerNodes, ...overlapOptimizedNodes]
+    : overlapOptimizedNodes;
+
   // 聚焦当前问题 query 链（当 currentQueryId 或 positionedNodes 变化时触发）
   useEffect(() => {
     if (!fitViewInstance) return;
@@ -701,7 +729,7 @@ export function DAGCanvas({ style }: Props) {
       <div style={{ flex: 1, position: 'relative' }} ref={dropZoneRef}>
         {isDragging && <DropOverlay message="拖放图片到 DAG 画布" />}
         <ReactFlow
-          nodes={overlapOptimizedNodes}
+          nodes={finalNodes}
           edges={allEdges}
           nodeTypes={nodeTypes}
           // 虚拟化配置：只渲染可视区域内的节点
