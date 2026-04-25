@@ -42,6 +42,8 @@ export interface DAGNode {
   sourceSessionTitle?: string;
   /** RAG 节点：时间戳 */
   timestamp?: number;
+  /** 所属工作区 ID（dispatch 多工作区时用于过滤） */
+  workspaceId?: string;
   // V1.4.0: Task/Agent/Compact/Image node properties
   taskDescription?: string;
   childCount?: number;
@@ -101,7 +103,9 @@ export type ClaudeEvent =
   | { type: 'query_summary'; queryId: string; summary: string; endToolIds?: string[] }
   | { type: 'summary_chunk'; queryId: string; chunk: string }
   // V2: result event — 显式标记单个 prompt 执行完成（由 server 在 streamEnd 时广播）
-  | { type: 'result'; queryId?: string; result?: string; error?: string; reason?: string };
+  | { type: 'result'; queryId?: string; result?: string; error?: string; reason?: string }
+  // V2: terminalChunk — 流式文本片段（由 processManager 直接 emit，不走 server 广播）
+  | { type: 'terminalChunk'; text: string };
 
 // WebSocket 消息格式（服务端 → 客户端）
 export interface WSMessage {

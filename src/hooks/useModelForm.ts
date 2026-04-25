@@ -1,5 +1,9 @@
 import { useState, useCallback } from 'react';
 import type { ModelConfig, ModelProvider } from '@/types/models';
+import {
+  saveConfig as dbSave,
+  updateConfig as dbUpdate,
+} from '@/stores/modelConfigStorage';
 
 export interface ModelFormData {
   name: string;
@@ -58,9 +62,17 @@ export function useModelForm() {
     setIsSaving(true);
     try {
       if (id) {
-        await window.electron.invoke('model-config:update', id, formData);
+        if (window.electron?.invoke) {
+          await window.electron.invoke('model-config:update', id, formData);
+        } else {
+          await dbUpdate(id, formData);
+        }
       } else {
-        await window.electron.invoke('model-config:save', formData);
+        if (window.electron?.invoke) {
+          await window.electron.invoke('model-config:save', formData);
+        } else {
+          await dbSave({ ...formData, isDefault: false });
+        }
       }
       reset();
       return true;

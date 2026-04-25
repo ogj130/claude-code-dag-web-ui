@@ -76,12 +76,13 @@ interface UseWebSocketStateReturn {
    * 注册 WebSocket 生命周期回调。
    * useWebSocket 在创建 WebSocket 对象后应调用此方法，
    * 以便状态机在 ws.onopen / ws.onclose / ws.onerror 时得到通知。
+   * connectionId 用于区分不同连接的回调，防止 StrictMode 过期的 onclose 干扰。
    */
   registerConnectionCallbacks: (callbacks: {
     onOpen: () => void;
     onClose: () => void;
     onError: () => void;
-  }) => void;
+  }, connectionId: number) => void;
 }
 
 /**
@@ -107,6 +108,8 @@ export function useWebSocketState({
 
   // 防止多次同时触发
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 当前活跃连接的 ID（用于过滤过期的回调）
+  const activeConnectionIdRef = useRef<number | null>(null);
   // 与 state 同步的 ref，避免闭包陷阱
   const retryCountRef = useRef(0);
   // 当前注册的生命周期回调（由外部 WebSocket 设置）
@@ -128,7 +131,7 @@ export function useWebSocketState({
    * 进入 reconnecting 状态，安排下一次重连
    */
   const scheduleReconnect = useCallback(
-    (currentRetry: number) => {
+    (currentRetry: number, connId: number) => {
       clearTimers();
       retryCountRef.current = currentRetry;
 
@@ -144,6 +147,11 @@ export function useWebSocketState({
       dispatch({ type: 'SCHEDULE_RECONNECT', currentRetry });
 
       reconnectTimerRef.current = setTimeout(() => {
+        // 定时器触发前检查 ID 是否仍然匹配
+        if (activeConnectionIdRef.current !== connId) {
+          log.info('Reconnect timer fired but connection id changed, skipping');
+          return;
+        }
         log.info(`Executing reconnect attempt ${currentRetry + 1}/${MAX_RETRIES}`);
         dispatch({ type: 'SET_CONNECTING' });
         onReconnect();
@@ -183,7 +191,7 @@ export function useWebSocketState({
 
     if (prevState === 'connected' || prevState === 'reconnecting') {
       // 连接中正常断开或重连中断 → 开始/继续重连序列
-      scheduleReconnect(retryCountRef.current);
+      scheduleReconnect(retryCountRef.current, activeConnectionIdRef.current ?? 0);
       return;
     }
 
@@ -201,7 +209,7 @@ export function useWebSocketState({
     const prevState = state.connectionState;
 
     if (prevState === 'connected' || prevState === 'connecting') {
-      scheduleReconnect(retryCountRef.current);
+      scheduleReconnect(retryCountRef.current, activeConnectionIdRef.current ?? 0);
       return;
     }
   }, [clearTimers, scheduleReconnect, state.connectionState]);
@@ -223,6 +231,7 @@ export function useWebSocketState({
   const reset = useCallback(() => {
     clearTimers();
     retryCountRef.current = 0;
+    activeConnectionIdRef.current = null;
     dispatch({ type: 'RESET' });
     connectionCallbacksRef.current = null;
     onDisconnected?.();
@@ -231,10 +240,12 @@ export function useWebSocketState({
   /**
    * 注册 WebSocket 生命周期回调。
    * 每次创建新的 WebSocket 对象时，useWebSocket 应调用此方法更新回调引用。
+   * connectionId 用于区分不同连接的回调，防止 StrictMode 过期的 onclose 干扰。
    */
   const registerConnectionCallbacks = useCallback(
-    (callbacks: { onOpen: () => void; onClose: () => void; onError: () => void }) => {
+    (callbacks: { onOpen: () => void; onClose: () => void; onError: () => void }, connectionId: number) => {
       connectionCallbacksRef.current = callbacks;
+      activeConnectionIdRef.current = connectionId;
     },
     [],
   );

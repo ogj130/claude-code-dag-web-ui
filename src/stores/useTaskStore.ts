@@ -287,6 +287,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       const s = get();
       console.log('[Store] ✅ summary_chunk:', event.chunk?.slice(0, 30), '| queryId:', event.queryId, '| chunks len:', s.summaryChunks.length);
     }
+    // 从事件中提取 workspaceId（dispatch 发出的事件带有此标记，用于隔离各工作区的 DAG 节点）
+    const workspaceId = (event as unknown as { workspaceId?: string }).workspaceId;
     const { nodes, toolCalls } = get();
 
     switch (event.type) {
@@ -314,6 +316,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           status: 'running',
           type: 'agent',
           startTime: Date.now(),
+          ...(workspaceId ? { workspaceId } : {}),
         };
         newNodes.set('main-agent', mainNode);
         set({ isStarting: false, isRunning: true, error: null, nodes: newNodes, lastSummaryNodeId: null });
@@ -332,6 +335,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           type: 'agent',
           parentId: event.parentId,
           startTime: Date.now(),
+          ...(workspaceId ? { workspaceId } : {}),
         };
         newNodes.set(event.agentId, newNode);
         set({ nodes: newNodes, isRunning: true });
@@ -366,6 +370,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           parentId: currentQueryId ?? 'main-agent',
           startTime: Date.now(),
           args: event.args,
+          ...(workspaceId ? { workspaceId } : {}),
         };
         newNodes.set(event.toolId, toolNode);
         set({ toolCalls: [...toolCalls, toolCall], nodes: newNodes });
@@ -545,6 +550,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           // 串联：第一个 query 从 main-agent 出，后续从上一个 summary 出
           parentId: get().lastSummaryNodeId ?? 'main-agent',
           startTime: Date.now(),
+          ...(workspaceId ? { workspaceId } : {}),
         };
         newNodesQ.set(event.queryId, queryNode);
 
@@ -563,6 +569,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             sourceSessionId: item.sourceSessionId,
             sourceSessionTitle: item.sourceSessionTitle,
             timestamp: item.timestamp,
+            ...(workspaceId ? { workspaceId } : {}),
           });
         });
 
@@ -629,6 +636,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             parentId: event.queryId,
             startTime: Date.now(),
             summaryContent: event.chunk,
+            ...(workspaceId ? { workspaceId } : {}),
           };
           newNodesSC.set(summaryNodeId, summaryNode);
         }

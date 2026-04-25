@@ -987,13 +987,13 @@ export function ModelConfigPanel() {
 
       {/* 空状态 */}
       {configs.length === 0 && !editing && (
-        <EmptyState onAdd={() => setEditing({ provider: 'anthropic', isDefault: false })} />
+        <EmptyState onAdd={() => setEditing({ provider: 'anthropic', model: 'claude-sonnet-4-6', isDefault: false })} />
       )}
 
       {/* 添加按钮 */}
       {configs.length > 0 && !editing && (
         <button
-          onClick={() => setEditing({ provider: 'anthropic', isDefault: false })}
+          onClick={() => setEditing({ provider: 'anthropic', model: 'claude-sonnet-4-6', isDefault: false })}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             width: '100%', padding: '10px',

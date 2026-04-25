@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TokenBar } from './TokenBar';
 import { SessionDropdown } from './SessionDropdown';
 import { ThemeToggle } from './ThemeToggle';
@@ -28,13 +28,13 @@ export function Toolbar({ theme, onThemeChange, onNewSession, onSwitchSession, o
   const [showPrivacySettings, setShowPrivacySettings] = useState(false);
   const [privacyMode, setPrivacyMode] = useState(isPrivacyModeEnabled());
 
-  // 定时刷新隐私模式状态
-  useState(() => {
+  // 定时刷新隐私模式状态（useEffect 而非 useState initializer，确保 StrictMode 下正确清理）
+  useEffect(() => {
     const interval = setInterval(() => {
       setPrivacyMode(isPrivacyModeEnabled());
     }, 1000);
     return () => clearInterval(interval);
-  });
+  }, []);
 
   const handleNewSession = () => {
     // 隐私模式下不创建新会话

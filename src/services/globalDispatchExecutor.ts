@@ -1,7 +1,13 @@
 import type { DispatchExecutePromptInput, DispatchExecutePromptResult } from './globalDispatchService';
 import { getAllConfigs } from '@/stores/modelConfigStorage';
-import type { ModelConfig } from '@/types/models';
-import type { WSClientMessage, WSMessage, ModelOptions } from '@/types/events';
+import type { ModelConfig, ModelOptions } from '@/types/models';
+import type { WSClientMessage, WSMessage, WSTerminalChunkMessage, ClaudeEvent } from '@/types/events';
+
+// ─────────────────────────────────────────────
+// 全局终端 store（用于路由 terminalChunk）
+// ─────────────────────────────────────────────
+import { useGlobalTerminalStore } from '@/stores/useGlobalTerminalStore';
+import { useTaskStore } from '@/stores/useTaskStore';
 
 // ─────────────────────────────────────────────
 // 全局进程管理器（单例，渲染进程 IPC 侧接入时替换）
@@ -101,6 +107,11 @@ function getDispatchWsUrl(): string {
 // ─────────────────────────────────────────────
 const dispatchWsCache = new Map<string, WebSocket>();
 
+// ─────────────────────────────────────────────
+// sessionId → workspaceId 映射（用于路由 terminalChunk 和 DAG 事件）
+// ─────────────────────────────────────────────
+const sessionWorkspaceMap = new Map<string, string>();
+
 const logger = {
   info: (...args: unknown[]) => console.log('[DispatchExecutor]', new Date().toISOString(), ...args),
   error: (...args: unknown[]) => console.error('[DispatchExecutor]', new Date().toISOString(), ...args),
@@ -124,6 +135,8 @@ function executePromptViaWs(
   return new Promise((resolve) => {
     let ws: WebSocket;
     let settled = false;
+    // 防止 error + streamEnd 双重 resolve
+    let errorSeen = false;
     const wsUrl = getDispatchWsUrl();
 
     logger.info('executePromptViaWs called', { sessionId, projectPath, wsUrl, prompt: prompt.slice(0, 30) });
@@ -150,19 +163,38 @@ function executePromptViaWs(
 
       // 只处理当前 session 的事件
       if (msg.sessionId !== sessionId) return;
-      const evt = msg.event;
-      if (!evt) return;
 
+      // terminalChunk 没有 .event 字段，直接从 msg 本身读取 type
+      if (!msg.event) {
+        const rawMsg = msg as unknown as Record<string, unknown>;
+        if (rawMsg.type === 'terminalChunk') {
+          const chunkMsg = rawMsg as unknown as WSTerminalChunkMessage;
+          const wid = sessionWorkspaceMap.get(sessionId) ?? sessionId;
+          useGlobalTerminalStore.getState().appendChunk(wid, chunkMsg.text);
+        }
+        return;
+      }
+
+      const evt = msg.event;
       logger.info('WS message received', { sessionId, eventType: evt.type });
 
-      if (evt.type === 'result') {
-        const r = evt as { type: 'result'; result?: string; error?: string };
-        doResolve(r.error
-          ? { status: 'failed', reason: r.error }
-          : { status: 'success', output: r.result ?? undefined });
-      } else if (evt.type === 'error') {
+      // DAG 事件 → 路由到 useTaskStore（带 workspaceId 标记）
+      if (evt.type !== 'error' && evt.type !== 'streamEnd' && evt.type !== 'session_end') {
+        const wid = sessionWorkspaceMap.get(sessionId) ?? sessionId;
+        const injected = { ...evt, workspaceId: wid } as unknown as ClaudeEvent;
+        useTaskStore.getState().handleEvent(injected);
+      }
+
+      if (evt.type === 'error') {
+        errorSeen = true;
         const r = evt as { type: 'error'; message?: string };
         doResolve({ status: 'failed', reason: r.message ?? 'unknown error' });
+      } else if (evt.type === 'streamEnd') {
+        // streamEnd 是 AnsiParser 在 type:'result' JSON 解析时必定 emit 的结束信号，
+        // 用于 resolve 成功分支（error 先于 streamEnd 到达时跳过）
+        if (!errorSeen) {
+          doResolve({ status: 'success', output: undefined });
+        }
       } else if (evt.type === 'session_end') {
         const r = evt as { type: 'session_end'; reason?: string };
         doResolve({ status: 'failed', reason: `session ended: ${r.reason ?? 'unknown'}` });
@@ -292,6 +324,8 @@ export async function executePromptForWorkspace(
   // 4. 发送 prompt 并等待结果
   return new Promise<DispatchExecutePromptResult>(resolve => {
     let settled = false;
+    // 防止 error + streamEnd 双重 resolve
+    let errorSeen = false;
 
     const cleanup = () => {
       if (settled) return;
@@ -311,21 +345,36 @@ export async function executePromptForWorkspace(
       if (payload.sessionId !== sessionId) return;
 
       const evt = payload.event;
-      if (evt.type === 'result') {
-        cleanup();
-        const resultData = evt as { type: 'result'; result?: unknown; error?: string; output?: string };
-        if (resultData.error) {
-          resolve({ status: 'failed', reason: resultData.error });
-        } else {
-          resolve({
-            status: 'success',
-            output: typeof resultData.output === 'string' ? resultData.output : undefined,
-          });
-        }
-      } else if (evt.type === 'error') {
+      // terminalChunk → 路由到全局终端 store（渲染流式输出）
+      if (evt.type === 'terminalChunk') {
+        const wid = sessionWorkspaceMap.get(sessionId) ?? sessionId;
+        useGlobalTerminalStore.getState().appendChunk(wid, (evt as { type: 'terminalChunk'; text: string }).text);
+        return;
+      }
+      // DAG 事件 → 路由到 useTaskStore（带 workspaceId 标记，用于 DAG 图节点）
+      if (
+        evt.type !== 'error' &&
+        evt.type !== 'streamEnd' &&
+        evt.type !== 'session_end' &&
+        evt.type !== 'terminalChunk'
+      ) {
+        const wid = sessionWorkspaceMap.get(sessionId) ?? sessionId;
+        const injected = { ...evt, workspaceId: wid } as unknown as ClaudeEvent;
+        useTaskStore.getState().handleEvent(injected);
+      }
+
+      if (evt.type === 'error') {
+        errorSeen = true;
         cleanup();
         const errorData = evt as { type: 'error'; error?: string };
         resolve({ status: 'failed', reason: errorData.error ?? 'unknown error' });
+      } else if (evt.type === 'streamEnd') {
+        // streamEnd 是 AnsiParser 在 type:'result' JSON 解析时必定 emit 的结束信号，
+        // 用于 resolve 成功分支（error 先于 streamEnd 到达时跳过）
+        if (!errorSeen) {
+          cleanup();
+          resolve({ status: 'success', output: undefined });
+        }
       } else if (evt.type === 'session_end') {
         cleanup();
         const endData = evt as { type: 'session_end'; reason?: string };
@@ -350,6 +399,7 @@ export async function dispatchExecutePromptAdapter(
 ): Promise<DispatchExecutePromptResult> {
   // 优先使用已注入的 processManager（Electron 打包模式）
   if (_processManager !== null) {
+    sessionWorkspaceMap.set(input.sessionId, input.workspaceId);
     return executePromptForWorkspace({
       workspaceId: input.workspaceId,
       workspacePath: input.workspacePath,
@@ -366,6 +416,9 @@ export async function dispatchExecutePromptAdapter(
     baseUrl: config.baseUrl,
     apiKey: config.apiKey,
   } : undefined;
+
+  // 注册 session→workspace 映射（供 onMessage 路由 terminalChunk 和 DAG 事件）
+  sessionWorkspaceMap.set(input.sessionId, input.workspaceId);
 
   const result = await executePromptViaWs(
     input.sessionId,

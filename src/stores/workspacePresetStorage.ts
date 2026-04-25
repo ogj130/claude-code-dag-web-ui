@@ -34,7 +34,8 @@ export async function getPresetById(id: string): Promise<WorkspacePreset | undef
 }
 
 export async function getEnabledPresets(): Promise<WorkspacePreset[]> {
-  return edb.workspacePresets.where('isEnabled').equals(true).toArray();
+  const all = await edb.workspacePresets.orderBy('updatedAt').reverse().toArray();
+  return all.filter(p => p.isEnabled === true);
 }
 
 export async function getPresetsByConfigId(configId: string): Promise<WorkspacePreset[]> {

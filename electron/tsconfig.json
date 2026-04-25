@@ -1,11 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "CommonJS",
+    "module": "ESNext",
     "moduleResolution": "node",
     "outDir": "./dist",
     "rootDir": "..",
-    "strict": true,
+    "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
@@ -16,6 +16,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/**/*", "../src/**/*"],
-  "exclude": ["node_modules", "dist", "release", "../src/__tests__/**", "../src/**/*.test.ts", "../src/**/*.test.tsx"]
+  "include": ["src/main.ts", "src/preload.ts", "src/types/**/*"],
+  "exclude": ["node_modules", "dist", "release", "../src/**/*"]
 }

@@ -24,6 +24,8 @@ const clients = new Map<string, Set<WebSocket>>();
 
 // 为每个 sessionId 只注册一次事件监听器
 const registeredSessions = new Set<string>();
+// 正在切换模型的 sessionId（close 回调跳过清理）
+const switchingModels = new Set<string>();
 
 // WebSocket 心跳：每 25 秒 ping 一次，防止代理超时断开
 function startHeartbeat(wss: WebSocketServer) {
@@ -78,6 +80,11 @@ export function start(wss: WebSocketServer, port: number = DEFAULT_PORT): void {
 
               processManager.on('event', (payload: WSMessage) => {
                 if (payload.sessionId === sessionId) {
+                  // 模型切换期间：过滤掉 kill 触发的 session_end，避免前端误重置状态
+                  if (switchingModels.has(sessionId) && (payload as any).event?.type === 'session_end') {
+                    logger.info({ sessionId }, 'Suppressing session_end during model switch');
+                    return;
+                  }
                   broadcast(sessionId, JSON.stringify(payload));
                 }
               });
@@ -100,7 +107,17 @@ export function start(wss: WebSocketServer, port: number = DEFAULT_PORT): void {
               });
 
               processManager.on('close', ({ sessionId: closedId, code }) => {
-                logger.info({ sessionId: closedId, code }, 'Session closed');
+                // code=null 表示 SIGTERM/SIGKILL（被杀），其他为自然退出
+                const reason = code === null ? 'killed' : `exit:${code}`;
+                logger.info({ sessionId: closedId, code, reason }, 'Session closed');
+
+                // 模型切换期间：跳过清理，保留 clients 和 registeredSessions
+                if (switchingModels.has(closedId)) {
+                  logger.info({ sessionId: closedId }, 'Skipping close cleanup (model switching)');
+                  switchingModels.delete(closedId);
+                  return;
+                }
+
                 registeredSessions.delete(closedId);
                 broadcast(closedId, JSON.stringify({
                   event: { type: 'session_end', sessionId: closedId, reason: `exit:${code}` },
@@ -111,9 +128,30 @@ export function start(wss: WebSocketServer, port: number = DEFAULT_PORT): void {
               });
             }
 
-            // 如果该 session 已有运行中的进程，先杀掉（支持路径切换场景）
+            // 幂等保护：相同 sessionId + 相同 projectPath 时，跳过 re-spawn
+            // （React StrictMode 等场景会触发重复 start_session，避免误杀健康进程）
             if (processManager.isRunning(sessionId)) {
-              logger.info({ sessionId }, 'Killing existing process before re-spawn');
+              const existingPath = processManager.getSessionPath(sessionId);
+              if (existingPath === projectPath) {
+                // 检查 ws 是否已在 clients 中（幂等：同一 ws 重连跳过添加）
+                // 若 ws 不同（StrictMode 新建了第二个连接），则替换旧的闭包 ws
+                const existingSockets = clients.get(sessionId)!;
+                if (existingSockets.has(ws)) {
+                  logger.info({ sessionId }, 'WebSocket already registered for session, skipping');
+                } else {
+                  logger.info({ sessionId, existingSockets: existingSockets.size }, 'Replacing stale WebSocket for session (StrictMode duplicate connection)');
+                  // 清理可能已关闭的旧 ws（防止广播到死连接）
+                  for (const oldWs of existingSockets) {
+                    if (oldWs.readyState !== WebSocket.OPEN) {
+                      existingSockets.delete(oldWs);
+                    }
+                  }
+                  existingSockets.add(ws);
+                }
+                break;
+              }
+              // 路径改变时：正常切换（保留 kill 逻辑）
+              logger.info({ sessionId, existingPath, newPath: projectPath }, 'Killing existing process (path changed)');
               processManager.kill(sessionId);
             }
 
@@ -178,6 +216,9 @@ export function start(wss: WebSocketServer, port: number = DEFAULT_PORT): void {
               logger.warn({ sessionId }, 'Session path not found for model switch');
               break;
             }
+
+            // 标记正在切换模型：close 回调跳过清理 clients/registeredSessions
+            switchingModels.add(sessionId);
 
             // 先 kill 现有进程
             processManager.kill(sessionId);

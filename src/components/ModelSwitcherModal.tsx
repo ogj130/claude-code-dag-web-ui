@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { ModelConfig } from '@/types/models';
 import { useModelForm } from '@/hooks/useModelForm';
+import { getAllConfigs as dbGetAll } from '@/stores/modelConfigStorage';
 import { ConfirmSwitchDialog } from './ConfirmSwitchDialog';
 
 interface ModelSwitcherModalProps {
@@ -22,6 +23,13 @@ export function ModelSwitcherModal({ isOpen, onClose, onSwitch, currentModel }: 
 
   const { formData, updateField, reset, save, isValid, isSaving, ANTHROPIC_MODELS } = useModelForm();
 
+  // 切换到新增 Tab 时，自动填充默认模型
+  const switchToAddTab = () => {
+    setActiveTab('add');
+    // 自动选中第一个 Anthropic 模型，让保存按钮立即可用
+    updateField('model', 'claude-sonnet-4-6');
+  };
+
   // 加载配置列表
   useEffect(() => {
     if (isOpen) {
@@ -32,11 +40,9 @@ export function ModelSwitcherModal({ isOpen, onClose, onSwitch, currentModel }: 
   const loadConfigs = async () => {
     setIsLoading(true);
     try {
-      if (!window.electron?.invoke) {
-        setConfigs([{ id: 'default', name: '默认模型', model: 'claude-sonnet-4-6', provider: 'anthropic', isDefault: true, createdAt: Date.now(), updatedAt: Date.now() }]);
-        return;
-      }
-      const list = await window.electron.invoke('model-config:get-all') as ModelConfig[];
+      const list = window.electron?.invoke
+        ? await window.electron.invoke('model-config:get-all') as ModelConfig[]
+        : await dbGetAll();
       setConfigs(list);
     } catch (error) {
       console.error('Failed to load configs:', error);
@@ -176,7 +182,7 @@ export function ModelSwitcherModal({ isOpen, onClose, onSwitch, currentModel }: 
             切换模型
           </button>
           <button
-            onClick={() => setActiveTab('add')}
+            onClick={switchToAddTab}
             style={{
               padding: '8px 16px',
               borderRadius: 6,

@@ -31,6 +31,7 @@ export function useWorkspaceModelConfig(
 
   async function loadPreset() {
     if (!workspacePath) return;
+    if (!window.electron?.invoke) return;  // Dev 模式下跳过（无 Electron IPC）
 
     setIsLoading(true);
     try {

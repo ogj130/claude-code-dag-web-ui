@@ -466,10 +466,19 @@ export function DAGCanvas({ style }: Props) {
       }))
     : [];
 
-  // 全局视图：追加容器节点；单工作区视图：保持原样
+  // 单工作区视图：仅显示属于该工作区的节点（由 handleEvent 注入 workspaceId）
+  const singleWorkspaceNodes = useMemo(() => {
+    if (activeTab === 'global' || workspaceTabs.length === 0) return overlapOptimizedNodes;
+    return overlapOptimizedNodes.filter(n => {
+      const nd = n.data as DAGNode;
+      return nd.workspaceId === activeTab;
+    });
+  }, [activeTab, workspaceTabs.length, overlapOptimizedNodes]);
+
+  // 全局视图：追加容器节点；单工作区视图：使用过滤后的节点
   const finalNodes: Node[] = activeTab === 'global' && workspaceTabs.length > 0
     ? [...containerNodes, ...overlapOptimizedNodes]
-    : overlapOptimizedNodes;
+    : singleWorkspaceNodes;
 
   // 聚焦当前问题 query 链（当 currentQueryId 或 positionedNodes 变化时触发）
   useEffect(() => {

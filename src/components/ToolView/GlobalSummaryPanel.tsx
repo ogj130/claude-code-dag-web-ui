@@ -29,11 +29,12 @@ export interface GlobalSummaryPanelProps {
  * 判断所有工作区是否已完成
  * - batchResult 不为 null
  * - batchResult 数量 >= workspace 数量
- * - 每个结果的 status 都不是 idle（即 running / success / partial / failed）
+ * 注意：DispatchWorkspaceResult.status 不含 'idle'（'idle' 是 WorkspaceCard UI 状态，
+ * 当 result=null 时显示为 running）
  */
 function allDone(batchResult: DispatchWorkspaceResult[] | null, workspaceCount: number): boolean {
   if (!batchResult) return false;
-  return batchResult.length >= workspaceCount && batchResult.every(r => r.status !== 'idle');
+  return batchResult.length >= workspaceCount;
 }
 
 // ── 样式 ─────────────────────────────────────────────────────────────────────
