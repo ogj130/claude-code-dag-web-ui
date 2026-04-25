@@ -78,5 +78,5 @@ npx vitest run path/to/test  # 运行单个测试
 ## 构建验证
 
 构建产物位于 `electron/release/`：
-- macOS：`Claude Code Web UI-1.4.1.dmg`
-- Windows：`Claude Code Web UI Setup 1.4.1.exe`
+- macOS：`Claude Code Web UI-2.0.1.dmg`
+- Windows：`Claude Code Web UI Setup 2.0.1.exe`
