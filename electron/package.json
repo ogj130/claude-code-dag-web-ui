@@ -1,6 +1,6 @@
 {
   "name": "cc-web-ui-electron",
-  "version": "1.4.1",
+  "version": "2.0.1",
   "type": "module",
   "description": "Claude Code DAG Web UI - Electron Package for Windows, macOS, and Linux",
   "main": "dist/electron/src/main.js",
