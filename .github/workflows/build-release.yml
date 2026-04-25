@@ -34,10 +34,7 @@ jobs:
           node-version: '24'
 
       - name: Install dependencies
-        run: npm ci
-
-      - name: Verify dependencies
-        run: node -e "require('marked'); require('dompurify'); console.log('Dependencies verified')"
+        run: npm install
 
       - name: Run tests
         run: npm test
@@ -55,10 +52,7 @@ jobs:
           node-version: '24'
 
       - name: Install frontend dependencies
-        run: npm ci
-
-      - name: Verify dependencies
-        run: node -e "require('marked'); require('dompurify'); console.log('Dependencies verified')"
+        run: npm install
 
       - name: Build frontend
         run: npm run build

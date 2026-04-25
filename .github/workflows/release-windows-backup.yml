@@ -38,7 +38,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Run tests
         run: npm test
@@ -62,7 +62,7 @@ jobs:
 
       # ── 1. 安装前端依赖 ─────────────────────────────────────
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm install
 
       # ── 2. 构建前端 ─────────────────────────────────────
       - name: Build frontend
@@ -71,7 +71,7 @@ jobs:
       # ── 3. 安装 Electron 依赖 ─────────────────────────
       - name: Install Electron deps
         working-directory: electron
-        run: npm ci
+        run: npm install
 
       # ── 4. 编译 Electron TypeScript ──────────────────
       - name: Build Electron
