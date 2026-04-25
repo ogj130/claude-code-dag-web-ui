@@ -10,7 +10,8 @@
 import { useState, useEffect } from 'react';
 import { GlobalTerminal } from './GlobalTerminal';
 import { GlobalAgentTrigger } from '@/components/GlobalAgent/GlobalAgentTrigger';
-import { getEnabledWorkspaces } from '@/stores/workspaceStorage';
+import { getEnabledPresets } from '@/stores/workspacePresetStorage';
+import type { WorkspacePreset } from '@/stores/workspacePresetStorage';
 import { preloadModelConfigs } from '@/services/globalDispatchExecutor';
 import type { Workspace } from '@/types/workspace';
 
@@ -31,7 +32,17 @@ export function GlobalTerminalModal({ isOpen, onClose }: GlobalTerminalModalProp
       setLoading(true);
       try {
         await preloadModelConfigs();
-        const list = await getEnabledWorkspaces();
+        const presets = await getEnabledPresets();
+        // Convert WorkspacePreset to Workspace format
+        const list: Workspace[] = presets.map((p: WorkspacePreset) => ({
+          id: p.id,
+          name: p.name || p.workspacePath.split('/').pop() || '未命名',
+          workspacePath: p.workspacePath,
+          modelConfigId: p.configId || '',
+          enabled: p.isEnabled,
+          createdAt: p.createdAt,
+          updatedAt: p.updatedAt,
+        }));
         setWorkspaces(list);
       } catch (err) {
         console.error('[GlobalTerminalModal] Failed to load workspaces:', err);

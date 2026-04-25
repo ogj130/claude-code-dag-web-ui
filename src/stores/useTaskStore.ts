@@ -67,6 +67,10 @@ interface TaskState {
   collapsedCardIds: Set<string>;  // 已叠起的卡片ID集合
   currentCard: CurrentCardData | null;  // 进行中的问答卡片（实时显示）
   previousCard: CurrentCardData | null;  // 前一个被折叠的进行中卡片（等待总结到来）
+  /** 按 workspaceId 隔离的 currentCard（多工作区 global dispatch 时防止互相覆盖） */
+  currentCardByWorkspace: Record<string, CurrentCardData>;
+  /** 按 workspaceId 隔离的 previousCard */
+  previousCardByWorkspace: Record<string, CurrentCardData>;
   groupingEnabled: boolean;  // 节点分组开关
   expandedGroupIds: Set<string>;  // 已展开的分组 ID 集合
   // V1.4.0: Agent Group collapse state
@@ -268,6 +272,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   collapsedCardIds: new Set(),
   currentCard: null,
   previousCard: null,
+  currentCardByWorkspace: {},  // 按 workspaceId 隔离的 currentCard
+  previousCardByWorkspace: {}, // 按 workspaceId 隔离的 previousCard
   groupingEnabled: true,  // 默认开启节点分组
   expandedGroupIds: new Set(),  // 默认全部折叠
   // V1.4.0: Agent Group collapse
@@ -516,6 +522,17 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           ragChunks: ragChunks.length > 0 ? ragChunks : undefined,
         };
 
+        // ── 按 workspaceId 隔离 currentCard（多工作区 global dispatch 时防止互相覆盖）──
+        const wid = workspaceId ?? 'default';
+        // 当前工作区的旧卡片（用于归档到 previousCard）
+        const prevWorkspaceCard = get().currentCardByWorkspace[wid] ?? null;
+        // 只更新当前工作区的卡片，保留其他工作区的卡片不被覆盖
+        const newCurrentCardByWorkspace = { ...get().currentCardByWorkspace, [wid]: newCurrentCard };
+        const newPreviousCardByWorkspace = { ...get().previousCardByWorkspace };
+        if (prevWorkspaceCard) {
+          newPreviousCardByWorkspace[wid] = prevWorkspaceCard;
+        }
+
         // ── 设置 pendingRAGItems（供 query_start 消费，渲染 DAG RAG 节点）─────────
         if (ragChunks.length > 0) {
           get().setPendingRAGItems(ragChunks.map(chunk => ({
@@ -536,6 +553,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           nodes: newNodesU,
           currentCard: newCurrentCard,
           previousCard: newPreviousCard,
+          currentCardByWorkspace: newCurrentCardByWorkspace,
+          previousCardByWorkspace: newPreviousCardByWorkspace,
           collapsedCardIds: newCollapsedCards,
         });
         break;
@@ -642,14 +661,25 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         }
 
         // 同时写入 summaryChunks，让 LiveCard 流式渲染
-        set(state => ({
-          nodes: newNodesSC,
-          summaryChunks: [...state.summaryChunks, event.chunk],
-        }));
+        // ── 幂等保护：防止双 WS 连接（globalDispatch + terminal）处理同一 session 时重复追加 ──
+        set(state => {
+          // 两个 WS 连接收到相同的 summary_chunk 时，最后一个 chunk 必然相同
+          const lastChunk = state.summaryChunks[state.summaryChunks.length - 1];
+          if (lastChunk === event.chunk) {
+            return { nodes: newNodesSC }; // 跳过重复追加
+          }
+          return { nodes: newNodesSC, summaryChunks: [...state.summaryChunks, event.chunk] };
+        });
         break;
       }
       case 'query_summary': {
         const { pendingAnalysisByQueryId, toolCalls, lastTokenUsage, summaryChunks } = get();
+        // ── 多工作区隔离：优先从 workspace-specific 状态查找卡片 ──────────────────
+        const wid = workspaceId ?? 'default';
+        const workspaceCards = get().currentCardByWorkspace;
+        const workspacePrevCards = get().previousCardByWorkspace;
+        const wsCurrentCard = workspaceCards[wid] ?? null;
+        const wsPrevCard = workspacePrevCards[wid] ?? null;
 
         // 幂等保护：同一 query 已经生成过 markdownCard 时，忽略重复的 query_summary
         if (get().markdownCards.some(card => card.queryId === event.queryId)) {
@@ -735,13 +765,31 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         const newCollapsedCardIds = new Set(collapsedCardIds);
         let newMarkdownCardId: string;
 
-        if (inProgressCard && inProgressCard.queryId === event.queryId) {
-          // 情况1：当前卡片（正常流程）
-          newMarkdownCardId = `card_${inProgressCard.timestamp}_${event.queryId}`;
+        // ── 匹配逻辑：优先检查 workspace-specific 卡片（多工作区 global dispatch 场景）──
+        // 注意：global dispatch 复用相同 session 时，workspaceId 会被注入到事件中，
+        // 使各工作区的卡片互相隔离。优先检查 workspace-specific 卡片，再回退到全局卡片。
+        const cardForQuery = wsCurrentCard?.queryId === event.queryId ? wsCurrentCard
+          : inProgressCard?.queryId === event.queryId ? inProgressCard
+          : null;
+        const prevCardForQuery = wsPrevCard?.queryId === event.queryId ? wsPrevCard
+          : previousCard?.queryId === event.queryId ? previousCard
+          : null;
+
+        if (cardForQuery) {
+          // 情况1：当前卡片（正常流程，含 workspace-specific）
+          newMarkdownCardId = `card_${cardForQuery.timestamp}_${event.queryId}`;
           // 折叠前一张已完成的卡片
           if (markdownCards.length > 0) {
             newCollapsedCardIds.add(markdownCards[markdownCards.length - 1].queryId);
           }
+          // 清除 workspace-specific 卡片
+          const newWsCards = { ...workspaceCards };
+          const newWsPrevCards = { ...workspacePrevCards };
+          delete newWsCards[wid];
+          if (wsCurrentCard) newWsPrevCards[wid] = wsCurrentCard; // 归档到 workspace 的 prev
+          // ── 多工作区保护：只有当 workspace-specific 卡片等于全局 currentCard 时才清空 ──
+          // 否则保留全局 currentCard（可能是其他工作区的卡片）
+          const isGlobalCard = cardForQuery === inProgressCard;
           set({
             nodes: newNodesQS,
             pendingAnalysisByQueryId: newMap,
@@ -750,17 +798,19 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             lastEventQueryId: event.queryId,
             toolCalls: updatedToolCalls,
             collapsedCardIds: newCollapsedCardIds,
-            currentCard: null,
-            previousCard: null,
-            currentQueryId: null, // 清空：inProgressCard 已处理完毕
+            currentCard: isGlobalCard ? null : get().currentCard,
+            previousCard: isGlobalCard ? null : get().previousCard,
+            currentCardByWorkspace: newWsCards,
+            previousCardByWorkspace: newWsPrevCards,
+            currentQueryId: null, // 清空：cardForQuery 已处理完毕
             summaryChunks: [], // 流式总结结束，清空累积的 chunks
             markdownCards: [
               ...markdownCards.slice(-50),
               {
                 id: newMarkdownCardId,
                 queryId: event.queryId,
-                timestamp: inProgressCard.timestamp,
-                query: inProgressCard.query,
+                timestamp: cardForQuery.timestamp,
+                query: cardForQuery.query,
                 analysis,
                 summary: streamedSummary || event.summary, // 流式内容优先，保证立即有内容可显示
                 completeSummary: event.summary, // 流式补完动画目标
@@ -773,16 +823,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           // 保存到 IndexedDB（用于分析统计）
           saveQueryToDB({
             queryId: event.queryId,
-            question: inProgressCard.query,
+            question: cardForQuery.query,
             answer: event.summary || analysis,
             toolCalls: updatedToolCalls,
-            duration: Date.now() - inProgressCard.timestamp,
+            duration: Date.now() - cardForQuery.timestamp,
             status: 'success',
           }, event.queryId);
-        } else if (previousCard && previousCard.queryId === event.queryId) {
-          // 情况2：前一张被折叠的卡片（Q2发送时Q1还未完成）
-          newMarkdownCardId = `card_${previousCard.timestamp}_${event.queryId}`;
-          newCollapsedCardIds.add(previousCard.queryId);
+        } else if (prevCardForQuery) {
+          // 情况2：前一张被折叠的卡片（Q2发送时Q1还未完成，含 workspace-specific）
+          newMarkdownCardId = `card_${prevCardForQuery.timestamp}_${event.queryId}`;
+          newCollapsedCardIds.add(prevCardForQuery.queryId);
+          const newWsCards2 = { ...workspaceCards };
+          const newWsPrevCards2 = { ...workspacePrevCards };
+          delete newWsPrevCards2[wid]; // 清除 workspace 的 prevCard
+          // ── 多工作区保护：prevCardForQuery 来自 workspace-specific，不清全局 previousCard ──
           set({
             nodes: newNodesQS,
             pendingAnalysisByQueryId: newMap,
@@ -791,16 +845,18 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             lastEventQueryId: event.queryId,
             toolCalls: updatedToolCalls,
             collapsedCardIds: newCollapsedCardIds,
-            previousCard: null,
-            currentQueryId: null, // 清空：previousCard 已处理完毕
+            previousCard: get().previousCard, // 保留全局 previousCard（workspace-specific 的不清）
+            currentCardByWorkspace: newWsCards2,
+            previousCardByWorkspace: newWsPrevCards2,
+            currentQueryId: null, // 清空：prevCardForQuery 已处理完毕
             summaryChunks: [], // 流式总结结束，清空累积的 chunks
             markdownCards: [
               ...markdownCards.slice(-50),
               {
                 id: newMarkdownCardId,
                 queryId: event.queryId,
-                timestamp: previousCard.timestamp,
-                query: previousCard.query,
+                timestamp: prevCardForQuery.timestamp,
+                query: prevCardForQuery.query,
                 analysis,
                 summary: streamedSummary || event.summary, // 流式内容优先，保证立即有内容可显示
                 completeSummary: event.summary, // 流式补完动画目标
@@ -811,10 +867,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           // 保存到 IndexedDB（用于分析统计）
           saveQueryToDB({
             queryId: event.queryId,
-            question: previousCard.query,
+            question: prevCardForQuery.query,
             answer: event.summary || analysis,
             toolCalls: updatedToolCalls,
-            duration: Date.now() - previousCard.timestamp,
+            duration: Date.now() - prevCardForQuery.timestamp,
             status: 'success',
           }, event.queryId);
         } else {
@@ -1028,6 +1084,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       collapsedCardIds: new Set(),
       currentCard: null,
       previousCard: null,
+      currentCardByWorkspace: {},  // 多工作区隔离：清空所有工作区的卡片
+      previousCardByWorkspace: {},
       groupingEnabled: true,
       expandedGroupIds: new Set(),
       collapsedAgentIds: new Set(),  // V1.4.0

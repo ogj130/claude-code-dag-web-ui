@@ -683,6 +683,7 @@ export function WorkspacePresetPanel() {
           await window.electron.invoke('workspace-preset:save', {
             workspacePath: editing.workspacePath,
             configId: editing.configId,
+            name: editing.name ?? editing.workspacePath,
             description: editing.description,
             isEnabled: true,
           });
@@ -690,6 +691,7 @@ export function WorkspacePresetPanel() {
           await dbSavePreset({
             workspacePath: editing.workspacePath,
             configId: editing.configId,
+            name: editing.name ?? editing.workspacePath,
             description: editing.description,
             isEnabled: true,
           });
