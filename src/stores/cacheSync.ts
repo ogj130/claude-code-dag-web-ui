@@ -80,14 +80,14 @@ function createDebouncer(
     run() {
       if (timer !== null) clearTimeout(timer);
       timer = setTimeout(() => {
-        fn();
+        fn().catch(() => {/* swallow: error handled in finally block */});
         timer = null;
       }, delay);
     },
     flush() {
       if (timer !== null) {
         clearTimeout(timer);
-        fn();
+        fn().catch(() => {/* swallow */});
         timer = null;
       }
     },
