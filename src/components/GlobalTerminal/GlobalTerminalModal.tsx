@@ -9,6 +9,8 @@
 
 import { useState, useEffect } from 'react';
 import { GlobalTerminal } from './GlobalTerminal';
+import { GlobalAgentTrigger } from '@/components/GlobalAgent/GlobalAgentTrigger';
+import { getEnabledWorkspaces } from '@/stores/workspaceStorage';
 import { preloadModelConfigs } from '@/services/globalDispatchExecutor';
 import type { Workspace } from '@/types/workspace';
 
@@ -29,25 +31,8 @@ export function GlobalTerminalModal({ isOpen, onClose }: GlobalTerminalModalProp
       setLoading(true);
       try {
         await preloadModelConfigs();
-        // 统一通过 Electron IPC 获取启用的 preset 列表
-        let list: any[] = [];
-        if (window.electron?.invoke) {
-          list = await window.electron.invoke('workspace-preset:get-enabled') as any[];
-        } else {
-          // Dev 模式下降级到直接导入
-          const { getEnabledPresets } = await import('@/stores/workspacePresetStorage');
-          list = await getEnabledPresets();
-        }
-        // 将 preset 数据映射为 Workspace 类型供 GlobalTerminal 使用
-        setWorkspaces(list.map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          workspacePath: p.workspacePath,
-          modelConfigId: p.configId,
-          enabled: p.isEnabled,
-          createdAt: p.createdAt || Date.now(),
-          updatedAt: p.updatedAt || Date.now(),
-        })));
+        const list = await getEnabledWorkspaces();
+        setWorkspaces(list);
       } catch (err) {
         console.error('[GlobalTerminalModal] Failed to load workspaces:', err);
       } finally {
@@ -139,7 +124,9 @@ export function GlobalTerminalModal({ isOpen, onClose }: GlobalTerminalModalProp
             </div>
           ) : (
             <>
-              <GlobalTerminal workspaces={workspaces} onClose={onClose} />
+              <GlobalTerminal workspaces={workspaces} />
+              {/* 全局 Agent 分析触发器 */}
+              <GlobalAgentTrigger />
             </>
           )}
         </div>
