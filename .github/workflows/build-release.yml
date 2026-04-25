@@ -32,13 +32,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: 'npm'
-
-      - name: Clean npm cache
-        run: npm cache clean --force
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Verify dependencies
+        run: node -e "require('marked'); require('dompurify'); console.log('Dependencies verified')"
 
       - name: Run tests
         run: npm test
@@ -54,13 +53,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: 'npm'
-
-      - name: Clean npm cache
-        run: npm cache clean --force
 
       - name: Install frontend dependencies
         run: npm ci
+
+      - name: Verify dependencies
+        run: node -e "require('marked'); require('dompurify'); console.log('Dependencies verified')"
 
       - name: Build frontend
         run: npm run build
@@ -92,10 +90,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: 'npm'
 
-      - name: Clean npm cache
-        run: npm cache clean --force
 
       - name: Install Electron dependencies
         working-directory: electron
