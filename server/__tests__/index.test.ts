@@ -37,24 +37,24 @@ describe('server/index', () => {
 
   it('should export startServer function', async () => {
     // Use relative import from server/__tests__/ → server/index.ts
-    const server = await import('../index.ts');
+    const server = await import('../index');
     expect(typeof server.startServer).toBe('function');
   });
 
   it('should export start function', async () => {
-    const server = await import('../index.ts');
+    const server = await import('../index');
     expect(typeof server.start).toBe('function');
   });
 
   it('startServer should return a WebSocketServer instance', async () => {
-    const { startServer } = await import('../index.ts');
+    const { startServer } = await import('../index');
     const wss = startServer(5301);
     expect(wss).toBeDefined();
     wss.close();
   });
 
   it('start function should be callable with WebSocketServer', async () => {
-    const { start } = await import('../index.ts');
+    const { start } = await import('../index');
     const { WebSocketServer } = await import('ws');
     const wss = new WebSocketServer({ port: 5302 });
     start(wss, 5302);
