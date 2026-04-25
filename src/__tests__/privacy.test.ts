@@ -19,7 +19,9 @@ describe('privacy utils', () => {
   it('should export expected functions', async () => {
     const utils = await import('@/utils/privacy');
     expect(typeof utils.isPrivacyModeEnabled).toBe('function');
-    expect(typeof utils.setPrivacyMode).toBe('function');
+    expect(typeof utils.enablePrivacyMode).toBe('function');
+    expect(typeof utils.disablePrivacyMode).toBe('function');
+    expect(typeof utils.togglePrivacyMode).toBe('function');
     expect(typeof utils.clearAllHistory).toBe('function');
     expect(typeof utils.clearSession).toBe('function');
     expect(typeof utils.clearHistoryBefore).toBe('function');
@@ -48,10 +50,10 @@ describe('privacy utils', () => {
     });
   });
 
-  describe('setPrivacyMode', () => {
+  describe('enablePrivacyMode', () => {
     it('should set localStorage to true', () => {
-      return import('@/utils/privacy').then(({ setPrivacyMode }) => {
-        setPrivacyMode(true);
+      return import('@/utils/privacy').then(({ enablePrivacyMode }) => {
+        enablePrivacyMode();
         expect(localStorage.getItem(PRIVACY_MODE_KEY)).toBe('true');
       });
     });

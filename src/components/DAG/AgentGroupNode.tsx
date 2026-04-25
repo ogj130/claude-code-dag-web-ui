@@ -56,6 +56,7 @@ const AgentGroupNode: React.FC<AgentGroupNodeProps> = memo(({
     <div
       className={`agent-group-node ${selected ? 'selected' : ''}`}
       data-status={status}
+      data-testid="agent-group-node-root"
     >
       {/* Input handle */}
       <Handle

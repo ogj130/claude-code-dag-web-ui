@@ -111,14 +111,8 @@ describe('GlobalAgentReportModal', () => {
     expect(screen.getByText(/测试评语/i)).toBeInTheDocument();
   });
 
-  it('4. 演示模式时显示黄色演示徽章', async () => {
-    await renderModal({ result: mockResult, isDemo: true });
-    expect(screen.getByText(/演示模式/i)).toBeInTheDocument();
-    expect(screen.getByText(/模拟数据 · 仅供演示/i)).toBeInTheDocument();
-  });
-
-  it('5. 非演示模式时显示模型名称', async () => {
-    await renderModal({ result: mockResult, isDemo: false });
+  it('4. 非演示模式时显示模型名称', async () => {
+    await renderModal({ result: mockResult });
     expect(screen.getByText(/使用模型: claude-sonnet-4/i)).toBeInTheDocument();
   });
 

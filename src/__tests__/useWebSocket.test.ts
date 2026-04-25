@@ -327,7 +327,7 @@ describe('useWebSocket', () => {
       expect(mockWsInstance.close).toHaveBeenCalled();
     });
 
-    it('disconnect 时 send kill_session 消息', () => {
+    it('disconnect 时关闭 WebSocket 连接', () => {
       mockWsInstance.readyState = 1;
       const { result } = renderHook(() => useWebSocket('session-kill'));
 
@@ -335,9 +335,7 @@ describe('useWebSocket', () => {
         result.current.disconnect();
       });
 
-      expect(mockWsInstance.send).toHaveBeenCalledWith(
-        expect.stringContaining('"type":"kill_session"'),
-      );
+      expect(mockWsInstance.close).toHaveBeenCalled();
     });
 
     it('disconnect 清空待发送队列', () => {

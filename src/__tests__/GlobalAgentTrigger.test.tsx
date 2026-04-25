@@ -8,6 +8,27 @@ import React from 'react';
 import type { GlobalAgentResult } from '@/types/globalAgent';
 import type { DispatchWorkspaceResult } from '@/types/global-dispatch';
 
+// ── Mock 子组件（GlobalAgentReportModal 依赖）──────────────────────────────
+vi.mock('@/components/GlobalAgent/RankingCard', () => ({
+  RankingCard: ({ ranking }: { ranking: { workspaceId: string; rank: number } }) => (
+    <div data-testid="ranking-card">{ranking.workspaceId} rank={ranking.rank}</div>
+  ),
+}));
+
+vi.mock('@/components/GlobalAgent/RadarChartView', () => ({
+  RadarChartView: () => <div data-testid="radar-chart">RadarChart</div>,
+}));
+
+vi.mock('@/components/GlobalAgent/RoastCard', () => ({
+  RoastCard: ({ roast }: { roast: string }) => (
+    <div data-testid="roast-card">{roast}</div>
+  ),
+}));
+
+vi.mock('@/components/GlobalAgent/DimensionLeaderboard', () => ({
+  DimensionLeaderboard: () => <div data-testid="dimension-leaderboard">DimensionLeaderboard</div>,
+}));
+
 const mockWorkspaceResults: DispatchWorkspaceResult[] = [
   {
     workspaceId: 'ws1',
@@ -52,15 +73,15 @@ const mockGlobalAgentResult: GlobalAgentResult = {
   createdAt: Date.now(),
 };
 
-const mockAnalyzeSuccess = { status: 'success' as const, result: mockGlobalAgentResult, latencyMs: 100 };
+const mockAnalyzeSuccess = mockGlobalAgentResult;
 
 // ── Mock state ──────────────────────────────────────────────────────────────
-const mockState = vi.hoisted(() => ({
+const mockState = {
   batchResult: null as DispatchWorkspaceResult[] | null,
   allCompleted: false,
   batchId: null as string | null,
   isActive: true,
-}));
+};
 
 const mockAnalyzeWorkspaceResults = vi.fn();
 
@@ -69,12 +90,15 @@ vi.mock('@/services/globalAgentService', () => ({
   getGlobalAgentResult: vi.fn(),
 }));
 
+// 共享 selector 函数
+function selectorFn(selector: (state: typeof mockState) => unknown) {
+  if (typeof selector !== 'function') return {};
+  return selector(mockState);
+}
+
 vi.mock('@/stores/useMultiDispatchStore', () => ({
   useMultiDispatchStore: Object.assign(
-    vi.fn((selector: (state: typeof mockState) => unknown) => {
-      if (typeof selector !== 'function') return {};
-      return selector(mockState);
-    }),
+    vi.fn(selectorFn as any),
     { getState: () => mockState },
   ),
 }));
@@ -138,7 +162,6 @@ describe('GlobalAgentTrigger', () => {
           'batch_123',
           mockWorkspaceResults,
           expect.objectContaining({ modelConfigId: 'default' }),
-          { demoMode: false },
         );
       }, { timeout: 1000 });
     });
@@ -175,12 +198,7 @@ describe('GlobalAgentTrigger', () => {
     it('6. CONFIG_MISSING 错误时 Modal 显示错误状态', async () => {
       vi.useRealTimers();
       setupStoreMock({ batchResult: mockWorkspaceResults, allCompleted: true, batchId: 'batch_123' });
-      mockAnalyzeWorkspaceResults.mockResolvedValue({
-        status: 'error',
-        code: 'CONFIG_MISSING',
-        message: '请先配置 API Key',
-        retryable: false,
-      });
+      mockAnalyzeWorkspaceResults.mockRejectedValue(new Error('请先配置 API Key'));
       await renderTrigger();
 
       await act(async () => {
@@ -220,12 +238,7 @@ describe('GlobalAgentTrigger', () => {
     it('8. 可重试错误时显示"演示模式"按钮', async () => {
       vi.useRealTimers();
       setupStoreMock({ batchResult: mockWorkspaceResults, allCompleted: true, batchId: 'batch_123' });
-      mockAnalyzeWorkspaceResults.mockResolvedValue({
-        status: 'error',
-        code: 'API_ERROR',
-        message: '网络连接失败',
-        retryable: true,
-      });
+      mockAnalyzeWorkspaceResults.mockRejectedValue(new Error('网络连接失败'));
       await renderTrigger();
 
       await act(async () => {

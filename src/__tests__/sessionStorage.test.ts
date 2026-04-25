@@ -10,7 +10,6 @@ import {
   getRecentSessions,
   getSessionStats,
   getAllSessions,
-  getSessionsGroupedByWorkspace,
 } from '@/stores/sessionStorage';
 
 describe('sessionStorage', () => {
@@ -22,89 +21,6 @@ describe('sessionStorage', () => {
 
   afterEach(async () => {
     await edb.sessions.clear();
-  });
-
-  // ---------------------------------------------------------------------------
-  // getSessionsGroupedByWorkspace
-  // ---------------------------------------------------------------------------
-
-  describe('getSessionsGroupedByWorkspace', () => {
-    it('returns empty map when no sessions exist', async () => {
-      const result = await getSessionsGroupedByWorkspace();
-      expect(result.size).toBe(0);
-    });
-
-    it('groups sessions by workspacePath', async () => {
-      await createSession({ title: 'S1', workspacePath: '/a' });
-      await createSession({ title: 'S2', workspacePath: '/a' });
-      await createSession({ title: 'S3', workspacePath: '/b' });
-
-      const result = await getSessionsGroupedByWorkspace();
-
-      expect(result.size).toBe(2);
-      expect(result.get('/a')?.length).toBe(2);
-      expect(result.get('/b')?.length).toBe(1);
-    });
-
-    it('uses Default as key for sessions without workspacePath', async () => {
-      await createSession({ title: 'NoPath1' });
-      await createSession({ title: 'NoPath2' });
-      await createSession({ title: 'HasPath', workspacePath: '/test' });
-
-      const result = await getSessionsGroupedByWorkspace();
-
-      expect(result.size).toBe(2);
-      expect(result.get('Default')?.length).toBe(2);
-      expect(result.get('/test')?.length).toBe(1);
-    });
-
-    it('sorts groups by session count descending', async () => {
-      await createSession({ title: 'A', workspacePath: '/small' });
-      await createSession({ title: 'B', workspacePath: '/medium' });
-      await createSession({ title: 'C', workspacePath: '/medium' });
-      await createSession({ title: 'D', workspacePath: '/large' });
-      await createSession({ title: 'E', workspacePath: '/large' });
-      await createSession({ title: 'F', workspacePath: '/large' });
-
-      const result = await getSessionsGroupedByWorkspace();
-      const keys = [...result.keys()];
-
-      expect(keys[0]).toBe('/large');
-      expect(keys[1]).toBe('/medium');
-      expect(keys[2]).toBe('/small');
-    });
-
-    it('returns decrypted titles in grouped sessions', async () => {
-      // Privacy mode is off in tests by default
-      await createSession({ title: 'Secret Project', workspacePath: '/ws1' });
-
-      const result = await getSessionsGroupedByWorkspace();
-      const sessions = result.get('/ws1') ?? [];
-
-      expect(sessions.length).toBe(1);
-      expect(sessions[0].title).toBe('Secret Project');
-    });
-
-    it('excludes deleted sessions by default (includeDeleted=false)', async () => {
-      const s1 = await createSession({ title: 'Active', workspacePath: '/ws1' });
-      await createSession({ title: 'Deleted', workspacePath: '/ws1' });
-      await deleteSession(s1.id);
-
-      const result = await getSessionsGroupedByWorkspace(); // default: includeDeleted=false
-
-      expect(result.get('/ws1')?.length).toBe(1);
-      expect(result.get('/ws1')?.[0].title).toBe('Deleted'); // only non-deleted
-    });
-
-    it('includes deleted sessions when includeDeleted=true', async () => {
-      const s1 = await createSession({ title: 'Active', workspacePath: '/ws2' });
-      await createSession({ title: 'Deleted', workspacePath: '/ws2' });
-      await deleteSession(s1.id);
-
-      const result = await getSessionsGroupedByWorkspace(true); // includeDeleted=true
-
-      expect(result.get('/ws2')?.length).toBe(2);
-    });
   });
 
   // ---------------------------------------------------------------------------

@@ -5,20 +5,15 @@ import { GlobalTerminal } from '../GlobalTerminal';
 import type { DispatchResult } from '@/types/global-dispatch';
 import type { Workspace } from '@/types/workspace';
 
-// ─────────────────────────────────────────────
-// hoisted mock：确保在 vi.mock 提升前已初始化
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────
+// Mock dispatchGlobalPromptsWithDefaults
+// ─────────────────────────────────────────
 const mockDispatchFn = vi.hoisted(() =>
-  vi.fn<(input: {
-    rawInput: string;
-    workspaces: Workspace[];
-    createNewSession: boolean;
-    executePrompt: unknown;
-  }) => Promise<DispatchResult>>(),
+  vi.fn<(input: { rawInput: string; createNewSession: boolean; executePrompt: unknown }) => Promise<DispatchResult>>(),
 );
 
 vi.mock('@/services/globalDispatchService', () => ({
-  dispatchGlobalPrompts: mockDispatchFn,
+  dispatchGlobalPromptsWithDefaults: mockDispatchFn,
 }));
 
 // mock useMultiDispatchStore
@@ -92,27 +87,22 @@ describe('GlobalTerminal — non-blocking handleSend', () => {
     mockDispatchFn.mockResolvedValue(mockResult);
   });
 
-  it('handleSend non阻塞 — onClose 立即调用，按钮发送期间禁用', async () => {
-    const onClose = vi.fn();
+  it('handleSend non阻塞 — 发送期间按钮禁用', async () => {
     mockDispatchFn.mockImplementation(() => new Promise(r => setTimeout(() => r(mockResult), 5000)));
 
-    render(<GlobalTerminal workspaces={mockWorkspaces} onClose={onClose} />);
+    render(<GlobalTerminal workspaces={mockWorkspaces} />);
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '测试 prompt' } });
     const button = screen.getByRole('button', { name: /发送/i }) as HTMLButtonElement;
 
     fireEvent.click(button);
 
-    // 关键：onClose 在 dispatch 完成前就被调用（非阻塞）
-    expect(onClose).toHaveBeenCalledTimes(1);
-
     // 发送期间按钮被禁用（sending=true，防止重复发送）
     expect(button.disabled).toBe(true);
   });
 
-  it('dispatchGlobalPrompts is called with correct arguments', async () => {
-    const onClose = vi.fn();
-    render(<GlobalTerminal workspaces={mockWorkspaces} onClose={onClose} />);
+  it('dispatchGlobalPromptsWithDefaults is called with correct arguments', async () => {
+    render(<GlobalTerminal workspaces={mockWorkspaces} />);
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '问题1\n问题2' } });
     fireEvent.click(screen.getByRole('checkbox', { name: /新建会话/i }));
@@ -121,15 +111,13 @@ describe('GlobalTerminal — non-blocking handleSend', () => {
     expect(mockDispatchFn).toHaveBeenCalledTimes(1);
     expect(mockDispatchFn).toHaveBeenCalledWith({
       rawInput: '问题1\n问题2',
-      workspaces: mockWorkspaces,
       createNewSession: true,
       executePrompt: expect.any(Function),
     });
   });
 
-  it('dispatchGlobalPrompts is called with createNewSession=false by default', async () => {
-    const onClose = vi.fn();
-    render(<GlobalTerminal workspaces={mockWorkspaces} onClose={onClose} />);
+  it('dispatchGlobalPromptsWithDefaults is called with createNewSession=false by default', async () => {
+    render(<GlobalTerminal workspaces={mockWorkspaces} />);
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '单个 prompt' } });
     fireEvent.click(screen.getByRole('button', { name: /发送/i }));
@@ -142,8 +130,7 @@ describe('GlobalTerminal — non-blocking handleSend', () => {
   it('useMultiDispatchStore is updated with results via .then() after dispatch resolves', async () => {
     vi.useFakeTimers();
 
-    const onClose = vi.fn();
-    render(<GlobalTerminal workspaces={mockWorkspaces} onClose={onClose} />);
+    render(<GlobalTerminal workspaces={mockWorkspaces} />);
 
     mockDispatchFn.mockImplementation(() => new Promise(r => setTimeout(() => r(mockResult), 5000)));
 
@@ -166,8 +153,7 @@ describe('GlobalTerminal — non-blocking handleSend', () => {
   it('useMultiDispatchStore is NOT updated if abortRef.current is true (abort)', async () => {
     vi.useFakeTimers();
 
-    const onClose = vi.fn();
-    render(<GlobalTerminal workspaces={mockWorkspaces} onClose={onClose} />);
+    render(<GlobalTerminal workspaces={mockWorkspaces} />);
 
     // 模拟 dispatch 永不 resolve（模拟 abort 场景）
     mockDispatchFn.mockImplementation(() => new Promise(() => {}));
@@ -175,38 +161,19 @@ describe('GlobalTerminal — non-blocking handleSend', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '测试' } });
     fireEvent.click(screen.getByRole('button', { name: /发送/i }));
 
-    // 清空 input 触发 abortRef.current = true（handleClear 清空时会触发）
-    // 实际 abort 行为由 abortRef 控制，这里验证 store 未被调用
+    // 验证 store 未被调用
     expect(mockSetBatchResult).not.toHaveBeenCalled();
     expect(mockSetBatchId).not.toHaveBeenCalled();
 
     vi.useRealTimers();
   });
 
-  it('onClose is called immediately when send button is clicked (non-blocking)', async () => {
+  it('dispatch error is caught and sets error state, does not crash', async () => {
     vi.useFakeTimers();
-
-    const onClose = vi.fn();
-    render(<GlobalTerminal workspaces={mockWorkspaces} onClose={onClose} />);
-
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: '测试' } });
-    fireEvent.click(screen.getByRole('button', { name: /发送/i }));
-
-    // onClose 应该在 dispatch 完成前就被调用
-    expect(onClose).toHaveBeenCalledTimes(1);
-
-    vi.useRealTimers();
-  });
-
-  it('dispatch error is caught and logged, does not crash', async () => {
-    vi.useFakeTimers();
-
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const onClose = vi.fn();
 
     mockDispatchFn.mockRejectedValue(new Error('Dispatch failed'));
 
-    render(<GlobalTerminal workspaces={mockWorkspaces} onClose={onClose} />);
+    render(<GlobalTerminal workspaces={mockWorkspaces} />);
 
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '测试' } });
     fireEvent.click(screen.getByRole('button', { name: /发送/i }));
@@ -215,8 +182,8 @@ describe('GlobalTerminal — non-blocking handleSend', () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith('[GlobalTerminal] dispatch error:', expect.any(Error));
-    consoleSpy.mockRestore();
+    // 错误消息应该显示在 UI 中
+    expect(screen.getByText(/Dispatch failed/i)).toBeInTheDocument();
 
     vi.useRealTimers();
   });
