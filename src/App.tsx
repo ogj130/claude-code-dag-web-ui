@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { Toolbar } from './components/Toolbar/Toolbar';
 import { DAGCanvas } from './components/DAG/DAGCanvas';
 import { TerminalView } from './components/ToolView/TerminalView';
-import { BottomBar } from './components/BottomBar/RecentTools';
+import { GlobalDock } from './components/GlobalDock/GlobalDock';
+import { DockPanel } from './components/GlobalDock/DockPanel';
+import { useDockStore } from './stores/useDockStore';
+import { DOCK_GROUPS, type DockSubItem } from './components/GlobalDock/dockConfig';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { EmptyState } from './components/EmptyState';
 import { ErrorState } from './components/ErrorState';
@@ -77,6 +80,69 @@ async function loadSessionCards(sessionId: string): Promise<MarkdownCardData[]> 
   }
 }
 
+function DockPanelWrapper() {
+  const isOpen = useDockStore(s => s.isPanelOpen);
+  const activeItemId = useDockStore(s => s.activeItemId);
+  const closePanel = useDockStore(s => s.closePanel);
+  const group = DOCK_GROUPS.find(g => g.groupId === activeItemId);
+
+  const handleSubItemClick = (item: DockSubItem) => {
+    if (item.type === 'modal' && item.openModal) {
+      closePanel();
+      setTimeout(() => item.openModal!(), 150);
+    }
+  };
+
+  return (
+    <DockPanel isOpen={isOpen} title={group?.label ?? ''} onClose={closePanel}>
+      {group && group.items.length > 0 ? (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          {group.items.map(item => (
+            <button
+              key={item.id}
+              onClick={() => handleSubItemClick(item)}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                padding: '12px 8px',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                cursor: 'pointer',
+                transition: 'background 0.15s, transform 0.15s',
+                fontFamily: 'inherit',
+                color: 'var(--text-primary)',
+                height: 72,
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'var(--bg-card-hover)';
+                e.currentTarget.style.transform = 'scale(1.02)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'var(--bg-card)';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              <span style={{ color: 'var(--accent)', display: 'flex' }}>{item.icon}</span>
+              <span style={{ fontSize: 12, fontWeight: 500 }}>{item.label}</span>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.3 }}>
+                {item.description}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
+          子功能即将上线
+        </div>
+      )}
+    </DockPanel>
+  );
+}
+
 export function App() {
   const {
     theme, mode, accent, density, fontSize,
@@ -92,7 +158,6 @@ export function App() {
   const [isRAGOpen, setIsRAGOpen] = useState(false);
   const [isCompactionOpen, setIsCompactionOpen] = useState(false);
   const [isGlobalTerminalOpen, setIsGlobalTerminalOpen] = useState(false);
-
   // 响应式布局：监听窗口宽度
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   useEffect(() => {
@@ -176,7 +241,10 @@ export function App() {
     },
     toggleHistory: () => setIsHistoryOpen(prev => !prev),
     closeModal: () => {
-      // 关闭所有弹窗（按优先级）
+      // DockPanel takes priority (most frequently used)
+      const dock = useDockStore.getState();
+      if (dock.isPanelOpen) { dock.closePanel(); return; }
+      // Then close modals by priority
       if (isShortcutHelpOpen) { setIsShortcutHelpOpen(false); return; }
       if (isHistoryOpen) { setIsHistoryOpen(false); return; }
       if (isRAGOpen) { setIsRAGOpen(false); return; }
@@ -318,7 +386,7 @@ export function App() {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {renderMainContent()}
       </div>
-      <BottomBar />
+      <GlobalDock />
       <ExecutionAnalytics
         isOpen={isAnalyticsOpen}
         onClose={() => setIsAnalyticsOpen(false)}
@@ -376,6 +444,8 @@ export function App() {
       />
       {/* Task 7: 全局 AI 分析触发器（挂载在 App 层，持久化，autoAnalyze=true 时在 dispatch 完成后自动触发分析） */}
       <GlobalAgentTrigger autoAnalyze={true} />
+      {/* V3.0.0: GlobalDock 面板系统 */}
+      <DockPanelWrapper />
     </div>
   );
 }
