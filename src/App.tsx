@@ -79,70 +79,6 @@ async function loadSessionCards(sessionId: string): Promise<MarkdownCardData[]> 
     return [];
   }
 }
-
-function DockPanelWrapper() {
-  const isOpen = useDockStore(s => s.isPanelOpen);
-  const activeItemId = useDockStore(s => s.activeItemId);
-  const closePanel = useDockStore(s => s.closePanel);
-  const group = DOCK_GROUPS.find(g => g.groupId === activeItemId);
-
-  const handleSubItemClick = (item: DockSubItem) => {
-    if (item.type === 'modal' && item.openModal) {
-      closePanel();
-      setTimeout(() => item.openModal!(), 150);
-    }
-  };
-
-  return (
-    <DockPanel isOpen={isOpen} title={group?.label ?? ''} onClose={closePanel}>
-      {group && group.items.length > 0 ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          {group.items.map(item => (
-            <button
-              key={item.id}
-              onClick={() => handleSubItemClick(item)}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
-                padding: '12px 8px',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                cursor: 'pointer',
-                transition: 'background 0.15s, transform 0.15s',
-                fontFamily: 'inherit',
-                color: 'var(--text-primary)',
-                height: 72,
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = 'var(--bg-card-hover)';
-                e.currentTarget.style.transform = 'scale(1.02)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = 'var(--bg-card)';
-                e.currentTarget.style.transform = 'scale(1)';
-              }}
-            >
-              <span style={{ color: 'var(--accent)', display: 'flex' }}>{item.icon}</span>
-              <span style={{ fontSize: 12, fontWeight: 500 }}>{item.label}</span>
-              <span style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.3 }}>
-                {item.description}
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
-          子功能即将上线
-        </div>
-      )}
-    </DockPanel>
-  );
-}
-
 export function App() {
   const {
     theme, mode, accent, density, fontSize,
@@ -367,6 +303,83 @@ export function App() {
       });
     }
   }, [activeSessionId]);
+
+  function DockPanelWrapper() {
+    const isOpen = useDockStore(s => s.isPanelOpen);
+    const activeItemId = useDockStore(s => s.activeItemId);
+    const closePanel = useDockStore(s => s.closePanel);
+
+    // Modal openers — defined here to access App's setState closures
+    const modalOpeners = {
+      'global-terminal': () => setIsGlobalTerminalOpen(true),
+      'exec-analytics': () => setIsAnalyticsOpen(prev => !prev),
+      'token-stats': () => setIsTokenAnalyticsOpen(prev => !prev),
+      'compaction': () => setIsCompactionOpen(prev => !prev),
+      'search': () => setIsSearchOpen(prev => !prev),
+      'settings': () => { setThemeSettingsTab('theme'); setIsThemeSettingsOpen(true); },
+    };
+
+    const group = DOCK_GROUPS.find(g => g.groupId === activeItemId);
+
+    const handleSubItemClick = (item: DockSubItem) => {
+      if (item.type === 'modal') {
+        const opener = modalOpeners[item.id as keyof typeof modalOpeners];
+        if (opener) {
+          closePanel();
+          setTimeout(() => opener(), 150);
+        }
+      }
+    };
+
+    return (
+      <DockPanel isOpen={isOpen} title={group?.label ?? ''} onClose={closePanel}>
+        {group && group.items.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            {group.items.map(item => (
+              <button
+                key={item.id}
+                onClick={() => handleSubItemClick(item)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  padding: '12px 8px',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  transition: 'background 0.15s, transform 0.15s',
+                  fontFamily: 'inherit',
+                  color: 'var(--text-primary)',
+                  height: 72,
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'var(--bg-card-hover)';
+                  e.currentTarget.style.transform = 'scale(1.02)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'var(--bg-card)';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                <span style={{ color: 'var(--accent)', display: 'flex' }}>{item.icon}</span>
+                <span style={{ fontSize: 12, fontWeight: 500 }}>{item.label}</span>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.3 }}>
+                  {item.description}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
+            子功能即将上线
+          </div>
+        )}
+      </DockPanel>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
