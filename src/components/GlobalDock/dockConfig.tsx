@@ -8,7 +8,7 @@ export interface DockSubItem {
   label: string;
   description: string;
   icon: React.ReactNode;
-  type: 'inline' | 'modal';
+  type: 'panel' | 'drawer' | 'modal';
   panel?: React.ComponentType<V3PanelProps>;
   openModal?: () => void;
 }
@@ -313,10 +313,10 @@ export const DOCK_GROUPS: DockGroupConfig[] = [
     label: '核心智能',
     icon: GroupIcons.core,
     items: [
-      { id: 'mode', label: '模式切换', description: 'Guided / Expert 双模式', icon: SubIcons.mode, type: 'inline' },
-      { id: 'intent', label: '意图理解', description: '自然语言意图解析', icon: SubIcons.intent, type: 'inline' },
-      { id: 'profile', label: '用户画像', description: '使用习惯与偏好分析', icon: SubIcons.profile, type: 'inline' },
-      { id: 'voice', label: '语音输入', description: '语音命令与输入', icon: SubIcons.voice, type: 'inline' },
+      { id: 'mode', label: '模式切换', description: 'Guided / Expert 双模式', icon: SubIcons.mode, type: 'panel' },
+      { id: 'intent', label: '意图理解', description: '自然语言意图解析', icon: SubIcons.intent, type: 'panel' },
+      { id: 'profile', label: '用户画像', description: '使用习惯与偏好分析', icon: SubIcons.profile, type: 'panel' },
+      { id: 'voice', label: '语音输入', description: '语音命令与输入', icon: SubIcons.voice, type: 'panel' },
     ],
   },
   {
@@ -324,9 +324,9 @@ export const DOCK_GROUPS: DockGroupConfig[] = [
     label: '记忆系统',
     icon: GroupIcons.memory,
     items: [
-      { id: 'memory-browser', label: '记忆浏览器', description: '浏览与搜索记忆片段', icon: SubIcons['memory-browser'], type: 'inline' },
-      { id: 'knowledge-graph', label: '知识图谱', description: '实体关系可视化', icon: SubIcons['knowledge-graph'], type: 'inline' },
-      { id: 'working-memory', label: '工作记忆', description: '当前会话工作记忆', icon: SubIcons['working-memory'], type: 'inline' },
+      { id: 'memory-browser', label: '记忆浏览器', description: '浏览与搜索记忆片段', icon: SubIcons['memory-browser'], type: 'drawer' },
+      { id: 'knowledge-graph', label: '知识图谱', description: '实体关系可视化', icon: SubIcons['knowledge-graph'], type: 'drawer' },
+      { id: 'working-memory', label: '工作记忆', description: '当前会话工作记忆', icon: SubIcons['working-memory'], type: 'drawer' },
     ],
   },
   {
@@ -334,11 +334,11 @@ export const DOCK_GROUPS: DockGroupConfig[] = [
     label: '编排系统',
     icon: GroupIcons.orchestration,
     items: [
-      { id: 'agent-canvas', label: 'Agent 编排', description: 'Agent 可视化编排画布', icon: SubIcons['agent-canvas'], type: 'inline' },
-      { id: 'agent-monitor', label: 'Agent 监控', description: 'Agent 运行状态监控', icon: SubIcons['agent-monitor'], type: 'inline' },
-      { id: 'flow-builder', label: '流程编排', description: '可视化流程设计器', icon: SubIcons['flow-builder'], type: 'inline' },
-      { id: 'flow-exec', label: '流程执行', description: '流程执行与追踪', icon: SubIcons['flow-exec'], type: 'inline' },
-      { id: 'kanban', label: '任务看板', description: '看板式任务管理', icon: SubIcons.kanban, type: 'inline' },
+      { id: 'agent-canvas', label: 'Agent 编排', description: 'Agent 可视化编排画布', icon: SubIcons['agent-canvas'], type: 'modal' },
+      { id: 'agent-monitor', label: 'Agent 监控', description: 'Agent 运行状态监控', icon: SubIcons['agent-monitor'], type: 'modal' },
+      { id: 'flow-builder', label: '流程编排', description: '可视化流程设计器', icon: SubIcons['flow-builder'], type: 'modal' },
+      { id: 'flow-exec', label: '流程执行', description: '流程执行与追踪', icon: SubIcons['flow-exec'], type: 'modal' },
+      { id: 'kanban', label: '任务看板', description: '看板式任务管理', icon: SubIcons.kanban, type: 'modal' },
     ],
   },
   {
@@ -346,9 +346,9 @@ export const DOCK_GROUPS: DockGroupConfig[] = [
     label: '学习系统',
     icon: GroupIcons.learning,
     items: [
-      { id: 'evolution', label: '自进化闭环', description: '执行→评分→提取→消除', icon: SubIcons.evolution, type: 'inline' },
-      { id: 'report', label: '学习报告', description: 'AI 学习成果报告', icon: SubIcons.report, type: 'inline' },
-      { id: 'replay', label: '会话回放', description: '回放历史会话过程', icon: SubIcons.replay, type: 'inline' },
+      { id: 'evolution', label: '自进化闭环', description: '执行→评分→提取→消除', icon: SubIcons.evolution, type: 'modal' },
+      { id: 'report', label: '学习报告', description: 'AI 学习成果报告', icon: SubIcons.report, type: 'drawer' },
+      { id: 'replay', label: '会话回放', description: '回放历史会话过程', icon: SubIcons.replay, type: 'drawer' },
     ],
   },
   {
@@ -356,13 +356,13 @@ export const DOCK_GROUPS: DockGroupConfig[] = [
     label: '开发工具',
     icon: GroupIcons.tools,
     items: [
-      { id: 'skill-rec', label: 'Skill 推荐', description: '智能 Skill 推荐', icon: SubIcons['skill-rec'], type: 'inline' },
-      { id: 'skill-detail', label: 'Skill 详情', description: 'Skill 详细信息', icon: SubIcons['skill-detail'], type: 'inline' },
-      { id: 'hook-editor', label: 'Hook 编辑', description: 'Hook 可视化编辑器', icon: SubIcons['hook-editor'], type: 'inline' },
-      { id: 'hook-log', label: 'Hook 日志', description: 'Hook 执行日志', icon: SubIcons['hook-log'], type: 'inline' },
-      { id: 'mcp-settings', label: 'MCP 设置', description: 'MCP 配置管理', icon: SubIcons['mcp-settings'], type: 'inline' },
-      { id: 'error-heal', label: '错误自愈', description: '错误自动修复', icon: SubIcons['error-heal'], type: 'inline' },
-      { id: 'diff-review', label: 'Diff 审查', description: '代码 Diff 审查', icon: SubIcons['diff-review'], type: 'inline' },
+      { id: 'skill-rec', label: 'Skill 推荐', description: '智能 Skill 推荐', icon: SubIcons['skill-rec'], type: 'drawer' },
+      { id: 'skill-detail', label: 'Skill 详情', description: 'Skill 详细信息', icon: SubIcons['skill-detail'], type: 'drawer' },
+      { id: 'hook-editor', label: 'Hook 编辑', description: 'Hook 可视化编辑器', icon: SubIcons['hook-editor'], type: 'modal' },
+      { id: 'hook-log', label: 'Hook 日志', description: 'Hook 执行日志', icon: SubIcons['hook-log'], type: 'drawer' },
+      { id: 'mcp-settings', label: 'MCP 设置', description: 'MCP 配置管理', icon: SubIcons['mcp-settings'], type: 'modal' },
+      { id: 'error-heal', label: '错误自愈', description: '错误自动修复', icon: SubIcons['error-heal'], type: 'modal' },
+      { id: 'diff-review', label: 'Diff 审查', description: '代码 Diff 审查', icon: SubIcons['diff-review'], type: 'modal' },
     ],
   },
   {
@@ -370,7 +370,7 @@ export const DOCK_GROUPS: DockGroupConfig[] = [
     label: '安全审计',
     icon: GroupIcons.security,
     items: [
-      { id: 'audit-log', label: '审计日志', description: '操作审计日志', icon: SubIcons['audit-log'], type: 'inline' },
+      { id: 'audit-log', label: '审计日志', description: '操作审计日志', icon: SubIcons['audit-log'], type: 'drawer' },
     ],
   },
   {
