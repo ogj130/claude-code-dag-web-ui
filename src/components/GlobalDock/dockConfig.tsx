@@ -305,6 +305,15 @@ const SubIcons: Record<string, React.ReactNode> = {
       <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
     </svg>
   ),
+  guide: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      <line x1="8" y1="7" x2="16" y2="7"/>
+      <line x1="8" y1="11" x2="11" y2="11"/>
+    </svg>
+  ),
 };
 
 export const DOCK_GROUPS: DockGroupConfig[] = [
@@ -384,6 +393,7 @@ export const DOCK_GROUPS: DockGroupConfig[] = [
       { id: 'compaction', label: '上下文压缩', description: '上下文压缩管理', icon: SubIcons.compaction, type: 'modal' },
       { id: 'search', label: '搜索', description: '全局搜索', icon: SubIcons.search, type: 'modal' },
       { id: 'settings', label: '设置', description: '应用设置', icon: SubIcons.settings, type: 'modal' },
+      { id: 'guide', label: '使用指南', description: '完整功能使用指南', icon: SubIcons.guide, type: 'modal' },
     ],
   },
 ];

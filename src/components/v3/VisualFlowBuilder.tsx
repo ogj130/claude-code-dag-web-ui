@@ -26,6 +26,7 @@ import {
   type FlowEdge,
   type Flow,
 } from './FlowTypes';
+import { getAllTasks, createTask } from '../../services/agentOrchestrator';
 
 // ── 工具函数 ────────────────────────────────────────────────
 
@@ -415,6 +416,16 @@ const BUILTIN_TEMPLATES: { id: string; name: string; description: string; flow: 
   },
 ];
 
+// ── 空画布 ─────────────────────────────────────────────────────
+
+const EMPTY_FLOW: Flow = {
+  name: '新建流程',
+  description: '',
+  created: Date.now(),
+  nodes: [],
+  edges: [],
+};
+
 // ── 工具栏组件 ──────────────────────────────────────────────
 
 function Toolbar({
@@ -422,14 +433,17 @@ function Toolbar({
   onTemplateChange,
   onDelete,
   onReset,
+  onSave,
 }: {
   templateId: string;
   onTemplateChange: (id: string) => void;
   onDelete: () => void;
   onReset: () => void;
+  onSave: () => void;
 }) {
   const [hoverDelete, setHoverDelete] = useState(false);
   const [hoverReset, setHoverReset] = useState(false);
+  const [hoverSave, setHoverSave] = useState(false);
 
   return (
     <div style={{
@@ -463,6 +477,7 @@ function Toolbar({
             fontFamily: 'inherit',
           }}
         >
+          <option value="">空白画布</option>
           {BUILTIN_TEMPLATES.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name}
@@ -471,6 +486,24 @@ function Toolbar({
         </select>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button
+          onClick={onSave}
+          style={{
+            padding: '4px 10px',
+            fontSize: 10,
+            color: hoverSave ? '#34D399' : 'rgba(52,211,153,0.6)',
+            background: hoverSave ? 'rgba(52,211,153,0.1)' : 'rgba(255,255,255,0.05)',
+            borderRadius: 4,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            border: '1px solid rgba(52,211,153,0.2)',
+            transition: 'all 0.15s ease-out',
+          }}
+          onMouseEnter={() => setHoverSave(true)}
+          onMouseLeave={() => setHoverSave(false)}
+        >
+          保存流程
+        </button>
         <button
           onClick={onDelete}
           style={{
@@ -730,8 +763,8 @@ export interface VisualFlowBuilderProps {
 
 export default function VisualFlowBuilder({ initialFlow }: VisualFlowBuilderProps) {
   // ── 状态 ──
-  const [currentFlow, setCurrentFlow] = useState<Flow>(() => initialFlow ?? BUILTIN_TEMPLATES[0].flow);
-  const [templateId, setTemplateId] = useState(BUILTIN_TEMPLATES[0].id);
+  const [currentFlow, setCurrentFlow] = useState<Flow>(() => initialFlow ?? { ...EMPTY_FLOW, created: Date.now() });
+  const [templateId, setTemplateId] = useState('');
   const [canvasOffset, setCanvasOffset] = useState({ x: 0, y: 0 });
   const [canvasScale, setCanvasScale] = useState(0.9);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -758,6 +791,14 @@ export default function VisualFlowBuilder({ initialFlow }: VisualFlowBuilderProp
   // ── 模板加载 ──
   const loadTemplate = useCallback(
     (id: string) => {
+      if (!id) {
+        // 空白画布
+        setTemplateId('');
+        setCurrentFlow({ ...EMPTY_FLOW, created: Date.now() });
+        setSelectedNodeId(null);
+        setSelectedEdgeId(null);
+        return;
+      }
       const tpl = BUILTIN_TEMPLATES.find((t) => t.id === id);
       if (!tpl) return;
       setTemplateId(id);
@@ -767,6 +808,42 @@ export default function VisualFlowBuilder({ initialFlow }: VisualFlowBuilderProp
     },
     [],
   );
+
+  // ── 从 agentOrchestrator 同步任务 ──
+  useEffect(() => {
+    try {
+      const tasks = getAllTasks();
+      if (tasks.length > 0) {
+        // 有编排任务存在，可作为可选模板提示
+        // 当前仅记录，不自动覆盖画布
+        console.log('[FlowBuilder] Orchestration tasks available:', tasks.length);
+      }
+    } catch {
+      // 默认使用空白画布
+    }
+  }, []);
+
+  // ── 保存流程到 agentOrchestrator ──
+  const handleSaveFlow = useCallback(() => {
+    try {
+      if (currentFlow.nodes.length === 0) {
+        console.warn('[FlowBuilder] Cannot save empty flow');
+        return;
+      }
+      const task = createTask(currentFlow.name || 'Flow Task', 'pipeline',
+        currentFlow.nodes.map((node) => ({
+          name: node.label,
+          role: (node.type === 'decision' ? 'reviewer' : 'worker') as 'worker' | 'reviewer',
+          taskDescription: node.config?.description ?? node.config?.command ?? node.type,
+        })),
+      );
+      console.log('[FlowBuilder] Flow saved as task:', task.id);
+      // 简短反馈
+      alert(`流程已保存为任务: ${task.name}`);
+    } catch (err) {
+      console.warn('[FlowBuilder] Failed to save flow:', err);
+    }
+  }, [currentFlow]);
 
   // ── 节点操作 ──
   const addNode = useCallback(
@@ -1100,6 +1177,7 @@ export default function VisualFlowBuilder({ initialFlow }: VisualFlowBuilderProp
         onTemplateChange={loadTemplate}
         onDelete={deleteSelected}
         onReset={resetFlow}
+        onSave={handleSaveFlow}
       />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>

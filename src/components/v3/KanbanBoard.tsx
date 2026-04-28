@@ -5,7 +5,8 @@
  * 所有样式使用内联 style + CSS 变量（本项目未安装 Tailwind CSS）。
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { getAllTasks, createTask, type OrchestrationTask } from '../../services/agentOrchestrator';
 
 // ── 类型 ────────────────────────────────────────────────────
 
@@ -48,15 +49,25 @@ interface DnDState {
   dragOverColumn: ColumnId | null;
 }
 
-// ── 初始数据 ────────────────────────────────────────────────
+// ── OrchestrationTask → TaskCard 映射 ──────────────────────────
 
-const INITIAL_TASKS: TaskCard[] = [
-  { id: 't1', title: '实现登录功能', description: 'OAuth2 + JWT', column: 'todo', priority: 'high', assignee: '哈雷酱', createdAt: Date.now() - 86400000 },
-  { id: 't2', title: '修复暗色模式', description: '图表颜色不正确', column: 'doing', priority: 'medium', createdAt: Date.now() - 43200000 },
-  { id: 't3', title: '添加单元测试', description: '覆盖率 > 80%', column: 'todo', priority: 'low', createdAt: Date.now() },
-  { id: 't4', title: '性能优化', description: '首屏加载 < 2s', column: 'review', priority: 'high', assignee: '哈雷酱', createdAt: Date.now() - 172800000 },
-  { id: 't5', title: '国际化支持', description: 'zh-CN / en-US', column: 'done', priority: 'medium', createdAt: Date.now() - 259200000 },
-];
+function mapTaskToCard(task: OrchestrationTask): TaskCard {
+  const columnMap: Record<string, ColumnId> = {
+    pending: 'todo',
+    running: 'doing',
+    review: 'review',
+    completed: 'done',
+  };
+  return {
+    id: task.id,
+    title: task.name || 'Untitled Task',
+    description: task.mode || '',
+    column: columnMap[task.status] || 'todo',
+    priority: 'medium',
+    assignee: task.agents?.[0]?.name,
+    createdAt: task.createdAt || Date.now(),
+  };
+}
 
 // ── 任务卡片 ────────────────────────────────────────────────
 
@@ -201,8 +212,35 @@ export interface KanbanBoardProps {
 }
 
 export default function KanbanBoard({}: KanbanBoardProps) {
-  const [tasks, setTasks] = useState<TaskCard[]>(INITIAL_TASKS);
+  const [tasks, setTasks] = useState<TaskCard[]>([]);
+  const [loading, setLoading] = useState(true);
   const [dndState, setDndState] = useState<DnDState>({ draggingId: null, dragOverColumn: null });
+
+  // 从 agentOrchestrator 加载任务数据
+  useEffect(() => {
+    try {
+      const orchestrationTasks = getAllTasks();
+      if (orchestrationTasks.length > 0) {
+        setTasks(orchestrationTasks.map(mapTaskToCard));
+      }
+    } catch (err) {
+      console.warn('[Kanban] Failed to load tasks:', err);
+    }
+    setLoading(false);
+  }, []);
+
+  const handleAddTask = useCallback(() => {
+    try {
+      const title = prompt('任务名称:');
+      if (!title) return;
+      const newTask = createTask(title, 'parallel', [
+        { name: 'Worker', role: 'worker', taskDescription: title },
+      ]);
+      setTasks((prev) => [...prev, mapTaskToCard(newTask)]);
+    } catch (err) {
+      console.warn('[Kanban] Failed to create task:', err);
+    }
+  }, []);
 
   const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => {
     setDndState(prev => ({ ...prev, draggingId: taskId }));
@@ -217,24 +255,109 @@ export default function KanbanBoard({}: KanbanBoardProps) {
     setDndState({ draggingId: null, dragOverColumn: null });
   }, [dndState.draggingId]);
 
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
+        color: 'var(--text-muted)',
+        fontSize: 13,
+      }}>
+        加载中...
+      </div>
+    );
+  }
+
   return (
     <div style={{
       display: 'flex',
-      gap: 12,
-      padding: 12,
+      flexDirection: 'column',
       height: '100%',
     }}>
-      {COLUMNS.map((col) => (
-        <KanbanColumn
-          key={col.id}
-          column={col}
-          tasks={tasks.filter((t) => t.column === col.id)}
-          onDrop={handleDrop}
-          onDragStart={handleDragStart}
-          dndState={dndState}
-          setDndState={setDndState}
-        />
-      ))}
+      {/* 顶部操作栏 */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '8px 12px',
+        borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
+      }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
+          任务看板
+        </span>
+        <button
+          onClick={handleAddTask}
+          style={{
+            padding: '4px 12px',
+            borderRadius: 6,
+            background: 'rgba(148, 163, 184, 0.1)',
+            color: 'var(--text-primary)',
+            border: '1px solid rgba(148, 163, 184, 0.15)',
+            cursor: 'pointer',
+            fontSize: 11,
+            fontFamily: 'inherit',
+          }}
+        >
+          + 新建任务
+        </button>
+      </div>
+
+      {/* 空状态 / 看板列 */}
+      {tasks.length === 0 ? (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flex: 1,
+          padding: 48,
+          gap: 12,
+        }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>任务看板</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>管理你的开发任务，拖拽卡片改变状态</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.8 }}>
+            1. 点击下方按钮创建第一个任务<br/>2. 拖拽任务卡片到不同列<br/>3. 双击卡片编辑详情
+          </div>
+          <button
+            onClick={handleAddTask}
+            style={{
+              marginTop: 12,
+              padding: '8px 20px',
+              borderRadius: 8,
+              background: 'var(--accent)',
+              color: 'white',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: 13,
+              fontFamily: 'inherit',
+            }}
+          >
+            创建第一个任务
+          </button>
+        </div>
+      ) : (
+        <div style={{
+          display: 'flex',
+          gap: 12,
+          padding: 12,
+          flex: 1,
+          overflow: 'hidden',
+        }}>
+          {COLUMNS.map((col) => (
+            <KanbanColumn
+              key={col.id}
+              column={col}
+              tasks={tasks.filter((t) => t.column === col.id)}
+              onDrop={handleDrop}
+              onDragStart={handleDragStart}
+              dndState={dndState}
+              setDndState={setDndState}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
