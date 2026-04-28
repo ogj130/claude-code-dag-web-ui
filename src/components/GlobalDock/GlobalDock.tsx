@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { DockItem } from './DockItem';
 import { DOCK_GROUPS } from './dockConfig';
 import { useDockStore } from '@/stores/useDockStore';
+import { useModeStore } from '@/stores/useModeStore';
 
 function getItemScale(hoveredIndex: number | null, itemIndex: number): number {
   if (hoveredIndex === null) return 1;
@@ -16,6 +17,36 @@ export function GlobalDock() {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const activeItemId = useDockStore(s => s.activeItemId);
   const openPanel = useDockStore(s => s.openPanel);
+  const mode = useModeStore(s => s.mode);
+  const visibleGroups = mode === 'guided'
+    ? DOCK_GROUPS.filter(g => g.groupId === 'core' || g.groupId === 'system')
+    : DOCK_GROUPS;
+
+  // Mouse-move event delegation: find closest button to cursor position
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    const buttons = container.querySelectorAll('[role="button"]');
+    const containerRect = container.getBoundingClientRect();
+
+    let closestIndex: number | null = null;
+    let closestDistance = Infinity;
+
+    buttons.forEach((btn, index) => {
+      const rect = btn.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const distance = Math.abs(e.clientX - centerX);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    });
+
+    setHoveredIndex(closestIndex);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredIndex(null);
+  }, []);
 
   return (
     <>
@@ -40,7 +71,8 @@ export function GlobalDock() {
         role="toolbar"
         aria-label="功能坞"
         className="dock-scroll"
-        onMouseLeave={() => setHoveredIndex(null)}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
         style={{
           height: 52,
           display: 'flex',
@@ -55,7 +87,7 @@ export function GlobalDock() {
           flexShrink: 0,
         }}
       >
-        {DOCK_GROUPS.map((group, groupIdx) => (
+        {visibleGroups.map((group, groupIdx) => (
           <React.Fragment key={group.groupId}>
             {groupIdx > 0 && (
               <div
@@ -76,8 +108,6 @@ export function GlobalDock() {
               isHovered={hoveredIndex === groupIdx}
               isActive={activeItemId === group.groupId}
               onClick={() => openPanel(group.groupId)}
-              onMouseEnter={() => setHoveredIndex(groupIdx)}
-              onMouseLeave={() => setHoveredIndex(null)}
             />
           </React.Fragment>
         ))}
