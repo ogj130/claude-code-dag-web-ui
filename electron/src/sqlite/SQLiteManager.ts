@@ -422,6 +422,37 @@ export function closeAllDatabases(): void {
 }
 
 /**
+ * 更新 episode 内容/标签/状态
+ */
+export function updateEpisode(
+  db: Database.Database,
+  id: string,
+  updates: { content?: string; tags?: string; status?: string }
+): void {
+  const sets: string[] = [];
+  const params: Record<string, unknown> = { id };
+
+  if (updates.content !== undefined) {
+    sets.push('content = @content');
+    params.content = updates.content;
+  }
+  if (updates.tags !== undefined) {
+    sets.push('tags = @tags');
+    params.tags = updates.tags;
+  }
+  if (updates.status !== undefined) {
+    sets.push('status = @status');
+    params.status = updates.status;
+  }
+
+  if (sets.length === 0) return;
+
+  sets.push('updated_at = unixepoch()');
+  const stmt = db.prepare(`UPDATE episodes SET ${sets.join(', ')} WHERE id = @id`);
+  stmt.run(params);
+}
+
+/**
  * 检查 SQLite 是否可用（降级方案判断）
  */
 export function isSQLiteAvailable(): boolean {

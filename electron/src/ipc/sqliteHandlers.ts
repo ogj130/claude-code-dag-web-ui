@@ -11,6 +11,7 @@ import {
   initAllSchemas,
   closeAllDatabases,
   isSQLiteAvailable,
+  updateEpisode,
   DB_NAMES,
   type DatabaseName,
 } from '../sqlite/SQLiteManager.js';
@@ -142,6 +143,21 @@ export function registerSQLiteHandlers(): void {
       UPDATE episodes SET is_deleted = 1, deleted_at = unixepoch(), updated_at = unixepoch()
       WHERE id = ?
     `).run(params.id);
+    return { success: true };
+  });
+
+  ipcMain.handle('sqlite:episodes:update', (_event, params: {
+    id: string;
+    content?: string;
+    tags?: string;
+    status?: string;
+  }) => {
+    const db = getDatabase(DB_NAMES.MEMORY);
+    updateEpisode(db, params.id, {
+      content: params.content,
+      tags: params.tags,
+      status: params.status,
+    });
     return { success: true };
   });
 
@@ -442,7 +458,7 @@ export function registerSQLiteHandlers(): void {
 export function unregisterSQLiteHandlers(): void {
   const channels = [
     'sqlite:isAvailable', 'sqlite:init', 'sqlite:close',
-    'sqlite:episodes:list', 'sqlite:episodes:create', 'sqlite:episodes:search', 'sqlite:episodes:softDelete',
+    'sqlite:episodes:list', 'sqlite:episodes:create', 'sqlite:episodes:search', 'sqlite:episodes:softDelete', 'sqlite:episodes:update',
     'sqlite:patterns:list', 'sqlite:patterns:create',
     'sqlite:entities:create', 'sqlite:relations:create', 'sqlite:graph:traverse',
     'sqlite:profile:get', 'sqlite:profile:update',

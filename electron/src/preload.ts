@@ -142,6 +142,7 @@ contextBridge.exposeInMainWorld('electron', {
       'sqlite:episodes:create',
       'sqlite:episodes:search',
       'sqlite:episodes:softDelete',
+      'sqlite:episodes:update',
       'sqlite:patterns:list',
       'sqlite:patterns:create',
       'sqlite:entities:create',

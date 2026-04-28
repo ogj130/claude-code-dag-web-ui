@@ -130,10 +130,20 @@ function extractKeywords(text: string): string[] {
  */
 export async function mergeEpisode(
   existingId: string,
-  _newContent: string,
+  newContent: string,
   newTags: string[] = []
 ): Promise<void> {
-  // TODO: 通过 IPC 更新 episode 内容（需要 SQLite UPDATE 支持）
-  // 降级策略：不合并，创建新条目
-  console.info(`[Dedup] Would merge into episode ${existingId}, tags: ${newTags.join(', ')}`);
+  try {
+    if (window.electron?.invoke) {
+      await window.electron.invoke('sqlite:episodes:update', {
+        id: existingId,
+        content: newContent,
+        tags: newTags.join(','),
+      });
+    } else {
+      console.info(`[Dedup] Electron IPC not available, cannot merge episode ${existingId}`);
+    }
+  } catch (err) {
+    console.warn(`[Dedup] Failed to merge episode ${existingId}:`, err);
+  }
 }
