@@ -3,6 +3,11 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useTaskStore } from '../../stores/useTaskStore';
 
+interface StreamingSummaryProps {
+  /** 要渲染的文本块数组（可选，不传则从 store 读取） */
+  chunks?: string[];
+}
+
 const markdownStyles: Record<string, React.CSSProperties> = {
   p: { margin: '4px 0', fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6 },
   h1: { fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: '8px 0 4px' },
@@ -49,8 +54,9 @@ const markdownStyles: Record<string, React.CSSProperties> = {
 };
 
 
-function StreamingSummaryInner() {
-  const summaryChunks = useTaskStore(s => s.summaryChunks);
+function StreamingSummaryInner({ chunks }: StreamingSummaryProps) {
+  const storeChunks = useTaskStore(s => s.summaryChunks);
+  const summaryChunks = chunks ?? storeChunks;
   const contentRef = useRef<HTMLDivElement>(null);
 
   // 流式内容：累积所有 chunks
