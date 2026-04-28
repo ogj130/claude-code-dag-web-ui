@@ -26,7 +26,11 @@ import ErrorHealingPanel from '../v3/ErrorHealingPanel';
 import AuditLogPanel from '../v3/AuditLogPanel';
 import VisualFlowBuilder from '../v3/VisualFlowBuilder';
 import FlowExecutionView from '../v3/FlowExecutionView';
+import SkillRecommendationCard from '../v3/SkillRecommendationCard';
+import SkillDetailPanel from '../v3/SkillDetailPanel';
 import type { IntentResult } from '../v3/IntentPanel';
+import { list as listSkills } from '../../services/skillStore';
+import type { Skill } from '../../services/skillStore';
 
 interface Props {
   itemId: string;
@@ -94,17 +98,9 @@ export function InlineFeatureRenderer({ itemId }: Props) {
 
     // ── 开发工具 ──
     case 'skill-rec':
-      return (
-        <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: 16 }}>
-          从终端执行任务后，Skill 推荐会在此显示
-        </div>
-      );
+      return <SkillRecInline />;
     case 'skill-detail':
-      return (
-        <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: 16 }}>
-          选择一个 Skill 以查看详情
-        </div>
-      );
+      return <SkillDetailInline />;
     case 'hook-editor':
       return <HookVisualEditor />;
     case 'hook-log':
@@ -127,6 +123,52 @@ export function InlineFeatureRenderer({ itemId }: Props) {
         </div>
       );
   }
+}
+
+/**
+ * SkillRec inline component — loads skills from skillStore and shows recommendation card
+ */
+function SkillRecInline() {
+  const [skills, setSkills] = React.useState<Skill[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    listSkills({ status: 'active', limit: 20 })
+      .then(setSkills)
+      .catch(() => setSkills([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: 16 }}>加载中...</div>;
+  }
+  if (skills.length === 0) {
+    return <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: 16 }}>暂无可用 Skill，从终端执行任务后 Skill 推荐会在此显示</div>;
+  }
+  return <SkillRecommendationCard skill={skills[0]} />;
+}
+
+/**
+ * SkillDetail inline component — shows first skill's detail
+ */
+function SkillDetailInline() {
+  const [skills, setSkills] = React.useState<Skill[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    listSkills({ status: 'active', limit: 20 })
+      .then(setSkills)
+      .catch(() => setSkills([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: 16 }}>加载中...</div>;
+  }
+  if (skills.length === 0) {
+    return <div style={{ color: 'var(--text-muted)', fontSize: 12, textAlign: 'center', padding: 16 }}>选择一个 Skill 以查看详情</div>;
+  }
+  return <SkillDetailPanel skillId={skills[0].id} />;
 }
 
 /**
