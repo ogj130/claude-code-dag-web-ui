@@ -429,12 +429,6 @@ export function App() {
         onThemeChange={(t) => setMode(t)}
         onNewSession={handleNewSession}
         onSwitchSession={handleSwitchSession}
-        onOpenThemeSettings={() => { setThemeSettingsTab('theme'); setIsThemeSettingsOpen(true); }}
-        onOpenAnalytics={() => setIsAnalyticsOpen(prev => !prev)}
-        onOpenTokenAnalytics={() => setIsTokenAnalyticsOpen(prev => !prev)}
-        onOpenRAG={() => setIsRAGOpen(prev => !prev)}
-        onOpenCompaction={() => setIsCompactionOpen(prev => !prev)}
-        onOpenGlobalTerminal={() => setIsGlobalTerminalOpen(true)}
         onSwitchModel={handleSwitchModel}
       />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>

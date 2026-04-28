@@ -26,7 +26,6 @@ export function GlobalDock() {
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const container = e.currentTarget;
     const buttons = container.querySelectorAll('[role="button"]');
-    const containerRect = container.getBoundingClientRect();
 
     let closestIndex: number | null = null;
     let closestDistance = Infinity;
@@ -108,6 +107,8 @@ export function GlobalDock() {
               isHovered={hoveredIndex === groupIdx}
               isActive={activeItemId === group.groupId}
               onClick={() => openPanel(group.groupId)}
+              onMouseEnter={() => {}}
+              onMouseLeave={() => {}}
             />
           </React.Fragment>
         ))}
