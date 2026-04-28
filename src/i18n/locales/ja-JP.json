@@ -1,0 +1,243 @@
+{
+  "app": {
+    "name": "Claude Code Web UI",
+    "version": "バージョン"
+  },
+  "mode": {
+    "guided": "ガイドモード",
+    "expert": "エキスパートモード",
+    "switch": "モード切替"
+  },
+  "nav": {
+    "home": "ホーム",
+    "workspaces": "ワークスペース",
+    "settings": "設定",
+    "memory": "メモリブラウザ",
+    "skills": "スキル管理",
+    "profile": "ユーザープロファイル",
+    "report": "学習レポート"
+  },
+  "intent": {
+    "placeholder": "何をしたいか教えてください...",
+    "parsing": "リクエストを理解中...",
+    "parsed": "リクエストを理解しました",
+    "clarify": "更多信息が必要です",
+    "confirm": "確認して実行",
+    "retry": "再解析",
+    "type": {
+      "create": "作成",
+      "fix": "修正",
+      "refactor": "リファクタ",
+      "deploy": "デプロイ",
+      "query": "検索"
+    },
+    "confidence_label": "信頼度",
+    "entities_label": "エンティティ",
+    "click_to_correct": "クリックして修正"
+  },
+  "guided": {
+    "title": "やりたいことを教えてください",
+    "subtitle": "ステップごとにお手伝いします",
+    "templates": "テンプレート",
+    "recent": "最近の使用",
+    "template": {
+      "blog": "ブログサイトを作成",
+      "fix_login": "ログインバグを修正",
+      "rest_api": "REST API を構築",
+      "refactor": "コードリファクタリング"
+    },
+    "qa": {
+      "project_type": "どのタイプのプロジェクトを作成しますか？",
+      "project_static": "静的ウェブサイト",
+      "project_dynamic": "動的 Web アプリ",
+      "project_api": "API サービス",
+      "project_cli": "CLI ツール",
+      "tech_stack": "希望の技術スタックは？",
+      "stack_react_ts": "React + TypeScript",
+      "stack_vue_ts": "Vue + TypeScript",
+      "stack_nextjs": "Next.js",
+      "stack_auto": "おすすめを提案"
+    }
+  },
+  "expert": {
+    "terminal": "ターミナル",
+    "agent_canvas": "Agent キャンバス",
+    "hooks": "フック",
+    "mcp": "MCP"
+  },
+  "memory": {
+    "episodic": "エピソード記憶",
+    "semantic": "意味記憶",
+    "working": "ワーキングメモリ",
+    "search_placeholder": "メモリを検索...",
+    "no_results": "一致するメモリが見つかりません",
+    "deleted": "削除済み（30日以内に復元可能）",
+    "entries_count": "エントリ",
+    "token_usage": "トークン使用量",
+    "serialize": "シリアライズ",
+    "clear_all": "すべてクリア",
+    "need_compression": "圧縮が必要",
+    "type": {
+      "context": "コンテキスト",
+      "instruction": "指示",
+      "constraint": "制約",
+      "reference": "参照",
+      "checkpoint": "チェックポイント"
+    },
+    "status": {
+      "critical": "危険",
+      "warning": "警告",
+      "ok": "正常",
+      "compressing": "圧縮中"
+    }
+  },
+  "profile": {
+    "title": "ユーザープロファイル",
+    "subtitle": "AIがあなたを理解していること",
+    "coding_style": "コーディングスタイル",
+    "debugging_habits": "デバッグ習慣",
+    "domain_expertise": "専門分野",
+    "skill_level": "スキルレベル",
+    "confidence": "信頼度",
+    "manual_override": "手動上書き",
+    "manual_badge": "手動",
+    "export": "プロファイル書き出し",
+    "reset": "プロファイルリセット"
+  },
+  "skills": {
+    "title": "スキル管理",
+    "recommended": "おすすめ",
+    "active": "アクティブ",
+    "archived": "アーカイブ済み",
+    "auto_generated": "自動生成",
+    "manual": "手動作成",
+    "usage_count": "使用回数",
+    "success_rate": "成功率"
+  },
+  "skill": {
+    "source": {
+      "user_created": "ユーザー作成",
+      "llm_extracted": "AI生成",
+      "imported": "インポート"
+    },
+    "status": {
+      "active": "アクティブ",
+      "deprecated": "廃止",
+      "draft": "下書き"
+    },
+    "calls": "回呼び出し",
+    "success_rate": "成功率",
+    "use": "使用"
+  },
+  "agent": {
+    "orchestration": "Agent オーケストレーション",
+    "parallel": "並列実行",
+    "pipeline": "パイプライン",
+    "debate": "ディベート",
+    "master_slave": "マスター・スレーブ",
+    "monitoring": "リアルタイムモニター",
+    "token_usage": "トークン使用量",
+    "pause": "一時停止",
+    "resume": "再開",
+    "terminate": "終了"
+  },
+  "hooks": {
+    "title": "フック自動化",
+    "create": "フック作成",
+    "enabled": "有効",
+    "disabled": "無効",
+    "logs": "実行ログ",
+    "debug": "デバッグモード"
+  },
+  "error_healing": {
+    "title": "エラー自動修復",
+    "detected": "エラー検出",
+    "matching": "修正方法を検索中...",
+    "matched": "修正方法が見つかりました",
+    "no_match": "一致するものがありません。分析中...",
+    "apply_fix": "修正を適用",
+    "healing_history": "修復履歴"
+  },
+  "error": {
+    "healing_title": "エラー自動修復",
+    "analyzing": "分析中...",
+    "find_fix": "修正方法を検索",
+    "similarity": "類似度",
+    "one_click_fix": "クイック修正",
+    "matched_fixes": "一致する修正方法",
+    "fix_success": "修正完了！エラーをエピソード記憶に記録しました。"
+  },
+  "voice": {
+    "unavailable": "音声入力は利用できません",
+    "stop_recording": "クリックして録音停止",
+    "transcribing": "文字起こし中...",
+    "start_recording": "クリックして音声入力を開始",
+    "error": "音声入力エラー",
+    "transcribe_failed": "文字起こしに失敗しました",
+    "mic_denied": "マイクへのアクセスが拒否されました"
+  },
+  "audit": {
+    "title": "セキュリティ監査",
+    "token_budget": "トークン予算",
+    "token_warning": "トークン使用量が80%に達しました。消費にご注意ください",
+    "token_paused": "トークン予算を使い切りました。操作を一時停止します",
+    "permission_level": "権限レベル",
+    "current": "現在",
+    "all_actions": "すべての操作",
+    "all_results": "すべての結果",
+    "allowed": "許可",
+    "denied": "拒否",
+    "no_logs": "監査ログがありません",
+    "action": {
+      "read": "読み取り",
+      "edit": "編集",
+      "create": "作成",
+      "delete": "削除",
+      "shell": "Shell",
+      "config": "設定",
+      "admin": "管理"
+    }
+  },
+  "report": {
+    "title": "学習レポート",
+    "monthly": "月次レポート",
+    "tasks_completed": "完了タスク",
+    "token_consumed": "トークン消費",
+    "skills_acquired": "習得スキル",
+    "error_rate": "エラー率",
+    "growth": "成長トレンド"
+  },
+  "unlock": {
+    "new_feature": "新機能アンロック",
+    "congratulations": "おめでとう！",
+    "unlock_all": "全機能をアンロック",
+    "uses_remaining": "あと{count}回の使用でアンロック"
+  },
+  "common": {
+    "save": "保存",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "edit": "編集",
+    "search": "検索",
+    "loading": "読み込み中...",
+    "no_data": "データなし",
+    "confirm": "確認",
+    "back": "戻る",
+    "next": "次へ",
+    "close": "閉じる",
+    "retry": "再試行",
+    "success": "成功",
+    "error": "エラー",
+    "warning": "警告",
+    "hide": "非表示",
+    "view": "表示",
+    "empty": "空",
+    "detail": "詳細"
+  },
+  "settings": {
+    "language": "言語",
+    "theme": "テーマ",
+    "dark": "ダーク",
+    "light": "ライト"
+  }
+}

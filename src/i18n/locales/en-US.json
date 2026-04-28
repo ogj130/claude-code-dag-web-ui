@@ -1,0 +1,243 @@
+{
+  "app": {
+    "name": "Claude Code Web UI",
+    "version": "Version"
+  },
+  "mode": {
+    "guided": "Guided Mode",
+    "expert": "Expert Mode",
+    "switch": "Switch Mode"
+  },
+  "nav": {
+    "home": "Home",
+    "workspaces": "Workspaces",
+    "settings": "Settings",
+    "memory": "Memory Browser",
+    "skills": "Skill Manager",
+    "profile": "User Profile",
+    "report": "Learning Report"
+  },
+  "intent": {
+    "placeholder": "Describe what you want to do...",
+    "parsing": "Understanding your request...",
+    "parsed": "Request understood",
+    "clarify": "Need more information",
+    "confirm": "Confirm & Execute",
+    "retry": "Re-parse",
+    "type": {
+      "create": "Create",
+      "fix": "Fix",
+      "refactor": "Refactor",
+      "deploy": "Deploy",
+      "query": "Query"
+    },
+    "confidence_label": "Confidence",
+    "entities_label": "Entities",
+    "click_to_correct": "Click to correct"
+  },
+  "guided": {
+    "title": "Tell me what you'd like to do",
+    "subtitle": "I'll help you step by step",
+    "templates": "Templates",
+    "recent": "Recent",
+    "template": {
+      "blog": "Create a blog website",
+      "fix_login": "Fix login bug",
+      "rest_api": "Build a REST API",
+      "refactor": "Code refactoring"
+    },
+    "qa": {
+      "project_type": "What type of project do you want to create?",
+      "project_static": "Static website",
+      "project_dynamic": "Dynamic web app",
+      "project_api": "API service",
+      "project_cli": "CLI tool",
+      "tech_stack": "What's your preferred tech stack?",
+      "stack_react_ts": "React + TypeScript",
+      "stack_vue_ts": "Vue + TypeScript",
+      "stack_nextjs": "Next.js",
+      "stack_auto": "Recommend for me"
+    }
+  },
+  "expert": {
+    "terminal": "Terminal",
+    "agent_canvas": "Agent Canvas",
+    "hooks": "Hooks",
+    "mcp": "MCP"
+  },
+  "memory": {
+    "episodic": "Episodic",
+    "semantic": "Semantic",
+    "working": "Working",
+    "search_placeholder": "Search memories...",
+    "no_results": "No matching memories found",
+    "deleted": "Deleted (recoverable within 30 days)",
+    "entries_count": "entries",
+    "token_usage": "Token Usage",
+    "serialize": "Serialize",
+    "clear_all": "Clear All",
+    "need_compression": "Compression needed",
+    "type": {
+      "context": "Context",
+      "instruction": "Instruction",
+      "constraint": "Constraint",
+      "reference": "Reference",
+      "checkpoint": "Checkpoint"
+    },
+    "status": {
+      "critical": "Critical",
+      "warning": "Warning",
+      "ok": "Normal",
+      "compressing": "Compressing"
+    }
+  },
+  "profile": {
+    "title": "User Profile",
+    "subtitle": "How AI understands you",
+    "coding_style": "Coding Style",
+    "debugging_habits": "Debugging Habits",
+    "domain_expertise": "Domain Expertise",
+    "skill_level": "Skill Level",
+    "confidence": "Confidence",
+    "manual_override": "Manual Override",
+    "manual_badge": "Manual",
+    "export": "Export Profile",
+    "reset": "Reset Profile"
+  },
+  "skills": {
+    "title": "Skill Manager",
+    "recommended": "Recommended",
+    "active": "Active",
+    "archived": "Archived",
+    "auto_generated": "Auto-generated",
+    "manual": "Manual",
+    "usage_count": "Usage Count",
+    "success_rate": "Success Rate"
+  },
+  "skill": {
+    "source": {
+      "user_created": "User Created",
+      "llm_extracted": "AI Generated",
+      "imported": "Imported"
+    },
+    "status": {
+      "active": "Active",
+      "deprecated": "Deprecated",
+      "draft": "Draft"
+    },
+    "calls": "calls",
+    "success_rate": "Success",
+    "use": "Use"
+  },
+  "agent": {
+    "orchestration": "Agent Orchestration",
+    "parallel": "Parallel",
+    "pipeline": "Pipeline",
+    "debate": "Debate",
+    "master_slave": "Master-Slave",
+    "monitoring": "Live Monitor",
+    "token_usage": "Token Usage",
+    "pause": "Pause",
+    "resume": "Resume",
+    "terminate": "Terminate"
+  },
+  "hooks": {
+    "title": "Hooks Automation",
+    "create": "Create Hook",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "logs": "Execution Logs",
+    "debug": "Debug Mode"
+  },
+  "error_healing": {
+    "title": "Error Self-Healing",
+    "detected": "Error Detected",
+    "matching": "Searching for fix...",
+    "matched": "Fix Found",
+    "no_match": "No match found, analyzing...",
+    "apply_fix": "Apply Fix",
+    "healing_history": "Healing History"
+  },
+  "error": {
+    "healing_title": "Error Self-Healing",
+    "analyzing": "Analyzing...",
+    "find_fix": "Find Fix",
+    "similarity": "Similarity",
+    "one_click_fix": "Quick Fix",
+    "matched_fixes": "Matched Fixes",
+    "fix_success": "Fix applied! Error recorded as episodic memory."
+  },
+  "voice": {
+    "unavailable": "Voice input unavailable",
+    "stop_recording": "Click to stop recording",
+    "transcribing": "Transcribing...",
+    "start_recording": "Click to start voice input",
+    "error": "Voice input error",
+    "transcribe_failed": "Transcription failed",
+    "mic_denied": "Microphone access denied"
+  },
+  "audit": {
+    "title": "Security Audit",
+    "token_budget": "Token Budget",
+    "token_warning": "Token usage at 80%, please monitor consumption",
+    "token_paused": "Token budget exhausted, operations paused",
+    "permission_level": "Permission Level",
+    "current": "Current",
+    "all_actions": "All Actions",
+    "all_results": "All Results",
+    "allowed": "Allowed",
+    "denied": "Denied",
+    "no_logs": "No audit logs",
+    "action": {
+      "read": "Read",
+      "edit": "Edit",
+      "create": "Create",
+      "delete": "Delete",
+      "shell": "Shell",
+      "config": "Config",
+      "admin": "Admin"
+    }
+  },
+  "report": {
+    "title": "Learning Report",
+    "monthly": "Monthly Report",
+    "tasks_completed": "Tasks Completed",
+    "token_consumed": "Tokens Used",
+    "skills_acquired": "Skills Acquired",
+    "error_rate": "Error Rate",
+    "growth": "Growth Trend"
+  },
+  "unlock": {
+    "new_feature": "New Feature Unlocked",
+    "congratulations": "Congratulations!",
+    "unlock_all": "Unlock All Features",
+    "uses_remaining": "{count} more uses to unlock"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "search": "Search",
+    "loading": "Loading...",
+    "no_data": "No data",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close",
+    "retry": "Retry",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "hide": "Hide",
+    "view": "View",
+    "empty": "Empty",
+    "detail": "Detail"
+  },
+  "settings": {
+    "language": "Language",
+    "theme": "Theme",
+    "dark": "Dark",
+    "light": "Light"
+  }
+}

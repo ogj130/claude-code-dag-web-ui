@@ -1,5 +1,8 @@
 /**
- * FlexSearch 全文索引管理
+ * 全文索引管理 — SQLite FTS5 主路径 + FlexSearch 降级
+ *
+ * V3 升级：优先使用 SQLite FTS5（BM25 排序 + snippet 高亮），
+ * SQLite 不可用时降级到 FlexSearch 内存索引。
  *
  * 索引字段：
  * - id: 唯一标识
@@ -17,6 +20,7 @@ import FlexSearch from 'flexsearch';
 import { db } from './db';
 import type { DBSession, DBQuery } from '@/types/storage';
 import { decompress } from '@/utils/compression';
+import { checkSQLiteAvailable } from '@/services/sqliteFallback';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -184,7 +188,86 @@ export function removeDoc(id: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// Search
+// SQLite FTS5 Search (V3 Primary Path)
+// ---------------------------------------------------------------------------
+
+/** FTS5 搜索结果行（来自 IPC） */
+interface FTS5ResultRow {
+  id: string;
+  type: string;
+  title: string | null;
+  question: string | null;
+  answer: string | null;
+  tags: string[];
+  created_at: number;
+  session_id: string | null;
+  tool_names: string[] | null;
+  rank: number;
+  snippet_title?: string;
+  snippet_question?: string;
+  snippet_answer?: string;
+}
+
+/** 判断是否走 FTS5 路径 */
+let _useFTS5: boolean | null = null;
+
+async function shouldUseFTS5(): Promise<boolean> {
+  if (_useFTS5 !== null) return _useFTS5;
+  _useFTS5 = await checkSQLiteAvailable();
+  if (_useFTS5) {
+    console.info('[SearchIndex] Using SQLite FTS5 for search');
+  }
+  return _useFTS5;
+}
+
+/**
+ * SQLite FTS5 搜索（通过 IPC 调用主进程）
+ */
+async function searchFTS5(options: SearchOptions): Promise<SearchResult[]> {
+  const { query, dateFrom, dateTo, tags = [], type, limit = 20 } = options;
+
+  if (!query.trim()) return [];
+
+  try {
+    const result = await window.electron.invoke('sqlite:search:fts5', {
+      query: query.trim(),
+      type: type ?? null,
+      dateFrom: dateFrom ?? null,
+      dateTo: dateTo ?? null,
+      tags: tags.length > 0 ? tags : null,
+      limit,
+    }) as FTS5ResultRow[] | null;
+
+    if (!result) return [];
+
+    return result.map((row) => ({
+      doc: {
+        id: row.id,
+        type: row.type as 'session' | 'query',
+        title: row.title ?? undefined,
+        question: row.question ?? undefined,
+        answer: row.answer ?? undefined,
+        tags: row.tags,
+        createdAt: row.created_at,
+        sessionId: row.session_id ?? undefined,
+        toolNames: row.tool_names ?? undefined,
+      },
+      score: Math.abs(row.rank), // BM25 rank is negative, lower = better
+      matches: [
+        row.snippet_title && { field: 'title', value: row.snippet_title },
+        row.snippet_question && { field: 'question', value: row.snippet_question },
+        row.snippet_answer && { field: 'answer', value: row.snippet_answer },
+      ].filter(Boolean) as Array<{ field: string; value: string }>,
+    }));
+  } catch (err) {
+    console.warn('[SearchIndex] FTS5 search failed, falling back to FlexSearch:', err);
+    _useFTS5 = false;
+    return searchFlexSearch(options);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// FlexSearch Search (Fallback Path)
 // ---------------------------------------------------------------------------
 
 export interface SearchOptions {
@@ -205,12 +288,9 @@ export interface SearchOptions {
 }
 
 /**
- * 执行搜索
- * - 在多个字段中搜索关键词
- * - 支持时间范围、标签、工具类型过滤
- * - 按相关度评分排序
+ * FlexSearch 内存搜索（降级路径）
  */
-export function search(options: SearchOptions): SearchResult[] {
+function searchFlexSearch(options: SearchOptions): SearchResult[] {
   const {
     query,
     dateFrom,
@@ -281,6 +361,19 @@ export function search(options: SearchOptions): SearchResult[] {
   results.sort((a, b) => b.score - a.score);
 
   return results.slice(0, limit);
+}
+
+/**
+ * 执行搜索（V3：FTS5 优先，FlexSearch 降级）
+ *
+ * - 主路径：SQLite FTS5（BM25 排序 + snippet 高亮，< 50ms）
+ * - 降级路径：FlexSearch 内存索引（FTS5 不可用或调用失败时）
+ */
+export async function search(options: SearchOptions): Promise<SearchResult[]> {
+  if (await shouldUseFTS5()) {
+    return searchFTS5(options);
+  }
+  return searchFlexSearch(options);
 }
 
 /**

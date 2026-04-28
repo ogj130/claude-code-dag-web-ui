@@ -1,0 +1,243 @@
+{
+  "app": {
+    "name": "Claude Code Web UI",
+    "version": "版本"
+  },
+  "mode": {
+    "guided": "初级模式",
+    "expert": "专家模式",
+    "switch": "切换模式"
+  },
+  "nav": {
+    "home": "首页",
+    "workspaces": "工作区",
+    "settings": "设置",
+    "memory": "记忆浏览器",
+    "skills": "Skill 管理",
+    "profile": "用户画像",
+    "report": "学习报告"
+  },
+  "intent": {
+    "placeholder": "描述你想要做什么...",
+    "parsing": "正在理解你的需求...",
+    "parsed": "已理解你的需求",
+    "clarify": "需要更多信息",
+    "confirm": "确认执行",
+    "retry": "重新解析",
+    "type": {
+      "create": "创建",
+      "fix": "修复",
+      "refactor": "重构",
+      "deploy": "部署",
+      "query": "查询"
+    },
+    "confidence_label": "置信度",
+    "entities_label": "识别实体",
+    "click_to_correct": "点击修正"
+  },
+  "guided": {
+    "title": "告诉我你想做什么",
+    "subtitle": "我会帮你一步步完成",
+    "templates": "推荐模板",
+    "recent": "最近使用",
+    "template": {
+      "blog": "创建博客网站",
+      "fix_login": "修复登录 Bug",
+      "rest_api": "搭建 REST API",
+      "refactor": "代码重构优化"
+    },
+    "qa": {
+      "project_type": "你想创建什么类型的项目？",
+      "project_static": "静态网站",
+      "project_dynamic": "动态 Web 应用",
+      "project_api": "API 服务",
+      "project_cli": "CLI 工具",
+      "tech_stack": "你偏好的技术栈是？",
+      "stack_react_ts": "React + TypeScript",
+      "stack_vue_ts": "Vue + TypeScript",
+      "stack_nextjs": "Next.js",
+      "stack_auto": "帮我推荐"
+    }
+  },
+  "expert": {
+    "terminal": "终端",
+    "agent_canvas": "Agent 画布",
+    "hooks": "Hooks",
+    "mcp": "MCP"
+  },
+  "memory": {
+    "episodic": "情景记忆",
+    "semantic": "语义记忆",
+    "working": "工作记忆",
+    "search_placeholder": "搜索记忆...",
+    "no_results": "未找到匹配的记忆",
+    "deleted": "已删除（30 天内可恢复）",
+    "entries_count": "条目",
+    "token_usage": "Token 使用",
+    "serialize": "序列化",
+    "clear_all": "清空全部",
+    "need_compression": "需要压缩",
+    "type": {
+      "context": "上下文",
+      "instruction": "指令",
+      "constraint": "约束",
+      "reference": "引用",
+      "checkpoint": "检查点"
+    },
+    "status": {
+      "critical": "危险",
+      "warning": "警告",
+      "ok": "正常",
+      "compressing": "压缩中"
+    }
+  },
+  "profile": {
+    "title": "用户画像",
+    "subtitle": "AI 对你的理解",
+    "coding_style": "编码风格",
+    "debugging_habits": "调试习惯",
+    "domain_expertise": "领域专长",
+    "skill_level": "技能水平",
+    "confidence": "置信度",
+    "manual_override": "手动覆盖",
+    "manual_badge": "手动",
+    "export": "导出画像",
+    "reset": "重置画像"
+  },
+  "skills": {
+    "title": "Skill 管理",
+    "recommended": "推荐",
+    "active": "活跃",
+    "archived": "已归档",
+    "auto_generated": "自动生成",
+    "manual": "手动创建",
+    "usage_count": "使用次数",
+    "success_rate": "成功率"
+  },
+  "skill": {
+    "source": {
+      "user_created": "用户创建",
+      "llm_extracted": "AI 生成",
+      "imported": "导入"
+    },
+    "status": {
+      "active": "活跃",
+      "deprecated": "已废弃",
+      "draft": "草稿"
+    },
+    "calls": "次调用",
+    "success_rate": "成功率",
+    "use": "使用"
+  },
+  "agent": {
+    "orchestration": "Agent 编排",
+    "parallel": "并行执行",
+    "pipeline": "流水线",
+    "debate": "辩论模式",
+    "master_slave": "主从委派",
+    "monitoring": "实时监控",
+    "token_usage": "Token 消耗",
+    "pause": "暂停",
+    "resume": "继续",
+    "terminate": "终止"
+  },
+  "hooks": {
+    "title": "Hooks 自动化",
+    "create": "创建 Hook",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "logs": "执行日志",
+    "debug": "调试模式"
+  },
+  "error_healing": {
+    "title": "错误自愈",
+    "detected": "检测到错误",
+    "matching": "正在匹配修复方案...",
+    "matched": "找到修复方案",
+    "no_match": "未找到匹配方案，正在自动分析...",
+    "apply_fix": "应用修复",
+    "healing_history": "修复历史"
+  },
+  "error": {
+    "healing_title": "错误自愈",
+    "analyzing": "分析中...",
+    "find_fix": "查找修复方案",
+    "similarity": "相似度",
+    "one_click_fix": "一键修复",
+    "matched_fixes": "匹配修复方案",
+    "fix_success": "修复成功！错误已自动记录为情景记忆。"
+  },
+  "voice": {
+    "unavailable": "语音输入不可用",
+    "stop_recording": "点击停止录音",
+    "transcribing": "正在转写...",
+    "start_recording": "点击开始语音输入",
+    "error": "语音输入出错",
+    "transcribe_failed": "转写失败",
+    "mic_denied": "无法访问麦克风"
+  },
+  "audit": {
+    "title": "安全审计",
+    "token_budget": "Token 预算",
+    "token_warning": "Token 使用已达 80%，请注意控制消耗",
+    "token_paused": "Token 预算已用完，操作已暂停",
+    "permission_level": "权限等级",
+    "current": "当前",
+    "all_actions": "所有操作",
+    "all_results": "所有结果",
+    "allowed": "允许",
+    "denied": "拒绝",
+    "no_logs": "暂无审计日志",
+    "action": {
+      "read": "读取",
+      "edit": "编辑",
+      "create": "创建",
+      "delete": "删除",
+      "shell": "Shell",
+      "config": "配置",
+      "admin": "管理"
+    }
+  },
+  "report": {
+    "title": "学习报告",
+    "monthly": "月度报告",
+    "tasks_completed": "已完成任务",
+    "token_consumed": "Token 消耗",
+    "skills_acquired": "获得 Skill",
+    "error_rate": "错误率",
+    "growth": "成长趋势"
+  },
+  "unlock": {
+    "new_feature": "新功能解锁",
+    "congratulations": "恭喜！",
+    "unlock_all": "解锁全部功能",
+    "uses_remaining": "还需 {count} 次使用"
+  },
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "edit": "编辑",
+    "search": "搜索",
+    "loading": "加载中...",
+    "no_data": "暂无数据",
+    "confirm": "确认",
+    "back": "返回",
+    "next": "下一步",
+    "close": "关闭",
+    "retry": "重试",
+    "success": "成功",
+    "error": "错误",
+    "warning": "警告",
+    "hide": "隐藏",
+    "view": "查看",
+    "empty": "空",
+    "detail": "详情"
+  },
+  "settings": {
+    "language": "语言",
+    "theme": "主题",
+    "dark": "深色",
+    "light": "浅色"
+  }
+}
