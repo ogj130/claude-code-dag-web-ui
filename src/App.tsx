@@ -4,8 +4,10 @@ import { DAGCanvas } from './components/DAG/DAGCanvas';
 import { TerminalView } from './components/ToolView/TerminalView';
 import { GlobalDock } from './components/GlobalDock/GlobalDock';
 import { DockPanel } from './components/GlobalDock/DockPanel';
-import { useDockStore } from './stores/useDockStore';
-import { DOCK_GROUPS, type DockSubItem } from './components/GlobalDock/dockConfig';
+import { DockDrawer } from './components/GlobalDock/DockDrawer';
+import { DockModal } from './components/GlobalDock/DockModal';
+import { useDockStore, type DockContainerType } from './stores/useDockStore';
+import { DOCK_GROUPS } from './components/GlobalDock/dockConfig';
 import { InlineFeatureRenderer } from './components/GlobalDock/InlineFeatureRenderer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { EmptyState } from './components/EmptyState';
@@ -305,19 +307,16 @@ export function App() {
     }
   }, [activeSessionId]);
 
-  function DockPanelWrapper() {
+  function DockContainerOrchestrator() {
     const isOpen = useDockStore(s => s.isPanelOpen);
     const activeItemId = useDockStore(s => s.activeItemId);
+    const activeSubItemId = useDockStore(s => s.activeSubItemId);
+    const containerType = useDockStore(s => s.containerType);
     const closePanel = useDockStore(s => s.closePanel);
-    const [selectedSubItemId, setSelectedSubItemId] = useState<string | null>(null);
+    const openSubItem = useDockStore(s => s.openSubItem);
 
-    // Reset sub-item selection when panel opens for a different group
-    useEffect(() => {
-      setSelectedSubItemId(null);
-    }, [activeItemId]);
-
-    // Modal openers — defined here to access App's setState closures
-    const modalOpeners = {
+    // Modal openers for system tools (existing standalone modals)
+    const systemModalOpeners: Record<string, () => void> = {
       'global-terminal': () => setIsGlobalTerminalOpen(true),
       'exec-analytics': () => setIsAnalyticsOpen(prev => !prev),
       'token-stats': () => setIsTokenAnalyticsOpen(prev => !prev),
@@ -327,99 +326,114 @@ export function App() {
     };
 
     const group = DOCK_GROUPS.find(g => g.groupId === activeItemId);
-    const selectedItem = group?.items.find(i => i.id === selectedSubItemId);
+    const selectedItem = group?.items.find(i => i.id === activeSubItemId);
 
-    const handleSubItemClick = (item: DockSubItem) => {
-      if (item.type === 'modal') {
-        const opener = modalOpeners[item.id as keyof typeof modalOpeners];
-        if (opener) {
-          closePanel();
-          setTimeout(() => opener(), 150);
-        }
-      } else {
-        setSelectedSubItemId(item.id);
+    const handleSubItemClick = (item: { id: string; type: string }) => {
+      if (!activeItemId) return;
+
+      // System tools open their existing modals directly
+      if (systemModalOpeners[item.id]) {
+        closePanel();
+        setTimeout(() => systemModalOpeners[item.id](), 150);
+        return;
       }
+
+      // Other items use the 3-tier container system
+      const type = item.type as DockContainerType;
+      openSubItem(activeItemId, item.id, type);
     };
 
     const handleBackToGrid = () => {
-      setSelectedSubItemId(null);
+      if (!activeItemId) return;
+      useDockStore.getState().openPanel(activeItemId);
     };
 
-    return (
-      <DockPanel isOpen={isOpen} title={group?.label ?? ''} onClose={closePanel}>
-        {/* Back button when viewing inline content */}
-        {selectedItem && (
+    // ── Render sub-grid panel ──
+    if (isOpen && containerType === 'panel' && !activeSubItemId) {
+      return (
+        <DockPanel isOpen={isOpen} title={group?.label ?? ''} onClose={closePanel}>
+          {group && group.items.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              {group.items.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => handleSubItemClick(item)}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    justifyContent: 'center', gap: 6, padding: '12px 8px',
+                    background: 'var(--bg-card)', border: '1px solid var(--border)',
+                    borderRadius: 8, cursor: 'pointer', transition: 'background 0.15s, transform 0.15s',
+                    fontFamily: 'inherit', color: 'var(--text-primary)', height: 72,
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'var(--bg-card-hover)';
+                    e.currentTarget.style.transform = 'scale(1.02)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'var(--bg-card)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }}
+                >
+                  <span style={{ color: 'var(--accent)', display: 'flex' }}>{item.icon}</span>
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>{item.label}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.3 }}>
+                    {item.description}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
+              暂无功能
+            </div>
+          )}
+        </DockPanel>
+      );
+    }
+
+    // ── Render inline panel content ──
+    if (isOpen && containerType === 'panel' && activeSubItemId && selectedItem) {
+      return (
+        <DockPanel isOpen={isOpen} title={group?.label ?? ''} onClose={closePanel}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <button
               onClick={handleBackToGrid}
               style={{
-                display: 'flex', alignItems: 'center', gap: 4,
-                background: 'none', border: 'none', cursor: 'pointer',
-                color: 'var(--accent)', fontSize: 12, fontFamily: 'inherit',
-                padding: 0, alignSelf: 'flex-start',
+                display: 'flex', alignItems: 'center', gap: 4, background: 'none',
+                border: 'none', cursor: 'pointer', color: 'var(--accent)',
+                fontSize: 12, fontFamily: 'inherit', padding: 0, alignSelf: 'flex-start',
               }}
             >
               ← 返回 {group?.label}
             </button>
-            <div style={{
-              fontSize: 13, fontWeight: 600, color: 'var(--text-primary)',
-            }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
               {selectedItem.label}
             </div>
             <InlineFeatureRenderer itemId={selectedItem.id} />
           </div>
-        )}
+        </DockPanel>
+      );
+    }
 
-        {/* Sub-function grid (hidden when viewing inline content) */}
-        {!selectedItem && group && group.items.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {group.items.map(item => (
-              <button
-                key={item.id}
-                onClick={() => handleSubItemClick(item)}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  padding: '12px 8px',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  transition: 'background 0.15s, transform 0.15s',
-                  fontFamily: 'inherit',
-                  color: 'var(--text-primary)',
-                  height: 72,
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = 'var(--bg-card-hover)';
-                  e.currentTarget.style.transform = 'scale(1.02)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'var(--bg-card)';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
-              >
-                <span style={{ color: 'var(--accent)', display: 'flex' }}>{item.icon}</span>
-                <span style={{ fontSize: 12, fontWeight: 500 }}>{item.label}</span>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.3 }}>
-                  {item.description}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
+    // ── Render drawer content ──
+    if (isOpen && containerType === 'drawer' && activeSubItemId && selectedItem) {
+      return (
+        <DockDrawer isOpen={isOpen} title={selectedItem.label} onClose={closePanel}>
+          <InlineFeatureRenderer itemId={selectedItem.id} />
+        </DockDrawer>
+      );
+    }
 
-        {/* Empty state */}
-        {!selectedItem && (!group || group.items.length === 0) && (
-          <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
-            子功能即将上线
-          </div>
-        )}
-      </DockPanel>
-    );
+    // ── Render modal content ──
+    if (isOpen && containerType === 'modal' && activeSubItemId && selectedItem) {
+      return (
+        <DockModal isOpen={isOpen} title={selectedItem.label} onClose={closePanel}>
+          <InlineFeatureRenderer itemId={selectedItem.id} />
+        </DockModal>
+      );
+    }
+
+    return null;
   }
 
   return (
@@ -492,8 +506,8 @@ export function App() {
       />
       {/* Task 7: 全局 AI 分析触发器（挂载在 App 层，持久化，autoAnalyze=true 时在 dispatch 完成后自动触发分析） */}
       <GlobalAgentTrigger autoAnalyze={true} />
-      {/* V3.0.0: GlobalDock 面板系统 */}
-      <DockPanelWrapper />
+      {/* V3.0.0: GlobalDock 三级容器系统 */}
+      <DockContainerOrchestrator />
     </div>
   );
 }
