@@ -105,11 +105,36 @@ const previousCard = isWorkspaceView
 - `!c.workspaceId` → 无 workspaceId 的旧卡片（升级前创建）在非全局视图中也显示，避免丢失数据
 - `c.workspaceId === activeTab` → 精确匹配当前工作区
 
+### 二次修复 (c11f823)
+
+第一次修复中过滤条件 `!c.workspaceId ||` 过于宽松: 旧卡片（修复前创建，无 `workspaceId`）的 `!c.workspaceId` 为 `true`，导致它们在所有工作区视图中可见。
+
+**修正**: 移除 `!c.workspaceId ||`，仅保留精确匹配:
+```typescript
+// Before (broken): 旧卡片绕过过滤
+allMarkdownCards.filter(c => !c.workspaceId || c.workspaceId === activeTab)
+
+// After (fixed): 精确匹配，全局视图显示全部
+allMarkdownCards.filter(c => c.workspaceId === activeTab)
+```
+
+**行为矩阵**:
+
+| 视图 | 旧卡片(无 workspaceId) | ws-A 卡片 | ws-B 卡片 |
+|------|------------------------|-----------|-----------|
+| 全局 | ✅ 显示 | ✅ 显示 | ✅ 显示 |
+| 工作区A | ❌ 隐藏 | ✅ 显示 | ❌ 隐藏 |
+| 工作区B | ❌ 隐藏 | ❌ 隐藏 | ✅ 显示 |
+
 ## 验证
 
 - TypeScript 编译: 零错误
-- 测试: 46/46 通过 (含 `TerminalView.test.tsx` 和 `useTerminalWorkspaceStore.test.ts`)
-- 浏览器验证: 切换工作区 tab 后卡片正确隔离
+- 测试: 51/51 通过 (含新增 `workspaceMarkdownFilter.test.ts` 5 个测试)
+- 测试覆盖场景:
+  - 全局视图显示全部卡片（包括无 workspaceId 的旧卡片）
+  - 切换工作区后仅显示匹配卡片
+  - 无卡片的工作区显示空列表
+  - 无 workspaceTabs 时回退全局视图
 
 ## 经验教训
 
@@ -148,4 +173,5 @@ const previousCard = isWorkspaceView
 
 ## 提交
 
-`0f0d246` fix: workspace isolation — filter markdownCards and currentCard by activeTab in TerminalView
+- `0f0d246` fix: workspace isolation — filter markdownCards and currentCard by activeTab in TerminalView
+- `c11f823` fix: remove permissive !c.workspaceId filter — old cards without workspaceId now hidden in workspace-specific views
