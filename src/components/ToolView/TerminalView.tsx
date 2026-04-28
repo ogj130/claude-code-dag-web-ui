@@ -10,6 +10,7 @@ import type { RAGContextItem } from '../../hooks/useRAGContext';
 import { MarkdownCard } from './MarkdownCard';
 import { LiveCard } from './LiveCard';
 import { useHistoryRecall } from '../../hooks/useHistoryRecall';
+import { useWorkspaceFilter } from '../../hooks/useWorkspaceFilter';
 // V1.4.1: Attachment components
 import { AttachmentButton, AttachmentPreviewStrip, AttachmentDetailPanel, AttachmentPreviewModal, TerminalAttachmentSection } from '../Attachment';
 import { useFileUpload } from '../../hooks/useFileUpload';
@@ -17,6 +18,7 @@ import { useAttachmentStore, usePendingAttachments } from '../../stores/useAttac
 import type { PendingAttachment } from '../../types/attachment';
 // Task 5: Upper/lower split
 import { WorkspaceTagBar } from './WorkspaceTagBar';
+import { StatusBar } from './StatusBar';
 import { GlobalSummaryPanel } from './GlobalSummaryPanel';
 import { useTerminalWorkspaceStore } from '../../stores/useTerminalWorkspaceStore';
 import { useGlobalTerminalStore } from '../../stores/useGlobalTerminalStore';
@@ -122,27 +124,13 @@ export function TerminalView({ theme, onInput, style }: Props) {
     error,
     tokenUsage,
     pendingInputsCount = 0,
-    markdownCards: allMarkdownCards,
     processCollapsed,
     collapsedCardIds,
-    currentCard: globalCurrentCard,
-    previousCard: globalPreviousCard,
-    currentCardByWorkspace,
-    previousCardByWorkspace,
     summaryChunks,
   } = useTaskStore();
 
   // ── V3.0.0: 工作区隔离 — 非全局视图时过滤卡片 ──
-  const isWorkspaceView = activeTab !== 'global';
-  const markdownCards = isWorkspaceView
-    ? allMarkdownCards.filter(c => c.workspaceId === activeTab)
-    : allMarkdownCards;
-  const currentCard = isWorkspaceView
-    ? (currentCardByWorkspace[activeTab] ?? null)
-    : globalCurrentCard;
-  const previousCard = isWorkspaceView
-    ? (previousCardByWorkspace[activeTab] ?? null)
-    : globalPreviousCard;
+  const { markdownCards, currentCard, previousCard } = useWorkspaceFilter();
 
   // 历史召回 Hook
   const {
@@ -498,9 +486,7 @@ export function TerminalView({ theme, onInput, style }: Props) {
     }
   }, [handleSendWithAttachments]);
 
-  const totalTokens = tokenUsage.input + tokenUsage.output;
-  const statusColor = error ? 'var(--error)' : isRunning ? 'var(--success)' : 'var(--text-muted)';
-  const statusLabel = error ? '错误' : isRunning ? '运行中' : '空闲';
+  // StatusBar now handles these
 
   // Task 2.1: Color helper for global merge view workspace tags
   const WORKSPACE_COLORS = ['#4a8eff', '#2ecc71', '#f1c40f', '#e74c3c', '#9b59b6', '#1abc9c'];
@@ -522,45 +508,7 @@ export function TerminalView({ theme, onInput, style }: Props) {
 
       {/* Task 5: UpperPane — 现有终端内容 */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        {/* 顶部状态栏 */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '6px 14px',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 0,
-          borderTop: 'none',
-          fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-          fontSize: 11,
-          flexShrink: 0,
-        }}>
-        {/* 连接状态 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            width: 7, height: 7, borderRadius: '50%',
-            background: statusColor,
-            display: 'inline-block',
-            boxShadow: `0 0 5px ${statusColor}`,
-          }} />
-          <span style={{ color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.05em' }}>Claude Code</span>
-          <span style={{ color: 'var(--border)', fontSize: 10 }}>·</span>
-          <span style={{ color: 'var(--text-muted)' }}>{statusLabel}</span>
-        </div>
-        {/* Token 计数 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text-muted)' }}>
-          {tokenUsage.input > 0 && (
-            <span>In <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{tokenUsage.input.toLocaleString()}</span></span>
-          )}
-          {tokenUsage.output > 0 && (
-            <span>Out <span style={{ color: 'var(--success)', fontWeight: 600 }}>{tokenUsage.output.toLocaleString()}</span></span>
-          )}
-          {totalTokens > 0 && (
-            <span style={{ color: 'var(--text-secondary)', fontSize: 10 }}>{totalTokens.toLocaleString()} tok</span>
-          )}
-        </div>
-      </div>
+        <StatusBar isRunning={isRunning} error={error} tokenUsage={tokenUsage} />
 
       {/* 主内容区 */}
       <div style={{

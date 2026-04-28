@@ -6,8 +6,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { useTaskStore } from '../stores/useTaskStore';
-import { useTerminalWorkspaceStore } from '../stores/useTerminalWorkspaceStore';
+import { useWorkspaceFilter } from '../hooks/useWorkspaceFilter';
 import '@/styles/history-panel.css';
 
 function formatRelativeTime(timestamp: number): string {
@@ -34,23 +33,13 @@ interface Props {
 }
 
 export function HistoryPanel({ isOpen, onClose }: Props) {
-  const { markdownCards: allMarkdownCards, currentCard: globalCurrentCard, currentCardByWorkspace } = useTaskStore();
-  const activeTab = useTerminalWorkspaceStore(s => s.activeTab);
+  const { markdownCards, currentCard } = useWorkspaceFilter();
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const handleToggleExpand = useCallback((id: string) => {
     setExpandedId(prev => prev === id ? null : id);
   }, []);
-
-  // ── V3.0.0: 工作区隔离 — 非全局视图时过滤卡片 ──
-  const isWorkspaceView = activeTab !== 'global';
-  const markdownCards = isWorkspaceView
-    ? allMarkdownCards.filter(c => c.workspaceId === activeTab)
-    : allMarkdownCards;
-  const currentCard = isWorkspaceView
-    ? (currentCardByWorkspace[activeTab] ?? null)
-    : globalCurrentCard;
 
   if (!isOpen) return null;
 
