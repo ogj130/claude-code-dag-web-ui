@@ -5,7 +5,8 @@
  * 所有样式使用内联 style + CSS 变量（本项目未安装 Tailwind CSS）。
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useTaskStore } from '../../stores/useTaskStore';
 
 // ── 类型 ────────────────────────────────────────────────────
 
@@ -29,29 +30,55 @@ interface DiffFile {
   comments: DiffComment[];
 }
 
-// ── 模拟数据 ────────────────────────────────────────────────
+// ── 真实 Diff 解析 ───────────────────────────────────────────
 
-const MOCK_DIFF: DiffFile = {
-  path: 'src/services/authService.ts',
-  lines: [
-    { type: 'context', content: 'import { createClient } from "@/utils/client";', oldLine: 1, newLine: 1 },
-    { type: 'context', content: '', oldLine: 2, newLine: 2 },
-    { type: 'remove', content: 'export async function login(email: string, password: string) {', oldLine: 3 },
-    { type: 'remove', content: '  const client = createClient();', oldLine: 4 },
-    { type: 'remove', content: '  return client.post("/auth/login", { email, password });', oldLine: 5 },
-    { type: 'remove', content: '}', oldLine: 6 },
-    { type: 'add', content: 'export async function login(email: string, password: string, opts?: LoginOptions) {', newLine: 3 },
-    { type: 'add', content: '  const client = createClient();', newLine: 4 },
-    { type: 'add', content: '  const response = await client.post("/auth/login", { email, password });', newLine: 5 },
-    { type: 'add', content: '  if (opts?.rememberMe) {', newLine: 6 },
-    { type: 'add', content: '    await setPersistentToken(response.data.token);', newLine: 7 },
-    { type: 'add', content: '  }', newLine: 8 },
-    { type: 'add', content: '  return response;', newLine: 9 },
-    { type: 'add', content: '}', newLine: 10 },
-    { type: 'context', content: '', oldLine: 7, newLine: 11 },
-  ],
-  comments: [],
-};
+function parseDiffLines(content: string): DiffLine[] {
+  const result: DiffLine[] = [];
+  let oldLine = 0;
+  let newLine = 0;
+
+  for (const raw of content.split('\n')) {
+    if (raw.startsWith('@@')) {
+      const match = raw.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+      if (match) {
+        oldLine = parseInt(match[1], 10);
+        newLine = parseInt(match[2], 10);
+      }
+      continue;
+    }
+    if (raw.startsWith('+')) {
+      result.push({ type: 'add', content: raw.slice(1), newLine: newLine++ });
+    } else if (raw.startsWith('-')) {
+      result.push({ type: 'remove', content: raw.slice(1), oldLine: oldLine++ });
+    } else {
+      result.push({ type: 'context', content: raw.startsWith(' ') ? raw.slice(1) : raw, oldLine: oldLine++, newLine: newLine++ });
+    }
+  }
+  return result;
+}
+
+function useLatestDiff(): DiffFile | null {
+  const cards = useTaskStore(s => s.markdownCards);
+  const [diff, setDiff] = useState<DiffFile | null>(null);
+
+  useEffect(() => {
+    const recentCards = [...cards].reverse();
+    for (const card of recentCards) {
+      const content = card.analysis || card.summary || '';
+      if (content.includes('+++') && content.includes('---')) {
+        setDiff({
+          path: card.query || 'unknown',
+          lines: parseDiffLines(content),
+          comments: [],
+        });
+        return;
+      }
+    }
+    setDiff(null);
+  }, [cards]);
+
+  return diff;
+}
 
 // ── 行组件 ──────────────────────────────────────────────────
 
@@ -243,12 +270,12 @@ export interface CodeDiffReviewerProps {
 }
 
 export default function CodeDiffReviewer({}: CodeDiffReviewerProps) {
-  const [diff] = useState(MOCK_DIFF);
+  const diff = useLatestDiff();
   const [comments, setComments] = useState<DiffComment[]>([]);
   const [commentingLine, setCommentingLine] = useState<number | null>(null);
 
-  const added = diff.lines.filter((l) => l.type === 'add').length;
-  const removed = diff.lines.filter((l) => l.type === 'remove').length;
+  const added = diff ? diff.lines.filter((l) => l.type === 'add').length : 0;
+  const removed = diff ? diff.lines.filter((l) => l.type === 'remove').length : 0;
 
   const handleAddComment = useCallback((line: number, text: string) => {
     setComments((prev) => [
@@ -257,6 +284,19 @@ export default function CodeDiffReviewer({}: CodeDiffReviewerProps) {
     ]);
     setCommentingLine(null);
   }, []);
+
+  if (!diff) {
+    return (
+      <div style={{ padding: 12 }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: '#F1F5F9' }}>
+          Diff 审查
+        </h3>
+        <div style={{ textAlign: 'center', color: '#64748B', fontSize: 12, padding: '32px 0' }}>
+          暂无 diff 数据
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 12 }}>

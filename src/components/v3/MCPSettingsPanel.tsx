@@ -315,12 +315,18 @@ export interface MCPSettingsPanelProps {
   className?: string;
 }
 
+function isElectronEnv(): boolean {
+  return !!(window as unknown as { electron?: { invoke: unknown } }).electron?.invoke;
+}
+
 export default function MCPSettingsPanel({}: MCPSettingsPanelProps) {
-  const [servers, setServers] = useState<MCPServerState[]>(listServers());
-  const [allTools, setAllTools] = useState<MCPTool[]>(getAllTools());
+  const [isElectron] = useState(() => isElectronEnv());
+  const [servers, setServers] = useState<MCPServerState[]>(() => isElectronEnv() ? listServers() : []);
+  const [allTools, setAllTools] = useState<MCPTool[]>(() => isElectronEnv() ? getAllTools() : []);
   const [showAdd, setShowAdd] = useState(false);
 
   const refresh = useCallback(() => {
+    if (!isElectronEnv()) return;
     setServers(listServers());
     setAllTools(getAllTools());
   }, []);
@@ -350,6 +356,25 @@ export default function MCPSettingsPanel({}: MCPSettingsPanelProps) {
     await discoverTools(id);
     refresh();
   }, [refresh]);
+
+  if (!isElectron) {
+    return (
+      <div style={{ padding: 12 }}>
+        <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 500, color: '#CBD5E1' }}>MCP 服务器</h3>
+        <div style={{
+          textAlign: 'center',
+          color: '#64748B',
+          fontSize: 12,
+          padding: '32px 0',
+          border: '1px solid rgba(148, 163, 184, 0.12)',
+          borderRadius: 8,
+          background: 'rgba(30, 41, 59, 0.3)',
+        }}>
+          MCP 设置需要 Electron 环境
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 12 }}>

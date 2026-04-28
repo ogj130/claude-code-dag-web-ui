@@ -5,9 +5,10 @@
  * 所有样式使用内联 style + CSS 变量（本项目未安装 Tailwind CSS）。
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getConfidenceColor } from './v3DesignTokens';
+import { useTaskStore } from '../../stores/useTaskStore';
 
 // ── 类型 ────────────────────────────────────────────────────
 
@@ -34,46 +35,42 @@ interface HealingState {
   healingResult?: 'success' | 'failed';
 }
 
-// ── 模拟数据 ────────────────────────────────────────────────
+// ── 真实数据 Hook ────────────────────────────────────────────
 
-const MOCK_ERRORS: ErrorDetected[] = [
-  {
-    id: 'e1',
-    message: 'TypeError: Cannot read properties of undefined (reading "map")',
-    severity: 'error',
-    source: 'src/components/ChatList.tsx:42',
-    timestamp: Date.now() - 60000,
-  },
-  {
-    id: 'e2',
-    message: 'Module not found: Can\'t resolve \'./missingModule\'',
-    severity: 'error',
-    source: 'src/services/api.ts:5',
-    timestamp: Date.now() - 30000,
-  },
-  {
-    id: 'e3',
-    message: 'Warning: Each child in a list should have a unique "key" prop',
-    severity: 'warning',
-    source: 'src/components/TodoList.tsx:18',
-    timestamp: Date.now(),
-  },
-];
+function useRealErrors() {
+  const storeError = useTaskStore(s => s.error);
+  const toolCalls = useTaskStore(s => s.toolCalls);
+  const [errors, setErrors] = useState<ErrorDetected[]>([]);
 
-const MOCK_FIXES: MatchedFix[] = [
-  {
-    episodeId: 'ep_001',
-    similarity: 0.92,
-    fixDescription: '添加空数组默认值：items ?? []',
-    fixContent: 'const items = data?.items ?? [];',
-  },
-  {
-    episodeId: 'ep_002',
-    similarity: 0.85,
-    fixDescription: '使用 optional chaining：data?.items?.map()',
-    fixContent: 'const rendered = data?.items?.map(item => <Item key={item.id} />) ?? null;',
-  },
-];
+  useEffect(() => {
+    const detected: ErrorDetected[] = [];
+    // Add store-level error if present
+    if (storeError) {
+      detected.push({
+        id: 'store_error',
+        message: storeError,
+        severity: 'error' as const,
+        source: 'Store',
+        timestamp: Date.now(),
+      });
+    }
+    // Add failed tool calls
+    for (const tc of toolCalls) {
+      if (tc.status === 'error') {
+        detected.push({
+          id: tc.id,
+          message: tc.result || `Tool ${tc.tool} failed`,
+          severity: 'error' as const,
+          source: tc.tool,
+          timestamp: tc.endTime || tc.startTime || Date.now(),
+        });
+      }
+    }
+    setErrors(detected);
+  }, [storeError, toolCalls]);
+
+  return errors;
+}
 
 // 严重度映射
 const SEVERITY_META: Record<string, { icon: string; textColor: string; bg: string; border: string }> = {
@@ -236,16 +233,17 @@ export interface ErrorHealingPanelProps {
 
 export default function ErrorHealingPanel({}: ErrorHealingPanelProps) {
   const { t } = useTranslation();
-  const [errors] = useState(MOCK_ERRORS);
+  const errors = useRealErrors();
   const [healing, setHealing] = useState<HealingState | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const handleAnalyze = useCallback((error: ErrorDetected) => {
     setIsAnalyzing(true);
+    // Real episode matching needs episodeDedup service (TODO)
     setTimeout(() => {
       setHealing({
         error,
-        matchedFixes: MOCK_FIXES,
+        matchedFixes: [],
         isHealing: false,
       });
       setIsAnalyzing(false);
@@ -273,14 +271,20 @@ export default function ErrorHealingPanel({}: ErrorHealingPanelProps) {
 
       {/* 错误列表 */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-        {errors.map((error) => (
-          <ErrorCard
-            key={error.id}
-            error={error}
-            isAnalyzing={isAnalyzing}
-            onAnalyze={() => handleAnalyze(error)}
-          />
-        ))}
+        {errors.length === 0 ? (
+          <div style={{ textAlign: 'center', color: '#64748B', fontSize: 12, padding: '24px 0' }}>
+            {t('error.no_errors', '当前无检测到的错误')}
+          </div>
+        ) : (
+          errors.map((error) => (
+            <ErrorCard
+              key={error.id}
+              error={error}
+              isAnalyzing={isAnalyzing}
+              onAnalyze={() => handleAnalyze(error)}
+            />
+          ))
+        )}
       </div>
 
       {/* 修复方案 */}
