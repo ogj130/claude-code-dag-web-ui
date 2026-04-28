@@ -122,13 +122,27 @@ export function TerminalView({ theme, onInput, style }: Props) {
     error,
     tokenUsage,
     pendingInputsCount = 0,
-    markdownCards,
+    markdownCards: allMarkdownCards,
     processCollapsed,
     collapsedCardIds,
-    currentCard,
-    previousCard,
+    currentCard: globalCurrentCard,
+    previousCard: globalPreviousCard,
+    currentCardByWorkspace,
+    previousCardByWorkspace,
     summaryChunks,
   } = useTaskStore();
+
+  // ── V3.0.0: 工作区隔离 — 非全局视图时过滤卡片 ──
+  const isWorkspaceView = activeTab !== 'global' && workspaceTabs.length > 0;
+  const markdownCards = isWorkspaceView
+    ? allMarkdownCards.filter(c => !c.workspaceId || c.workspaceId === activeTab)
+    : allMarkdownCards;
+  const currentCard = isWorkspaceView
+    ? (currentCardByWorkspace[activeTab] ?? null)
+    : globalCurrentCard;
+  const previousCard = isWorkspaceView
+    ? (previousCardByWorkspace[activeTab] ?? null)
+    : globalPreviousCard;
 
   // 历史召回 Hook
   const {

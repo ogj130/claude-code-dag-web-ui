@@ -21,6 +21,7 @@ export interface MarkdownCardData {
   tokenUsage?: number;  // 单次查询 Token 消耗
   ragChunks?: RAGChunk[]; // 历史召回的 RAG chunks
   attachments?: PendingAttachmentData[]; // V1.4.1: 附件列表
+  workspaceId?: string;  // V3.0.0: 工作区隔离（multi-dispatch 时注入，用于 TerminalView 过滤）
 }
 
 // 进行中的问答卡片（实时更新）
@@ -817,6 +818,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
                 tokenUsage: lastTokenUsage,
                 // V1.4.1: 关联本 query 的附件（用于卡片内渲染附件图标列表）
                 attachments: get().attachmentDataByQueryId.get(event.queryId) ?? undefined,
+                workspaceId: wid,
               },
             ],
           });
@@ -861,6 +863,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
                 summary: streamedSummary || event.summary, // 流式内容优先，保证立即有内容可显示
                 completeSummary: event.summary, // 流式补完动画目标
                 tokenUsage: lastTokenUsage,
+                workspaceId: wid,
               },
             ],
           });
