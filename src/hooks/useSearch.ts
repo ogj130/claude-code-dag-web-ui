@@ -121,7 +121,7 @@ export function useSearch() {
     }
 
     setIsLoading(true);
-    debounceTimer.current = setTimeout(() => {
+    debounceTimer.current = setTimeout(async () => {
       const searchOpts: SearchOptions = {
         query: q,
         dateFrom: opts.dateRange.from,
@@ -130,7 +130,7 @@ export function useSearch() {
         toolTypes: opts.toolTypes,
         limit: 20,
       };
-      const res = search(searchOpts);
+      const res = await search(searchOpts);
       setResults(res);
       setSelectedIndex(-1);
       setIsLoading(false);

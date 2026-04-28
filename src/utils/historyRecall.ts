@@ -124,8 +124,8 @@ export interface RecallOptions {
 export async function recallHistory(options: RecallOptions): Promise<RecallResult[]> {
   const { query, dateFrom, dateTo, tags, toolTypes, limit = 20 } = options;
 
-  // 1. 使用 FlexSearch 进行关键词搜索
-  const searchResults = search({
+  // 1. 使用 FlexSearch/FTS5 进行关键词搜索
+  const searchResults = await search({
     query,
     dateFrom,
     dateTo,

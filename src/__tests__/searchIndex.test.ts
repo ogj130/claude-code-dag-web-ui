@@ -37,6 +37,11 @@ vi.mock('@/utils/compression', () => ({
   decompress: vi.fn((s: string) => s),
 }));
 
+// Mock sqliteFallback to force FlexSearch fallback path
+vi.mock('@/services/sqliteFallback', () => ({
+  checkSQLiteAvailable: vi.fn().mockResolvedValue(false),
+}));
+
 // ── Import after mocks ────────────────────────────────────────────────────────
 import {
   search,
@@ -56,48 +61,48 @@ describe('searchIndex', () => {
 
   // ── search ─────────────────────────────────────────────────────────────────
   describe('search', () => {
-    it('空查询返回空数组', () => {
-      const results = search({ query: '' });
+    it('空查询返回空数组', async () => {
+      const results = await search({ query: '' });
       expect(results).toEqual([]);
     });
 
-    it('仅空白查询返回空数组', () => {
-      const results = search({ query: '   ' });
+    it('仅空白查询返回空数组', async () => {
+      const results = await search({ query: '   ' });
       expect(results).toEqual([]);
     });
 
-    it('正常查询返回结果数组', () => {
-      const results = search({ query: 'test', limit: 10 });
+    it('正常查询返回结果数组', async () => {
+      const results = await search({ query: 'test', limit: 10 });
       expect(Array.isArray(results)).toBe(true);
     });
 
-    it('limit 参数限制结果数量', () => {
-      const results = search({ query: 'test', limit: 5 });
+    it('limit 参数限制结果数量', async () => {
+      const results = await search({ query: 'test', limit: 5 });
       expect(results).toEqual([]);
     });
 
-    it('支持 type 过滤', () => {
-      const results = search({ query: 'test', type: 'session' });
+    it('支持 type 过滤', async () => {
+      const results = await search({ query: 'test', type: 'session' });
       expect(results).toEqual([]);
     });
 
-    it('支持 tags 过滤', () => {
-      const results = search({ query: 'test', tags: ['tag1'] });
+    it('支持 tags 过滤', async () => {
+      const results = await search({ query: 'test', tags: ['tag1'] });
       expect(results).toEqual([]);
     });
 
-    it('支持 toolTypes 过滤', () => {
-      const results = search({ query: 'test', toolTypes: ['Read'] });
+    it('支持 toolTypes 过滤', async () => {
+      const results = await search({ query: 'test', toolTypes: ['Read'] });
       expect(results).toEqual([]);
     });
 
-    it('支持 dateFrom 过滤', () => {
-      const results = search({ query: 'test', dateFrom: Date.now() - 3600000 });
+    it('支持 dateFrom 过滤', async () => {
+      const results = await search({ query: 'test', dateFrom: Date.now() - 3600000 });
       expect(results).toEqual([]);
     });
 
-    it('支持 dateTo 过滤', () => {
-      const results = search({ query: 'test', dateTo: Date.now() });
+    it('支持 dateTo 过滤', async () => {
+      const results = await search({ query: 'test', dateTo: Date.now() });
       expect(results).toEqual([]);
     });
   });

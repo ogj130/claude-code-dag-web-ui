@@ -3,6 +3,7 @@
  * 支持标签页切换：主题 / Embedding
  */
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ThemeMode, AccentColor, Density, FontSize } from '../hooks/useTheme';
 import { EmbeddingConfigPanel } from './EmbeddingConfigPanel';
 import { ModelSettingsTab } from './ModelSettingsTab';
@@ -26,6 +27,14 @@ interface ThemeSettingsProps {
   onDensityChange: (d: Density) => void;
   onFontSizeChange: (s: FontSize) => void;
 }
+
+// ── 语言选项 ─────────────────────────────────────────────────────────────────
+
+const LANGUAGE_OPTIONS: { value: string; label: string; flag: string }[] = [
+  { value: 'zh-CN', label: '简体中文', flag: '🇨🇳' },
+  { value: 'en-US', label: 'English', flag: '🇺🇸' },
+  { value: 'ja-JP', label: '日本語', flag: '🇯🇵' },
+];
 
 // ── 常量 ───────────────────────────────────────────────────────────────────
 
@@ -103,9 +112,41 @@ type Tab = 'theme' | 'embedding' | 'update' | 'model';
 
 function ThemeContent(props: Omit<ThemeSettingsProps, 'isOpen' | 'onClose'>) {
   const { mode, accent, density, fontSize, onModeChange, onAccentChange, onDensityChange, onFontSizeChange } = props;
+  const { t, i18n } = useTranslation();
 
   return (
     <>
+      <OptionGroup>
+        <SectionTitle>{t('settings.language')}</SectionTitle>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {LANGUAGE_OPTIONS.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => i18n.changeLanguage(opt.value)}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                padding: '10px 8px',
+                borderRadius: 8,
+                border: i18n.language === opt.value ? '2px solid var(--accent)' : '1px solid var(--border)',
+                background: i18n.language === opt.value ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'transparent',
+                color: i18n.language === opt.value ? 'var(--accent)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontSize: 12,
+                fontFamily: 'inherit',
+              }}
+            >
+              <span style={{ fontSize: 16 }}>{opt.flag}</span>
+              <span style={{ fontWeight: i18n.language === opt.value ? 600 : 400 }}>{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      </OptionGroup>
+
       <OptionGroup>
         <SectionTitle>主题模式</SectionTitle>
         <div style={{ display: 'flex', gap: 8 }}>
