@@ -36,7 +36,6 @@ interface Props {
 export function HistoryPanel({ isOpen, onClose }: Props) {
   const { markdownCards: allMarkdownCards, currentCard: globalCurrentCard, currentCardByWorkspace } = useTaskStore();
   const activeTab = useTerminalWorkspaceStore(s => s.activeTab);
-  const workspaceTabs = useTerminalWorkspaceStore(s => s.workspaceTabs);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -45,7 +44,7 @@ export function HistoryPanel({ isOpen, onClose }: Props) {
   }, []);
 
   // ── V3.0.0: 工作区隔离 — 非全局视图时过滤卡片 ──
-  const isWorkspaceView = activeTab !== 'global' && workspaceTabs.length > 0;
+  const isWorkspaceView = activeTab !== 'global';
   const markdownCards = isWorkspaceView
     ? allMarkdownCards.filter(c => c.workspaceId === activeTab)
     : allMarkdownCards;

@@ -133,7 +133,7 @@ export function TerminalView({ theme, onInput, style }: Props) {
   } = useTaskStore();
 
   // ── V3.0.0: 工作区隔离 — 非全局视图时过滤卡片 ──
-  const isWorkspaceView = activeTab !== 'global' && workspaceTabs.length > 0;
+  const isWorkspaceView = activeTab !== 'global';
   const markdownCards = isWorkspaceView
     ? allMarkdownCards.filter(c => c.workspaceId === activeTab)
     : allMarkdownCards;

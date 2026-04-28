@@ -12,7 +12,7 @@ function filterCards(
   activeTab: string,
   workspaceTabsCount: number,
 ): MarkdownCardData[] {
-  const isWorkspaceView = activeTab !== 'global' && workspaceTabsCount > 0;
+  const isWorkspaceView = activeTab !== 'global';
   if (!isWorkspaceView) return cards;
   return cards.filter(c => c.workspaceId === activeTab);
 }
@@ -58,8 +58,10 @@ describe('workspace markdownCards filter', () => {
     expect(result).toHaveLength(0);
   });
 
-  it('无 workspaceTabs 时不进入工作区视图', () => {
+  it('静态工作区标签（无动态tabs）也进入工作区视图', () => {
     const result = filterCards(cards, 'ws-A', 0);
-    expect(result).toHaveLength(3); // 回退到全局视图
+    // 即使 workspaceTabs 为空，只要 activeTab !== 'global' 就进入过滤模式
+    expect(result).toHaveLength(1);
+    expect(result[0].workspaceId).toBe('ws-A');
   });
 });
