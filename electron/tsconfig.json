@@ -16,6 +16,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src/main.ts", "src/preload.ts", "src/types/**/*"],
+  "include": ["src/main.ts", "src/preload.ts", "src/types/**/*", "src/sqlite/**/*", "src/ipc/**/*"],
   "exclude": ["node_modules", "dist", "release", "../src/**/*"]
 }

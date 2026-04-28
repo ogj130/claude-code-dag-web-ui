@@ -22,6 +22,7 @@
     "dist": "npm run build && electron-builder"
   },
   "dependencies": {
+    "better-sqlite3": "^11.10.0",
     "electron-updater": "^6.3.9",
     "express": "^4.21.2",
     "openai": "^6.34.0",
@@ -111,7 +112,8 @@
     "asar": true,
     "asarUnpack": [
       "**/node_modules/vectordb/**/*.{node,dylib}",
-      "**/node_modules/lancedb/**/*.{node,dylib}"
+      "**/node_modules/lancedb/**/*.{node,dylib}",
+      "**/node_modules/better-sqlite3/**/*.{node,dylib,so}"
     ],
     "publish": {
       "provider": "github",

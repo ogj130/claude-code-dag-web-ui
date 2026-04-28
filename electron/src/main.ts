@@ -15,6 +15,9 @@ import * as http from 'http';
 import * as fs from 'fs';
 import * as net from 'net';
 import { WebSocketServer } from 'ws';
+import { registerSQLiteHandlers } from './ipc/sqliteHandlers.js';
+import { registerWhisperHandlers, stopWhisperSidecar } from './ipc/whisperHandlers.js';
+import { closeAllDatabases } from './sqlite/SQLiteManager.js';
 // vectordb 是 Node.js 原生模块，使用动态 import 惰性加载，避免顶层导入崩溃
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type LanceDB = any;
@@ -677,6 +680,12 @@ app.whenReady().then(async () => {
   // V1.4.0: 注册截图捕获处理器
   registerScreenshotHandlers();
 
+  // V3.0.0: 注册 SQLite IPC 处理器（better-sqlite3）
+  registerSQLiteHandlers();
+
+  // V3.0.0: 注册 Whisper.cpp sidecar IPC 处理器
+  registerWhisperHandlers();
+
   // 自动更新模块
   setupAutoUpdater();
 
@@ -692,6 +701,8 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
+  stopWhisperSidecar();
+  closeAllDatabases();
   app.quit();
 });
 
