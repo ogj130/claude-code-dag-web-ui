@@ -6,6 +6,7 @@ import { GlobalDock } from './components/GlobalDock/GlobalDock';
 import { DockPanel } from './components/GlobalDock/DockPanel';
 import { useDockStore } from './stores/useDockStore';
 import { DOCK_GROUPS, type DockSubItem } from './components/GlobalDock/dockConfig';
+import { InlineFeatureRenderer } from './components/GlobalDock/InlineFeatureRenderer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { EmptyState } from './components/EmptyState';
 import { ErrorState } from './components/ErrorState';
@@ -308,6 +309,12 @@ export function App() {
     const isOpen = useDockStore(s => s.isPanelOpen);
     const activeItemId = useDockStore(s => s.activeItemId);
     const closePanel = useDockStore(s => s.closePanel);
+    const [selectedSubItemId, setSelectedSubItemId] = useState<string | null>(null);
+
+    // Reset sub-item selection when panel opens for a different group
+    useEffect(() => {
+      setSelectedSubItemId(null);
+    }, [activeItemId]);
 
     // Modal openers — defined here to access App's setState closures
     const modalOpeners = {
@@ -320,6 +327,7 @@ export function App() {
     };
 
     const group = DOCK_GROUPS.find(g => g.groupId === activeItemId);
+    const selectedItem = group?.items.find(i => i.id === selectedSubItemId);
 
     const handleSubItemClick = (item: DockSubItem) => {
       if (item.type === 'modal') {
@@ -328,12 +336,42 @@ export function App() {
           closePanel();
           setTimeout(() => opener(), 150);
         }
+      } else {
+        setSelectedSubItemId(item.id);
       }
+    };
+
+    const handleBackToGrid = () => {
+      setSelectedSubItemId(null);
     };
 
     return (
       <DockPanel isOpen={isOpen} title={group?.label ?? ''} onClose={closePanel}>
-        {group && group.items.length > 0 ? (
+        {/* Back button when viewing inline content */}
+        {selectedItem && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <button
+              onClick={handleBackToGrid}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: 'var(--accent)', fontSize: 12, fontFamily: 'inherit',
+                padding: 0, alignSelf: 'flex-start',
+              }}
+            >
+              ← 返回 {group?.label}
+            </button>
+            <div style={{
+              fontSize: 13, fontWeight: 600, color: 'var(--text-primary)',
+            }}>
+              {selectedItem.label}
+            </div>
+            <InlineFeatureRenderer itemId={selectedItem.id} />
+          </div>
+        )}
+
+        {/* Sub-function grid (hidden when viewing inline content) */}
+        {!selectedItem && group && group.items.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             {group.items.map(item => (
               <button
@@ -372,7 +410,10 @@ export function App() {
               </button>
             ))}
           </div>
-        ) : (
+        )}
+
+        {/* Empty state */}
+        {!selectedItem && (!group || group.items.length === 0) && (
           <div style={{ color: 'var(--text-muted)', fontSize: 13, textAlign: 'center', padding: 24 }}>
             子功能即将上线
           </div>
