@@ -1,48 +1,14 @@
 import React from 'react';
 import { create } from 'zustand';
-import type { DAGNode, ToolCall as EventToolCall, TokenUsage, ClaudeEvent, RAGChunk } from '../types/events';
+import type { DAGNode, ToolCall as EventToolCall, TokenUsage, ClaudeEvent } from '../types/events';
 import { createQuery, updateQueryTokenUsage } from './queryStorage';
 import { useSessionStore } from './useSessionStore';
 import type { ToolCall as StorageToolCall } from '@/types/storage';
-import type { PendingAttachment } from '../types/attachment';
 
-// V1.4.1: Reuse PendingAttachment from attachment types (status/createdAt optional)
+// V1.4.1: Re-export types from taskTypes (single source of truth)
 export type { PendingAttachment } from '../types/attachment';
-export interface PendingAttachmentData extends PendingAttachment {}
-
-export interface MarkdownCardData {
-  id: string;
-  queryId: string;       // 该卡片关联的 query ID（用于绑定工具）
-  timestamp: number;
-  query: string;         // 用户问题
-  analysis: string;      // AI 分析过程（Markdown）
-  summary?: string;      // 最终总结（无工具调用时可能为空）
-  completeSummary?: string; // 完整总结（用于流式补完动画：summary 先显示流式内容，再动画补完到 completeSummary）
-  tokenUsage?: number;  // 单次查询 Token 消耗
-  ragChunks?: RAGChunk[]; // 历史召回的 RAG chunks
-  attachments?: PendingAttachmentData[]; // V1.4.1: 附件列表
-  workspaceId?: string;  // V3.0.0: 工作区隔离（multi-dispatch 时注入，用于 TerminalView 过滤）
-}
-
-// 进行中的问答卡片（实时更新）
-export interface CurrentCardData {
-  queryId: string;
-  query: string;       // 用户问题文本
-  timestamp: number;
-  summary?: string;    // 总结到来时追加
-  isCollapsed?: boolean;  // 是否折叠（发送新问题时，前一个进行中的卡片标记为折叠）
-  /** RAG 检索结果（来自 user_input_sent JSON payload） */
-  ragChunks?: Array<{
-    id: string;
-    content: string;
-    score: number;
-    sourceSessionId: string;
-    sourceSessionTitle: string;
-    timestamp: number;
-  }>;
-  /** V1.4.1: 附件列表 */
-  attachments?: PendingAttachmentData[];
-}
+export type { MarkdownCardData, CurrentCardData, PendingAttachmentData } from './taskTypes';
+import type { MarkdownCardData, CurrentCardData, PendingAttachmentData } from './taskTypes';
 
 interface TaskState {
   nodes: Map<string, DAGNode>;
