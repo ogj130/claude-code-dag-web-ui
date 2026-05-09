@@ -8,6 +8,7 @@ import { getCEOAgent } from '@/services/multi-agent/ceo-agent/CEOAgent';
 import { createTerminalExecutor } from '@/services/multi-agent/TerminalExecutor';
 import { CEOAgentCard, type CEOPhase } from './CEOAgentCard';
 import { LLMDecomposer } from '@/services/multi-agent/ceo-agent/LLMDecomposer';
+import { PlanConfirmModal } from '@/components/DAG/PlanConfirmModal';
 import type { AgentPlanItem } from '@/types/multi-agent/ceo-agent';
 import type { TaskResult } from '@/types/multi-agent/worker-agents';
 
@@ -78,6 +79,9 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
   const [ceoSummary, setCeoSummary] = useState<string>('');
   const [ceoCompletedCount, setCeoCompletedCount] = useState(0);
   const [ceoTotalCount, setCeoTotalCount] = useState(0);
+  const [planMode, setPlanMode] = useState<'auto' | 'confirm'>('auto');
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [pendingInput, setPendingInput] = useState('');
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || loading === 'loading') return;
@@ -88,11 +92,9 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
     abortRef.current = false;
 
     try {
-      // 多代理模式：通过 CEO Agent + LLMDecomposer 分解目标并并行执行
+      // 多代理模式：通过 CEO Agent + LLMDecomposer 分解目标并执行
       if (multiAgentMode) {
         try {
-          const ceo = getCEOAgent({ maxIterations: 3 });
-          const executor = createTerminalExecutor(workspaces);
           const decomposer = new LLMDecomposer({ llmAvailable: true });
 
           // 阶段一：规划
@@ -101,11 +103,20 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
           setCeoPlan(plan.agents);
           setCeoStrategy(plan.strategy);
           setCeoTotalCount(plan.agents.length);
+          setPendingInput(input.trim());
 
-          // 设置分解器
+          if (planMode === 'confirm') {
+            // 计划确认模式：弹出弹窗等待用户确认
+            setShowPlanModal(true);
+            setLoading('idle');
+            return;
+          }
+
+          // 自动模式：直接执行
+          const ceo = getCEOAgent({ maxIterations: 3 });
+          const executor = createTerminalExecutor(workspaces);
           ceo.setDecomposer(decomposer);
 
-          // 阶段二：执行
           setCeoPhase('executing');
           setCeoCompletedCount(0);
           setCeoTaskResults([]);
@@ -172,7 +183,71 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
     } finally {
       if (!abortRef.current) setLoading('idle');
     }
-  }, [input, createNewSession, multiAgentMode, loading, workspaces]);
+  }, [input, createNewSession, multiAgentMode, planMode, loading, workspaces]);
+
+  // CEO Agent 计划确认后的执行函数
+  const executeCEOPlan = useCallback(async (inputText: string, _agents?: AgentPlanItem[]) => {
+    setLoading('loading');
+    setShowPlanModal(false);
+    try {
+      const ceo = getCEOAgent({ maxIterations: 3 });
+      const executor = createTerminalExecutor(workspaces);
+      const decomposer = new LLMDecomposer({ llmAvailable: true });
+      ceo.setDecomposer(decomposer);
+
+      const plan = decomposer.decomposeWithRules(inputText);
+      setCeoPlan(plan.agents);
+      setCeoStrategy(plan.strategy);
+      setCeoTotalCount(plan.agents.length);
+
+      setCeoPhase('executing');
+      setCeoCompletedCount(0);
+      setCeoTaskResults([]);
+
+      const report = await ceo.processWithDecomposer(inputText, executor, {
+        onTaskStart: (taskId) => {
+          setCeoTaskResults(prev => [...prev, {
+            taskId, workerType: 'execution',
+            output: null, success: false,
+            duration: 0, skillsUsed: [], subTasks: [],
+          }]);
+        },
+        onTaskComplete: (result) => {
+          setCeoTaskResults(prev => prev.map(r =>
+            r.taskId === result.taskId ? result : r
+          ));
+          setCeoCompletedCount(prev => prev + 1);
+        },
+      });
+
+      setCeoPhase('summary');
+      setCeoSummary(report.summary);
+      setInput('');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '多代理执行失败');
+    } finally {
+      setLoading('idle');
+    }
+  }, [workspaces]);
+
+  const handlePlanConfirm = useCallback((agents: AgentPlanItem[]) => {
+    setCeoPlan(agents);
+    setCeoTotalCount(agents.length);
+    executeCEOPlan(pendingInput, agents);
+  }, [executeCEOPlan, pendingInput]);
+
+  const handlePlanCancel = useCallback(() => {
+    setShowPlanModal(false);
+    setCeoPhase('planning');
+    setCeoPlan([]);
+    setPendingInput('');
+  }, []);
+
+  const handleSaveAsTemplate = useCallback((_agents: AgentPlanItem[]) => {
+    // TODO: 保存到 V3 FlowBuilder 模板库
+    console.log('[GlobalTerminal] Save as template:', _agents);
+    setShowPlanModal(false);
+  }, []);
 
   const handleClear = useCallback(() => {
     setInput('');
@@ -261,6 +336,23 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
             多代理
           </span>
         </label>
+        {/* 计划模式切换（仅多代理模式显示） */}
+        {multiAgentMode && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, marginLeft: 8 }}>
+            <span style={{ color: 'var(--text-secondary)' }}>计划：</span>
+            <select
+              value={planMode}
+              onChange={e => setPlanMode(e.target.value as 'auto' | 'confirm')}
+              style={{
+                background: '#161b22', color: '#c9d1d9', border: '1px solid #30363d',
+                borderRadius: 4, padding: '2px 6px', fontSize: 11, cursor: 'pointer',
+              }}
+            >
+              <option value="auto">自动执行</option>
+              <option value="confirm">确认后执行</option>
+            </select>
+          </label>
+        )}
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
           {workspaces.length} 个工作区
         </span>
@@ -319,8 +411,8 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
         </div>
       )}
 
-      {/* CEO Agent 阶段卡片 */}
-      {multiAgentMode && ceoPhase !== 'planning' && (
+      {/* CEO Agent 阶段卡片 — 三阶段全部可见 */}
+      {multiAgentMode && (
         <div style={{ padding: '10px 14px 0' }}>
           <CEOAgentCard
             phase={ceoPhase}
@@ -330,6 +422,11 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
             strategy={ceoStrategy}
             completedCount={ceoCompletedCount}
             totalCount={ceoTotalCount}
+            onExecute={ceoPhase === 'planning' ? () => executeCEOPlan(pendingInput, ceoPlan) : undefined}
+            onEditPlan={ceoPhase === 'planning' ? () => {
+              setPlanMode('confirm');
+              setShowPlanModal(true);
+            } : undefined}
           />
         </div>
       )}
@@ -365,6 +462,17 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
             </div>
           ))}
         </div>
+      )}
+
+      {/* 计划确认弹窗 */}
+      {showPlanModal && (
+        <PlanConfirmModal
+          agents={ceoPlan}
+          strategy={ceoStrategy}
+          onConfirm={handlePlanConfirm}
+          onCancel={handlePlanCancel}
+          onSaveAsTemplate={handleSaveAsTemplate}
+        />
       )}
     </div>
   );

@@ -561,7 +561,7 @@ export class CEOAgent {
   }
 
   /**
-   * Inject DAG node with agent type metadata
+   * Inject DAG node — 直接写入 useTaskStore，创建 agent_group 类型节点
    */
   private async injectDAGNode(
     eventType: 'query_start' | 'result',
@@ -570,31 +570,40 @@ export class CEOAgent {
   ): Promise<void> {
     try {
       const { useTaskStore } = await import('@/stores/useTaskStore');
+      const nodeId = `agent-${goal.id}`;
 
       if (eventType === 'query_start') {
-        (useTaskStore.getState().handleEvent as (e: Record<string, unknown>) => void)({
-          type: 'query_start',
-          queryId: `agent-${goal.id}`,
-          label: `[${goal.agentName}] ${goal.description}`,
+        // 直接往 store.nodes 中插入 agent_group 类型节点
+        const currentNodes = new Map(useTaskStore.getState().nodes);
+        const newNode: import('@/types/events').DAGNode = {
+          id: nodeId,
+          type: 'agent_group',
+          label: goal.agentName,
+          status: 'running',
+          parentId: 'main-agent',
+          agentName: goal.agentName,
+          childCount: 0,
+          collapsed: false,
+          taskDescription: goal.description,
           workspaceId: '',
-        });
+          startTime: Date.now(),
+        };
+        currentNodes.set(nodeId, newNode);
+        useTaskStore.setState({ nodes: currentNodes });
       } else if (result) {
-        (useTaskStore.getState().handleEvent as (e: Record<string, unknown>) => void)({
-          type: 'result',
-          queryId: `agent-${goal.id}`,
-          content: JSON.stringify({
-            agentTask: true,
-            agentType: goal.workerType,
-            agentName: goal.agentName,
-            goalId: goal.id,
-            description: goal.description,
-            success: result.success,
-            output: result.output,
-            skillsUsed: result.skillsUsed,
-            duration: result.duration,
-          }),
-          workspaceId: '',
-        });
+        // 更新 agent_group 节点状态
+        const currentNodes = new Map(useTaskStore.getState().nodes);
+        const existing = currentNodes.get(nodeId);
+        if (existing) {
+          currentNodes.set(nodeId, {
+            ...existing,
+            status: result.success ? 'completed' : 'failed',
+            endTime: Date.now(),
+            toolMessage: result.error?.slice(0, 100),
+            childCount: result.subTasks?.length ?? 0,
+          });
+          useTaskStore.setState({ nodes: currentNodes });
+        }
       }
     } catch { /* 非浏览器环境，静默忽略 */ }
   }
