@@ -227,8 +227,8 @@ export function DAGCanvas({ style }: Props) {
       return nd.type === 'agent_group' || nd.type === 'agent';
     });
     const agentNodesSorted = [...agentNodes].sort((a, b) => {
-      const da = a.data as DAGNode;
-      const db = b.data as DAGNode;
+      const da = a.data as DAGNode & { priority?: number };
+      const db = b.data as DAGNode & { priority?: number };
       return (da.priority ?? 99) - (db.priority ?? 99);
     });
 

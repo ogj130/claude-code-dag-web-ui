@@ -19,21 +19,19 @@ import {
   SVG_SHADOW_ID,
   computeEdgePath,
   STEP_COLORS,
+  NODE_TYPE_LABELS,
   type Flow,
   type FlowNode,
   type NodeStatus,
   type NodeType,
 } from './FlowTypes';
+import { BUILTIN_TEMPLATES } from './FlowTemplates';
+import { ExecutionProgressBar } from './ExecutionProgressBar';
+import { ExecutionResultCard } from './ExecutionResultCard';
+import { ExecutionPlaybackControls } from './ExecutionPlaybackControls';
 
 // ── 工具函数 ────────────────────────────────────────────────
 
-const TYPE_LABELS: Record<NodeType, string> = {
-  task: '任务',
-  decision: '决策',
-  input: '输入',
-  output: '输出',
-  template: '模板',
-};
 
 function simulateResult(node: FlowNode): string {
   const descriptions: Record<NodeType, string[]> = {
@@ -42,86 +40,12 @@ function simulateResult(node: FlowNode): string {
     decision: ['条件检查通过', '分支判断完成'],
     template: ['模板实例化完成', '子流程执行成功'],
     output: ['输出结果已生成', '报告已写入文件'],
+    agent: ['Agent 执行完成', '子任务已派发'],
   };
   const options = descriptions[node.type] ?? ['任务完成'];
   return options[Math.floor(Math.random() * options.length)];
 }
 
-// ── 内置模板（与 VisualFlowBuilder 保持一致）────────────────
-
-const BUILTIN_TEMPLATES: { id: string; name: string; description: string; flow: Flow }[] = [
-  {
-    id: 'tpl_linear',
-    name: '线性任务流',
-    description: '简单的输入 → 分析 → 生成 → 输出流水线',
-    flow: {
-      name: '线性任务流',
-      description: '经典的四步线性流程',
-      created: Date.now(),
-      nodes: [
-        { id: 'n1', type: 'input', label: '用户输入', x: 60, y: 180, status: 'idle' },
-        { id: 'n2', type: 'task', label: '代码分析', x: 260, y: 170, status: 'idle', config: { command: 'analyze' } },
-        { id: 'n3', type: 'task', label: '代码生成', x: 500, y: 170, status: 'idle', config: { command: 'generate' } },
-        { id: 'n4', type: 'output', label: '最终输出', x: 740, y: 180, status: 'idle' },
-      ],
-      edges: [
-        { id: 'e1', source: 'n1', target: 'n2' },
-        { id: 'e2', source: 'n2', target: 'n3' },
-        { id: 'e3', source: 'n3', target: 'n4' },
-      ],
-    },
-  },
-  {
-    id: 'tpl_decision',
-    name: '条件分支流',
-    description: '包含决策节点的条件分支流程',
-    flow: {
-      name: '条件分支流',
-      description: '支持条件判断的分支流程',
-      created: Date.now(),
-      nodes: [
-        { id: 'n1', type: 'input', label: '任务输入', x: 40, y: 140, status: 'idle' },
-        { id: 'n2', type: 'task', label: '预处理', x: 220, y: 130, status: 'idle', config: { command: 'preprocess' } },
-        { id: 'n3', type: 'decision', label: '质量检查', x: 430, y: 110, status: 'idle', config: { condition: 'quality > 0.8' } },
-        { id: 'n4', type: 'task', label: '优化处理', x: 600, y: 60, status: 'idle', config: { command: 'optimize' } },
-        { id: 'n5', type: 'task', label: '错误处理', x: 600, y: 240, status: 'idle', config: { command: 'error_handle' } },
-        { id: 'n6', type: 'output', label: '成功输出', x: 820, y: 70, status: 'idle' },
-        { id: 'n7', type: 'output', label: '错误报告', x: 820, y: 250, status: 'idle' },
-      ],
-      edges: [
-        { id: 'e1', source: 'n1', target: 'n2' },
-        { id: 'e2', source: 'n2', target: 'n3' },
-        { id: 'e3', source: 'n3', target: 'n4', sourceHandle: 'true', label: 'true' },
-        { id: 'e4', source: 'n3', target: 'n5', sourceHandle: 'false', label: 'false' },
-        { id: 'e5', source: 'n4', target: 'n6' },
-        { id: 'e6', source: 'n5', target: 'n7' },
-      ],
-    },
-  },
-  {
-    id: 'tpl_pipeline',
-    name: '数据流水线',
-    description: '多阶段数据处理流水线',
-    flow: {
-      name: '数据流水线',
-      description: '采集 → 清洗 → 分析 → 汇报的四阶段数据处理流水线',
-      created: Date.now(),
-      nodes: [
-        { id: 'n1', type: 'input', label: '数据源', x: 40, y: 180, status: 'idle' },
-        { id: 'n2', type: 'template', label: '数据采集', x: 220, y: 170, status: 'idle', config: { template: 'collector' } },
-        { id: 'n3', type: 'template', label: '数据清洗', x: 440, y: 170, status: 'idle', config: { template: 'cleaner' } },
-        { id: 'n4', type: 'task', label: '统计分析', x: 660, y: 170, status: 'idle', config: { command: 'analyze_stats' } },
-        { id: 'n5', type: 'output', label: '分析报告', x: 880, y: 180, status: 'idle' },
-      ],
-      edges: [
-        { id: 'e1', source: 'n1', target: 'n2' },
-        { id: 'e2', source: 'n2', target: 'n3' },
-        { id: 'e3', source: 'n3', target: 'n4' },
-        { id: 'e4', source: 'n4', target: 'n5' },
-      ],
-    },
-  },
-];
 
 // ── 执行顺序计算 ────────────────────────────────────────────
 
@@ -191,92 +115,9 @@ function ExecNodeShape({ node, strokeColor, fillColor }: { node: FlowNode; strok
 
 // ── 进度条组件 ──────────────────────────────────────────────
 
-function ProgressBar({
-  current,
-  total,
-  statusLabel,
-}: {
-  current: number;
-  total: number;
-  statusLabel: string;
-}) {
-  const pct = total > 0 ? Math.round((current / total) * 100) : 0;
-  const barColor =
-    statusLabel === 'failed'
-      ? '#EF4444'
-      : statusLabel === 'completed'
-        ? '#22C55E'
-        : '#3B82F6';
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-      <div style={{
-        flex: 1,
-        height: 6,
-        borderRadius: 3,
-        background: 'rgba(255,255,255,0.1)',
-        overflow: 'hidden',
-      }}>
-        <div
-          style={{
-            height: '100%',
-            borderRadius: 3,
-            backgroundColor: barColor,
-            width: `${pct}%`,
-            transition: 'width 0.5s ease-out',
-          }}
-        />
-      </div>
-      <span style={{ fontSize: 10, color: '#9CA3AF', fontVariantNumeric: 'tabular-nums' }}>
-        {current}/{total} ({pct}%)
-      </span>
-    </div>
-  );
-}
 
 // ── 节点结果卡片 ────────────────────────────────────────────
 
-function ResultCard({ node, result, error }: { node: FlowNode; result?: string; error?: string }) {
-  const colors = NODE_COLORS[node.type];
-  const status = node.status ?? 'idle';
-  const sc = STEP_COLORS[status];
-
-  return (
-    <div
-      style={{
-        padding: 8,
-        borderRadius: 4,
-        border: `1px solid ${sc.stroke}30`,
-        background: sc.fill,
-        fontSize: 10,
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 8,
-      }}
-    >
-      <div
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
-          marginTop: 2,
-          flexShrink: 0,
-          background: sc.stroke,
-        }}
-      />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <span style={{ color: colors.text, fontWeight: 500 }}>
-            {node.label}
-          </span>
-          <span style={{ color: '#6B7280' }}>· {TYPE_LABELS[node.type]}</span>
-        </div>
-        {result && <div style={{ color: '#9CA3AF', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{result}</div>}
-        {error && <div style={{ color: '#F87171', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{error}</div>}
-      </div>
-    </div>
-  );
-}
 
 // ── 主组件 ──────────────────────────────────────────────────
 
@@ -399,121 +240,18 @@ export default function FlowExecutionView({ initialFlow }: FlowExecutionViewProp
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#111827' }}>
       {/* 顶部工具栏 */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '8px 16px',
-        background: 'rgba(17,24,39,0.9)',
-        borderBottom: '1px solid rgba(255,255,255,0.1)',
-        flexShrink: 0,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <h3 style={{ margin: 0, fontSize: 12, fontWeight: 600, color: '#fff' }}>执行视图</h3>
-          <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.1)' }} />
-          <label style={{ fontSize: 10, color: '#6B7280' }}>模板</label>
-          <select
-            value={templateId}
-            onChange={(e) => switchTemplate(e.target.value)}
-            style={{
-              background: '#1E293B',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 4,
-              padding: '4px 8px',
-              fontSize: 10,
-              color: '#CBD5E1',
-              outline: 'none',
-              fontFamily: 'inherit',
-            }}
-          >
-            {BUILTIN_TEMPLATES.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* 速度控制 */}
-          <label style={{ fontSize: 10, color: '#6B7280' }}>速度</label>
-          <select
-            value={speed}
-            onChange={(e) => setSpeed(Number(e.target.value))}
-            style={{
-              background: '#1E293B',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 4,
-              padding: '4px 8px',
-              fontSize: 10,
-              color: '#CBD5E1',
-              outline: 'none',
-              fontFamily: 'inherit',
-            }}
-          >
-            <option value={500}>快 (0.5s)</option>
-            <option value={1000}>正常 (1s)</option>
-            <option value={2000}>慢 (2s)</option>
-          </select>
-          <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.1)' }} />
-          <button
-            onClick={() => setIsPlaying(!isPlaying)}
-            disabled={isComplete && !hasFailed}
-            style={{
-              padding: '4px 12px',
-              fontSize: 10,
-              borderRadius: 4,
-              cursor: (isComplete && !hasFailed) ? 'not-allowed' : 'pointer',
-              fontFamily: 'inherit',
-              opacity: (isComplete && !hasFailed) ? 0.3 : 1,
-              transition: 'all 0.15s ease-out',
-              background: 'rgba(59,130,246,0.1)',
-              color: '#60A5FA',
-              border: 'none',
-            }}
-            onMouseEnter={e => { if (!(isComplete && !hasFailed)) e.currentTarget.style.background = 'rgba(59,130,246,0.2)'; }}
-            onMouseLeave={e => { if (!(isComplete && !hasFailed)) e.currentTarget.style.background = 'rgba(59,130,246,0.1)'; }}
-          >
-            {isPlaying ? '⏸ 暂停' : '▶ 播放'}
-          </button>
-          <button
-            onClick={stepForward}
-            disabled={isPlaying || isComplete}
-            style={{
-              padding: '4px 8px',
-              fontSize: 10,
-              color: isPlaying || isComplete ? 'rgba(156,163,175,0.3)' : '#9CA3AF',
-              background: isPlaying || isComplete ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.05)',
-              borderRadius: 4,
-              cursor: (isPlaying || isComplete) ? 'not-allowed' : 'pointer',
-              fontFamily: 'inherit',
-              border: 'none',
-              transition: 'all 0.15s ease-out',
-            }}
-            onMouseEnter={e => { if (!isPlaying && !isComplete) e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; }}
-            onMouseLeave={e => { if (!isPlaying && !isComplete) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-          >
-            步进
-          </button>
-          <button
-            onClick={reset}
-            style={{
-              padding: '4px 8px',
-              fontSize: 10,
-              color: '#9CA3AF',
-              background: 'rgba(255,255,255,0.05)',
-              borderRadius: 4,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              border: 'none',
-              transition: 'all 0.15s ease-out',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#CBD5E1'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#9CA3AF'; }}
-          >
-            重置
-          </button>
-        </div>
-      </div>
+      <ExecutionPlaybackControls
+        templateId={templateId}
+        onTemplateChange={switchTemplate}
+        speed={speed}
+        onSpeedChange={setSpeed}
+        isPlaying={isPlaying}
+        isComplete={isComplete}
+        hasFailed={hasFailed}
+        onPlayPause={() => setIsPlaying(!isPlaying)}
+        onStepForward={stepForward}
+        onReset={reset}
+      />
 
       {/* 主体区域 */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -652,7 +390,7 @@ export default function FlowExecutionView({ initialFlow }: FlowExecutionViewProp
                         fill="#6b7280"
                         fontSize="9"
                       >
-                        {sc.icon} {status === 'idle' ? TYPE_LABELS[node.type] : status}
+                        {sc.icon} {status === 'idle' ? NODE_TYPE_LABELS[node.type] : status}
                       </text>
 
                       {/* 结果气泡 */}
@@ -714,7 +452,7 @@ export default function FlowExecutionView({ initialFlow }: FlowExecutionViewProp
                 {isComplete ? (hasFailed ? '执行失败' : '执行完成') : isPlaying ? '执行中' : '就绪'}
               </span>
             </div>
-            <ProgressBar
+            <ExecutionProgressBar
               current={completedCount + failedCount}
               total={flow.nodes.length}
               statusLabel={isComplete ? (hasFailed ? 'failed' : 'completed') : isPlaying ? 'running' : 'pending'}
@@ -726,7 +464,7 @@ export default function FlowExecutionView({ initialFlow }: FlowExecutionViewProp
             <div style={{ padding: 12, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
               <div style={{ fontSize: 10, color: '#6B7280', marginBottom: 4 }}>当前节点</div>
               <div style={{ fontSize: 12, color: '#CBD5E1', fontWeight: 500, marginBottom: 2 }}>{currentNode.label}</div>
-              <div style={{ fontSize: 10, color: '#9CA3AF' }}>{TYPE_LABELS[currentNode.type]}</div>
+              <div style={{ fontSize: 10, color: '#9CA3AF' }}>{NODE_TYPE_LABELS[currentNode.type]}</div>
               {currentNode.config && (
                 <div style={{
                   marginTop: 8,
@@ -756,7 +494,7 @@ export default function FlowExecutionView({ initialFlow }: FlowExecutionViewProp
                 if (node.status === 'idle' || node.status === 'pending') return null;
 
                 return (
-                  <ResultCard
+                  <ExecutionResultCard
                     key={nodeId}
                     node={node}
                     result={results[nodeId]}

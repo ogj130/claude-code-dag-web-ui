@@ -199,11 +199,14 @@ export class CEOAgent {
               goal.verified = false;
             } else if (action.type === 'split') {
               action.subTasks.forEach((sub, si) => {
+                const parentGoal = goal as AgentGoal;
                 goals.push({
                   id: `${goal.id}-r${si + 1}`,
                   description: sub,
                   verified: false,
                   verificationCriteria: goal.verificationCriteria,
+                  workerType: parentGoal.workerType,
+                  agentName: parentGoal.agentName,
                 });
               });
             }
