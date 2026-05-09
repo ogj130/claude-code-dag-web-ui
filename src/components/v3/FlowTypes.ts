@@ -6,7 +6,7 @@
 
 // ── 节点类型 ────────────────────────────────────────────────
 
-export type NodeType = 'task' | 'decision' | 'input' | 'output' | 'template';
+export type NodeType = 'task' | 'decision' | 'input' | 'output' | 'template' | 'agent';
 export type NodeStatus = 'idle' | 'running' | 'completed' | 'failed' | 'pending' | 'skipped';
 
 export interface FlowNode {
@@ -22,6 +22,10 @@ export interface FlowNode {
     description?: string;
   };
   status?: NodeStatus;
+  // V3 CEO Agent 扩展:
+  agentType?: string;
+  agentDescription?: string;
+  verificationCriteria?: string[];
 }
 
 export interface FlowEdge {
@@ -79,6 +83,7 @@ export const NODE_WIDTH: Record<NodeType, number> = {
   input: 120,
   output: 120,
   template: 160,
+  agent: 180,
 };
 
 export const NODE_HEIGHT: Record<NodeType, number> = {
@@ -87,6 +92,7 @@ export const NODE_HEIGHT: Record<NodeType, number> = {
   input: 44,
   output: 44,
   template: 60,
+  agent: 64,
 };
 
 export const NODE_RADIUS: Record<NodeType, number> = {
@@ -95,6 +101,7 @@ export const NODE_RADIUS: Record<NodeType, number> = {
   input: 22,
   output: 22,
   template: 8,
+  agent: 10,
 };
 
 export function getNodePorts(node: FlowNode): { input: [number, number]; output: [number, number]; false?: [number, number]; true?: [number, number] } {
@@ -131,6 +138,17 @@ export function getNodePorts(node: FlowNode): { input: [number, number]; output:
   };
 }
 
+// ── 节点类型标签 ────────────────────────────────────────────
+
+export const NODE_TYPE_LABELS: Record<NodeType, string> = {
+  task: '任务',
+  decision: '决策',
+  input: '输入',
+  output: '输出',
+  template: '模板',
+  agent: 'Agent',
+};
+
 // ── 节点配色 ────────────────────────────────────────────────
 
 export const NODE_COLORS: Record<NodeType, { border: string; bg: string; text: string; glow: string }> = {
@@ -139,6 +157,7 @@ export const NODE_COLORS: Record<NodeType, { border: string; bg: string; text: s
   input: { border: '#10b981', bg: 'rgba(16,185,129,0.08)', text: '#6ee7b7', glow: 'rgba(16,185,129,0.4)' },
   output: { border: '#8b5cf6', bg: 'rgba(139,92,246,0.08)', text: '#c4b5fd', glow: 'rgba(139,92,246,0.4)' },
   template: { border: '#64748b', bg: 'rgba(100,116,139,0.08)', text: '#94a3b8', glow: 'rgba(100,116,139,0.4)' },
+  agent: { border: '#8b5cf6', bg: 'rgba(139,92,246,0.08)', text: '#c4b5fd', glow: 'rgba(139,92,246,0.4)' },
 };
 
 // ── 画布常量 ────────────────────────────────────────────────
