@@ -4,6 +4,12 @@ import { dispatchExecutePromptAdapter } from '@/services/globalDispatchExecutor'
 import { useMultiDispatchStore } from '@/stores/useMultiDispatchStore';
 import type { DispatchResult } from '@/types/global-dispatch';
 import type { Workspace } from '@/types/workspace';
+import { getCEOAgent } from '@/services/multi-agent/ceo-agent/CEOAgent';
+import { createTerminalExecutor } from '@/services/multi-agent/TerminalExecutor';
+import { CEOAgentCard, type CEOPhase } from './CEOAgentCard';
+import { LLMDecomposer } from '@/services/multi-agent/ceo-agent/LLMDecomposer';
+import type { AgentPlanItem } from '@/types/multi-agent/ceo-agent';
+import type { TaskResult } from '@/types/multi-agent/worker-agents';
 
 export interface GlobalTerminalProps {
   workspaces: Workspace[];
@@ -59,11 +65,19 @@ function PromptStatus({ status }: { status: 'success' | 'failed' | 'skipped' }) 
 export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
   const [input, setInput] = useState('');
   const [createNewSession, setCreateNewSession] = useState(false);
+  const [multiAgentMode, setMultiAgentMode] = useState(false);
   const [loading, setLoading] = useState<LoadingState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<WorkspaceResultEntry[] | null>(null);
   const [textareaFocused, setTextareaFocused] = useState(false);
   const abortRef = useRef<boolean>(false);
+  const [ceoPhase, setCeoPhase] = useState<CEOPhase>('planning');
+  const [ceoPlan, setCeoPlan] = useState<AgentPlanItem[]>([]);
+  const [ceoStrategy, setCeoStrategy] = useState<string>('');
+  const [ceoTaskResults, setCeoTaskResults] = useState<TaskResult[]>([]);
+  const [ceoSummary, setCeoSummary] = useState<string>('');
+  const [ceoCompletedCount, setCeoCompletedCount] = useState(0);
+  const [ceoTotalCount, setCeoTotalCount] = useState(0);
 
   const handleSend = useCallback(async () => {
     if (!input.trim() || loading === 'loading') return;
@@ -74,6 +88,58 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
     abortRef.current = false;
 
     try {
+      // 多代理模式：通过 CEO Agent + LLMDecomposer 分解目标并并行执行
+      if (multiAgentMode) {
+        try {
+          const ceo = getCEOAgent({ maxIterations: 3 });
+          const executor = createTerminalExecutor(workspaces);
+          const decomposer = new LLMDecomposer({ llmAvailable: true });
+
+          // 阶段一：规划
+          setCeoPhase('planning');
+          const plan = decomposer.decomposeWithRules(input.trim());
+          setCeoPlan(plan.agents);
+          setCeoStrategy(plan.strategy);
+          setCeoTotalCount(plan.agents.length);
+
+          // 设置分解器
+          ceo.setDecomposer(decomposer);
+
+          // 阶段二：执行
+          setCeoPhase('executing');
+          setCeoCompletedCount(0);
+          setCeoTaskResults([]);
+
+          const report = await ceo.processWithDecomposer(input.trim(), executor, {
+            onTaskStart: (taskId) => {
+              setCeoTaskResults(prev => [...prev, {
+                taskId, workerType: 'execution',
+                output: null, success: false,
+                duration: 0, skillsUsed: [], subTasks: [],
+              }]);
+            },
+            onTaskComplete: (result) => {
+              setCeoTaskResults(prev => prev.map(r =>
+                r.taskId === result.taskId ? result : r
+              ));
+              setCeoCompletedCount(prev => prev + 1);
+            },
+          });
+
+          // 阶段三：总结
+          setCeoPhase('summary');
+          setCeoSummary(report.summary);
+
+          setLoading('idle');
+          setInput('');
+        } catch (error) {
+          setError(error instanceof Error ? error.message : '多代理执行失败');
+          setLoading('idle');
+        }
+        return;
+      }
+
+      // 普通模式：使用原有的 dispatch 流程
       const result: DispatchResult = await dispatchGlobalPromptsWithDefaults({
         rawInput: input,
         createNewSession,
@@ -106,7 +172,7 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
     } finally {
       if (!abortRef.current) setLoading('idle');
     }
-  }, [input, createNewSession, loading, workspaces]);
+  }, [input, createNewSession, multiAgentMode, loading, workspaces]);
 
   const handleClear = useCallback(() => {
     setInput('');
@@ -156,7 +222,7 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
       />
 
       {/* 控制行 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' as const }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer', userSelect: 'none' as const }}>
           <input
             type="checkbox"
@@ -166,6 +232,34 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
             aria-label="新建会话"
           />
           新建会话
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', userSelect: 'none' as const }}>
+          <div
+            onClick={() => !isLoading && setMultiAgentMode(!multiAgentMode)}
+            style={{
+              position: 'relative' as const,
+              width: 36,
+              height: 20,
+              borderRadius: 10,
+              background: multiAgentMode ? 'var(--accent)' : 'var(--border)',
+              transition: 'background 0.2s',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+            }}
+          >
+            <div style={{
+              position: 'absolute' as const,
+              top: 2,
+              left: multiAgentMode ? 18 : 2,
+              width: 16,
+              height: 16,
+              borderRadius: '50%',
+              background: 'white',
+              transition: 'left 0.2s',
+            }} />
+          </div>
+          <span style={{ color: multiAgentMode ? 'var(--accent)' : 'var(--text-secondary)' }}>
+            多代理
+          </span>
         </label>
         <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
           {workspaces.length} 个工作区
@@ -222,6 +316,21 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
           borderRadius: 6, padding: '8px 12px', fontSize: 13, color: 'var(--error)',
         }}>
           {error}
+        </div>
+      )}
+
+      {/* CEO Agent 阶段卡片 */}
+      {multiAgentMode && ceoPhase !== 'planning' && (
+        <div style={{ padding: '10px 14px 0' }}>
+          <CEOAgentCard
+            phase={ceoPhase}
+            plan={ceoPlan}
+            taskResults={ceoTaskResults}
+            ceoSummary={ceoSummary}
+            strategy={ceoStrategy}
+            completedCount={ceoCompletedCount}
+            totalCount={ceoTotalCount}
+          />
         </div>
       )}
 
