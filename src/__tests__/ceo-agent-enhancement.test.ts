@@ -1,4 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import { CEOAgent } from '../services/multi-agent/ceo-agent';
+import type { WorkerExecutor, WorkerExecutorContext } from '../services/multi-agent/types';
+import type { TaskResult } from '../types/multi-agent/worker-agents';
+import type { SkillRef } from '../types/multi-agent/skill';
 import { RecoveryEngine } from '../services/multi-agent/ceo-agent/RecoveryEngine';
 
 describe('RecoveryEngine', () => {
@@ -112,5 +116,58 @@ describe('LLMDecomposer (规则引擎降级)', () => {
     const plan = await decomposerOffline.decompose('设计认证系统');
     expect(plan).toBeDefined();
     expect(plan.agents.length).toBeGreaterThan(0);
+  });
+});
+
+describe('CEOAgent with hybrid decomposition', () => {
+  const createMockExecutor = (success = true): WorkerExecutor => ({
+    execute: vi.fn().mockImplementation(async (_task: WorkerExecutorContext, _skills: SkillRef[]) => ({
+      taskId: _task.taskId, workerType: 'execution',
+      output: success ? { message: 'done' } : null,
+      success, duration: 100, skillsUsed: [], subTasks: [],
+      ...(success ? {} : { error: 'ETIMEDOUT: connection timeout' }),
+    } as TaskResult)),
+  });
+
+  it('使用规则引擎分解需求', async () => {
+    const decomposer = new LLMDecomposer({ llmAvailable: false });
+    const plan = decomposer.decomposeWithRules('设计并实现用户认证系统');
+    expect(plan.agents.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('processWithDecomposer 使用回调更新进度', async () => {
+    const ceo = new CEOAgent({ maxIterations: 2 });
+    const decomposer = new LLMDecomposer({ llmAvailable: false });
+    ceo.setDecomposer(decomposer);
+    const mockExecutor = createMockExecutor(true);
+    const onTaskStart = vi.fn();
+    const onTaskComplete = vi.fn();
+
+    const report = await ceo.processWithDecomposer('实现登录功能', mockExecutor, {
+      onTaskStart, onTaskComplete,
+    });
+
+    expect(report).toBeDefined();
+    expect(onTaskStart).toHaveBeenCalled();
+    expect(onTaskComplete).toHaveBeenCalled();
+  });
+
+  it('子任务失败 → 报告包含失败信息', async () => {
+    const ceo = new CEOAgent({ maxIterations: 2 });
+    const decomposer = new LLMDecomposer({ llmAvailable: false });
+    ceo.setDecomposer(decomposer);
+    const mockExecutor = createMockExecutor(false);
+    const report = await ceo.processWithDecomposer('修复bug', mockExecutor);
+
+    expect(report).toBeDefined();
+    expect(report.taskResults.some(r => !r.success)).toBe(true);
+  });
+
+  it('legacy process 仍然可用', async () => {
+    const ceo = new CEOAgent({ maxIterations: 1 });
+    const mockExecutor = createMockExecutor(true);
+    const report = await ceo.process('实现简单功能', mockExecutor);
+    expect(report).toBeDefined();
+    expect(report.totalIterations).toBeGreaterThanOrEqual(1);
   });
 });
