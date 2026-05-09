@@ -76,7 +76,7 @@ export function DAGCanvas({ style }: Props) {
 
   interface ModalState {
     open: boolean;
-    nodeType: 'tool' | 'summary' | 'rag';
+    nodeType: 'tool' | 'summary' | 'rag' | 'agent';
     nodeId: string;
     nodeLabel: string;
     nodeStatus?: DAGNode['status'];
@@ -102,9 +102,10 @@ export function DAGCanvas({ style }: Props) {
   const handleOpenDetail = useCallback((node: Pick<DAGNode, 'id' | 'type' | 'label' | 'status' | 'args' | 'summaryContent' | 'content' | 'score' | 'sourceSessionId' | 'sourceSessionTitle'>) => {
     const dagNode = storeNodes.get(node.id);
     const isRag = dagNode?.type === 'rag';
+    const isAgent = dagNode?.type === 'agent';
     setModal({
       open: true,
-      nodeType: isRag ? 'rag' : (node.type as 'tool' | 'summary'),
+      nodeType: isRag ? 'rag' : isAgent ? 'agent' : (node.type as 'tool' | 'summary'),
       nodeId: node.id,
       nodeLabel: node.label,
       nodeStatus: node.status,
@@ -218,6 +219,30 @@ export function DAGCanvas({ style }: Props) {
 
     // 按链布局
     let cumulativeY = 20;
+
+    // ── V3: Agent 链布局 ──────────────────────────────
+    // Agent group 节点垂直排列在 CEO 根节点下方
+    const agentNodes = filteredFlowNodes.filter(n => {
+      const nd = n.data as DAGNode;
+      return nd.type === 'agent_group' || nd.type === 'agent';
+    });
+    const agentNodesSorted = [...agentNodes].sort((a, b) => {
+      const da = a.data as DAGNode;
+      const db = b.data as DAGNode;
+      return (da.priority ?? 99) - (db.priority ?? 99);
+    });
+
+    let agentY = 120; // main-agent 下方起始 y
+    const agentGap = 24;
+    for (const agentNode of agentNodesSorted) {
+      result.push({ ...agentNode, position: { x: centerX - 80, y: agentY } });
+      agentY += 200 + agentGap; // Agent 卡片预留高度
+    }
+
+    // 调整 query 节点的起始 Y（在 agent 链之后）
+    if (agentNodesSorted.length > 0) {
+      cumulativeY = Math.max(cumulativeY, agentY);
+    }
     allQueryNodes.forEach((q) => {
       const chainY = cumulativeY + yStep;
       const summaryInChain = summaryNodes.find(s => (s.data as DAGNode).parentId === q.id);
@@ -678,7 +703,37 @@ export function DAGCanvas({ style }: Props) {
     }
   }
 
-  const allEdges = [...edges, ...extraEdges, ...groupEdges];
+  // ── V3: Agent 编排边 ────────────────────────────────
+  const agentEdges: Edge[] = [];
+  const ceoNodeId = 'main-agent';
+  const agentNodesForEdges = finalNodes.filter(
+    n => (n.data as DAGNode).type === 'agent_group' || (n.data as DAGNode).type === 'agent'
+  );
+
+  // CEO → Agent（紫色实线）
+  for (const agent of agentNodesForEdges) {
+    if (finalNodes.some(n => n.id === ceoNodeId)) {
+      agentEdges.push({
+        id: `${ceoNodeId}-${agent.id}`,
+        source: ceoNodeId,
+        target: agent.id,
+        style: { stroke: '#8b5cf6', strokeWidth: 1.5 },
+      });
+    }
+
+    // Agent → CEO Summary（粉色虚线）
+    const summaryId = 'ceo-summary';
+    if (finalNodes.some(n => n.id === summaryId)) {
+      agentEdges.push({
+        id: `${agent.id}-${summaryId}`,
+        source: agent.id,
+        target: summaryId,
+        style: { stroke: '#ec4899', strokeWidth: 1.5, strokeDasharray: '6 3' },
+      });
+    }
+  }
+
+  const allEdges = [...edges, ...extraEdges, ...groupEdges, ...agentEdges];
 
   // 4.3.1: 节点数限制警告
   const nodeCount = storeNodes.size;
