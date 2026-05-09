@@ -1,13 +1,14 @@
 /**
  * AgentGroupNode — Group Node Tests
  *
- * V2.0.0 DAG Features:
- * - Group node shows collapsed count badge
- * - Expand button expands the group
- * - Collapse button collapses the group
- * - Child nodes are rendered when expanded
- * - Group node shows aggregated status (running/completed/error)
- * - Click on group toggles expand/collapse
+ * V3.0.0 Enhanced AgentGroupNode:
+ * - Inline styles with CSS variables (no className-based CSS)
+ * - Unicode status indicators: ✓ ✗ ⏳
+ * - Agent type badge with text (context, planning, execution, review)
+ * - Collapse/expand via ▸/▾ indicators
+ * - Collapsed shows "{childCount} 个子工具"
+ * - Detail button when expanded
+ * - Handles on Top/Bottom instead of Left/Right
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -18,8 +19,8 @@ import AgentGroupNode from '@/components/DAG/AgentGroupNode';
 // ── Mock @xyflow/react handles ────────────────────────────────────────────────
 
 vi.mock('@xyflow/react', () => ({
-  Handle: ({ type, position, className }: any) => (
-    <div data-testid={`handle-${type}-${position}`} className={className} />
+  Handle: ({ type, position }: any) => (
+    <div data-testid={`handle-${type}-${position}`} />
   ),
   Position: { Left: 'Left', Right: 'Right', Top: 'Top', Bottom: 'Bottom' },
 }));
@@ -32,6 +33,7 @@ function makeData(overrides: Record<string, unknown> = {}) {
     label: 'Agent Alpha',
     status: 'pending' as const,
     agentName: 'Alpha Agent',
+    agentType: 'context',
     collapsed: false,
     childCount: 0,
     onToggleCollapse: vi.fn(),
@@ -49,7 +51,7 @@ describe('AgentGroupNode', () => {
 
   // ── Test 1: Collapsed count badge ──────────────────────────────────────────
 
-  it('shows collapsed count badge when collapsed', () => {
+  it('shows child count text when collapsed', () => {
     const data = makeData({
       collapsed: true,
       childCount: 5,
@@ -58,11 +60,11 @@ describe('AgentGroupNode', () => {
 
     render(<AgentGroupNode data={data} />);
 
-    // When collapsed, child count info should be visible
-    expect(screen.getByText('5 children')).toBeTruthy();
+    // When collapsed, shows "{childCount} 个子工具"
+    expect(screen.getByText('5 个子工具')).toBeTruthy();
   });
 
-  it('shows "No children" when collapsed with childCount=0', () => {
+  it('shows "0 个子工具" when collapsed with childCount=0', () => {
     const data = makeData({
       collapsed: true,
       childCount: 0,
@@ -70,10 +72,10 @@ describe('AgentGroupNode', () => {
     });
 
     render(<AgentGroupNode data={data} />);
-    expect(screen.getByText('No children')).toBeTruthy();
+    expect(screen.getByText('0 个子工具')).toBeTruthy();
   });
 
-  it('hides collapsed info when expanded', () => {
+  it('hides child count when expanded', () => {
     const data = makeData({
       collapsed: false,
       childCount: 3,
@@ -81,154 +83,63 @@ describe('AgentGroupNode', () => {
     });
 
     render(<AgentGroupNode data={data} />);
-    expect(screen.queryByText('3 children')).toBeNull();
+    expect(screen.queryByText('3 个子工具')).toBeNull();
   });
 
-  // ── Test 2: Expand button ────────────────────────────────────────────────────
+  // ── Test 2: Expand/collapse toggle indicators ───────────────────────────────
 
-  it('expand button (▶) is shown when collapsed', () => {
+  it('shows collapsed indicator ▸ when collapsed', () => {
     const data = makeData({ collapsed: true });
     render(<AgentGroupNode data={data} />);
 
-    // Collapsed state shows ▶
-    const toggle = screen.getByTitle('Expand');
-    expect(toggle).toBeTruthy();
-    expect(toggle).toHaveTextContent('▶');
+    expect(screen.getByText('\u25B8')).toBeTruthy();
   });
 
-  it('expand button calls onToggleCollapse with node id', () => {
+  it('shows expanded indicator ▾ when expanded', () => {
+    const data = makeData({ collapsed: false });
+    render(<AgentGroupNode data={data} />);
+
+    expect(screen.getByText('\u25BE')).toBeTruthy();
+  });
+
+  // ── Test 3: Toggle calls onToggleCollapse ──────────────────────────────────
+
+  it('clicking the header when collapsed calls onToggleCollapse with node id', () => {
     const onToggleCollapse = vi.fn();
     const data = makeData({ collapsed: true, id: 'group-abc', onToggleCollapse });
     render(<AgentGroupNode data={data} />);
 
-    fireEvent.click(screen.getByTitle('Expand'));
+    // Click the header div (parent of the ▸ indicator)
+    fireEvent.click(screen.getByText('\u25B8').parentElement!);
 
     expect(onToggleCollapse).toHaveBeenCalledTimes(1);
     expect(onToggleCollapse).toHaveBeenCalledWith('group-abc');
   });
 
-  // ── Test 3: Collapse button ─────────────────────────────────────────────────
-
-  it('collapse button (▼) is shown when expanded', () => {
-    const data = makeData({ collapsed: false });
-    render(<AgentGroupNode data={data} />);
-
-    // Expanded state shows ▼
-    const toggle = screen.getByTitle('Collapse');
-    expect(toggle).toBeTruthy();
-    expect(toggle).toHaveTextContent('▼');
-  });
-
-  it('collapse button calls onToggleCollapse with node id', () => {
+  it('clicking the header when expanded calls onToggleCollapse with node id', () => {
     const onToggleCollapse = vi.fn();
     const data = makeData({ collapsed: false, id: 'group-xyz', onToggleCollapse });
     render(<AgentGroupNode data={data} />);
 
-    fireEvent.click(screen.getByTitle('Collapse'));
+    fireEvent.click(screen.getByText('\u25BE').parentElement!);
 
     expect(onToggleCollapse).toHaveBeenCalledTimes(1);
     expect(onToggleCollapse).toHaveBeenCalledWith('group-xyz');
   });
 
-  // ── Test 4: Child nodes rendered when expanded ─────────────────────────────
+  // ── Test 4: Agent name display ──────────────────────────────────────────────
 
-  it('renders agent name when expanded', () => {
+  it('renders agent name', () => {
     const data = makeData({
-      collapsed: false,
       agentName: 'Beta Agent',
       onToggleCollapse: vi.fn(),
     });
 
     render(<AgentGroupNode data={data} />);
 
-    // Agent name should be visible when expanded
+    // Agent name should be visible (always shown in header)
     expect(screen.getByText('Beta Agent')).toBeTruthy();
   });
-
-  it('renders toolMessage truncated when collapsed', () => {
-    const data = makeData({
-      collapsed: true,
-      childCount: 2,
-      toolMessage: 'Reading file: config.yaml from project root',
-      onToggleCollapse: vi.fn(),
-    });
-
-    render(<AgentGroupNode data={data} />);
-
-    // Component truncates toolMessage > 30 chars to 30 chars + '...'
-    // Verify the activity div shows a truncated form ending with '...'
-    const activity = document.querySelector('.agent-group-activity');
-    expect(activity).toBeTruthy();
-    expect(activity!.textContent).toMatch(/^Reading.+\.\.\.$/);
-    expect(activity!.textContent!.endsWith('...')).toBe(true);
-  });
-
-  // ── Test 5: Aggregated status ───────────────────────────────────────────────
-
-  it('shows running status indicator (purple)', () => {
-    const data = makeData({ status: 'running' });
-    render(<AgentGroupNode data={data} />);
-
-    const indicator = screen.getByTitle('running');
-    expect(indicator).toBeTruthy();
-    expect(indicator).toHaveClass('status-indicator');
-    // Status color should be purple for running
-    expect(indicator).toHaveStyle({ backgroundColor: '#8B5CF6' });
-  });
-
-  it('shows completed status indicator (green)', () => {
-    const data = makeData({ status: 'completed' });
-    render(<AgentGroupNode data={data} />);
-
-    const indicator = screen.getByTitle('completed');
-    expect(indicator).toHaveStyle({ backgroundColor: '#10B981' });
-  });
-
-  it('shows failed status indicator (red)', () => {
-    const data = makeData({ status: 'failed' });
-    render(<AgentGroupNode data={data} />);
-
-    const indicator = screen.getByTitle('failed');
-    expect(indicator).toHaveStyle({ backgroundColor: '#EF4444' });
-  });
-
-  it('shows pending status indicator (gray)', () => {
-    const data = makeData({ status: 'pending' });
-    render(<AgentGroupNode data={data} />);
-
-    const indicator = screen.getByTitle('pending');
-    expect(indicator).toHaveStyle({ backgroundColor: '#94A3B8' });
-  });
-
-  // ── Test 6: Click on group toggles expand/collapse ──────────────────────────
-
-  it('clicking the collapse-toggle button calls onToggleCollapse', () => {
-    const onToggleCollapse = vi.fn();
-    const data = makeData({ id: 'toggle-test', onToggleCollapse });
-    render(<AgentGroupNode data={data} />);
-
-    // The toggle button is the collapse-toggle element
-    const toggleBtn = screen.getByRole('button');
-    fireEvent.click(toggleBtn);
-
-    expect(onToggleCollapse).toHaveBeenCalledTimes(1);
-    expect(onToggleCollapse).toHaveBeenCalledWith('toggle-test');
-  });
-
-  it('renders with selected class when selected prop is true', () => {
-    // selected is a direct prop on AgentGroupNodeProps, not inside data
-    render(<AgentGroupNode data={makeData()} selected={true} />);
-
-    expect(screen.getByTestId('agent-group-node-root')).toHaveClass('selected');
-  });
-
-  it('renders without selected class when selected prop is false', () => {
-    render(<AgentGroupNode data={makeData()} selected={false} />);
-
-    expect(screen.getByTestId('agent-group-node-root')).not.toHaveClass('selected');
-  });
-
-  // ── Additional: displays label when agentName is absent ─────────────────────
 
   it('displays label when agentName is not provided', () => {
     const data = makeData({ agentName: undefined, label: 'Fallback Label' });
@@ -237,22 +148,127 @@ describe('AgentGroupNode', () => {
     expect(screen.getByText('Fallback Label')).toBeTruthy();
   });
 
-  // ── Additional: renders both handles ───────────────────────────────────────
+  // ── Test 5: Status indicators (unicode characters) ─────────────────────────
 
-  it('renders input (left) and output (right) handles', () => {
-    const data = makeData();
+  it('shows running status indicator ⏳', () => {
+    const data = makeData({ status: 'running', agentType: 'context' });
     render(<AgentGroupNode data={data} />);
 
-    expect(screen.getByTestId('handle-target-Left')).toBeTruthy();
-    expect(screen.getByTestId('handle-source-Right')).toBeTruthy();
+    // Running status shows ⏳ (U+23F3) with agent type text color
+    const indicator = screen.getByText('\u23F3');
+    expect(indicator).toBeTruthy();
+    // context agentType text color = #93c5fd
+    expect(indicator.style.color).toBe('rgb(147, 197, 253)');
   });
 
-  // ── Additional: agent-icon emoji is rendered ─────────────────────────────────
+  it('shows completed status indicator ✓', () => {
+    const data = makeData({ status: 'completed' });
+    render(<AgentGroupNode data={data} />);
 
-  it('renders the agent icon', () => {
+    const indicator = screen.getByText('\u2713');
+    expect(indicator).toBeTruthy();
+    // Completed color is hardcoded #10b981
+    expect(indicator.style.color).toBe('rgb(16, 185, 129)');
+  });
+
+  it('shows failed status indicator ✗', () => {
+    const data = makeData({ status: 'failed' });
+    render(<AgentGroupNode data={data} />);
+
+    const indicator = screen.getByText('\u2717');
+    expect(indicator).toBeTruthy();
+    // Failed color is hardcoded #ef4444
+    expect(indicator.style.color).toBe('rgb(239, 68, 68)');
+  });
+
+  it('does not show status indicator for pending', () => {
+    const data = makeData({ status: 'pending' });
+    render(<AgentGroupNode data={data} />);
+
+    // Pending status has no unicode indicator character
+    expect(screen.queryByText('\u2713')).toBeNull();
+    expect(screen.queryByText('\u2717')).toBeNull();
+    expect(screen.queryByText('\u23F3')).toBeNull();
+  });
+
+  // ── Test 6: Detail button when expanded ─────────────────────────────────────
+
+  it('renders detail button when expanded', () => {
+    const data = makeData({ collapsed: false, agentType: 'execution' });
+    render(<AgentGroupNode data={data} />);
+
+    const detailBtn = screen.getByRole('button');
+    expect(detailBtn).toBeTruthy();
+    // Button text contains the agent type
+    expect(detailBtn.textContent).toContain('execution');
+  });
+
+  it('does not render detail button when collapsed', () => {
+    const data = makeData({ collapsed: true });
+    render(<AgentGroupNode data={data} />);
+
+    expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  // ── Test 7: Agent type badge ────────────────────────────────────────────────
+
+  it('renders agent type badge', () => {
+    const data = makeData({ agentType: 'planning' });
+    render(<AgentGroupNode data={data} />);
+
+    // Agent type badge shows the type text
+    expect(screen.getByText('planning')).toBeTruthy();
+  });
+
+  // ── Test 8: Selected state via inline style ─────────────────────────────────
+
+  it('applies selected boxShadow when selected prop is true', () => {
+    const { container } = render(<AgentGroupNode data={makeData()} selected={true} />);
+    const root = container.firstChild as HTMLElement;
+    expect(root.style.boxShadow).toBe('0 0 0 2px rgba(139,92,246,0.3)');
+  });
+
+  it('applies no boxShadow when selected prop is false', () => {
+    const { container } = render(<AgentGroupNode data={makeData()} selected={false} />);
+    const root = container.firstChild as HTMLElement;
+    expect(root.style.boxShadow).toBe('none');
+  });
+
+  // ── Test 9: Handles ─────────────────────────────────────────────────────────
+
+  it('renders input (top) and output (bottom) handles', () => {
     const data = makeData();
     render(<AgentGroupNode data={data} />);
 
-    expect(screen.getByText('👤')).toBeTruthy();
+    expect(screen.getByTestId('handle-target-Top')).toBeTruthy();
+    expect(screen.getByTestId('handle-source-Bottom')).toBeTruthy();
+  });
+
+  // ── Test 10: Running animation and opacity ───────────────────────────────────
+
+  it('applies pending opacity when status is pending', () => {
+    const { container } = render(<AgentGroupNode data={makeData({ status: 'pending' })} />);
+    const root = container.firstChild as HTMLElement;
+    expect(root.style.opacity).toBe('0.6');
+  });
+
+  it('applies full opacity when status is not pending', () => {
+    const { container } = render(<AgentGroupNode data={makeData({ status: 'completed' })} />);
+    const root = container.firstChild as HTMLElement;
+    expect(root.style.opacity).toBe('1');
+  });
+
+  // ── Test 11: Running animation is applied ───────────────────────────────────
+
+  it('applies pulse animation when status is running', () => {
+    const { container } = render(<AgentGroupNode data={makeData({ status: 'running' })} />);
+    const root = container.firstChild as HTMLElement;
+    expect(root.style.animation).toContain('agent-pulse');
+  });
+
+  it('applies blink animation when status is failed', () => {
+    const { container } = render(<AgentGroupNode data={makeData({ status: 'failed' })} />);
+    const root = container.firstChild as HTMLElement;
+    expect(root.style.animation).toContain('agent-blink');
   });
 });
