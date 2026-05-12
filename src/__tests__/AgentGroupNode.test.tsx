@@ -64,15 +64,17 @@ describe('AgentGroupNode', () => {
     expect(screen.getByText('5 个子工具')).toBeTruthy();
   });
 
-  it('shows "0 个子工具" when collapsed with childCount=0', () => {
+  it('shows taskDescription when collapsed with childCount=0', () => {
     const data = makeData({
       collapsed: true,
       childCount: 0,
+      taskDescription: '分析项目结构',
       onToggleCollapse: vi.fn(),
     });
 
     render(<AgentGroupNode data={data} />);
-    expect(screen.getByText('0 个子工具')).toBeTruthy();
+    // childCount=0 时显示 taskDescription 而非 "0 个子工具"
+    expect(screen.getByText('分析项目结构')).toBeTruthy();
   });
 
   it('hides child count when expanded', () => {

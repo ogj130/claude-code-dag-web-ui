@@ -1,11 +1,13 @@
 /**
  * V3.0 — Enhanced AgentGroupNode Component
- * Agent 分组卡片：类型标签 + 状态颜色 + 进度条 + 折叠/展开
+ * Agent 分组卡片：类型标签 + 状态颜色 + 进度条 + taskDescription +
+ * 元数据行 + 内部子流程步骤展示（工具调用）+ 详情弹窗
  */
 
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { Handle, Position } from '@xyflow/react';
 import type { DAGNode } from '../../types/events';
+import { useTaskStore } from '../../stores/useTaskStore';
 
 // Agent 类型配色
 const AGENT_TYPE_COLORS: Record<string, { border: string; bg: string; text: string; accent: string }> = {
@@ -16,11 +18,20 @@ const AGENT_TYPE_COLORS: Record<string, { border: string; bg: string; text: stri
   default:   { border: '#6b7280', bg: 'rgba(107,114,128,0.06)', text: '#9ca3af', accent: '#6b7280' },
 };
 
-const STATUS_STYLES: Record<string, { border: string; bg: string; glow: string }> = {
-  completed: { border: '#10b981', bg: 'rgba(16,185,129,0.06)', glow: 'none' },
-  running:   { border: '#3b82f6', bg: 'rgba(59,130,246,0.10)', glow: '0 0 16px rgba(59,130,246,0.25)' },
-  failed:    { border: '#ef4444', bg: 'rgba(239,68,68,0.08)', glow: '0 0 12px rgba(239,68,68,0.2)' },
-  pending:   { border: '#4b5563', bg: 'transparent', glow: 'none' },
+const STATUS_STYLES: Record<string, { border: string; bg: string; glow: string; icon: string }> = {
+  completed: { border: '#10b981', bg: 'rgba(16,185,129,0.06)', glow: 'none', icon: '\u2713' },
+  running:   { border: '#3b82f6', bg: 'rgba(59,130,246,0.10)', glow: '0 0 16px rgba(59,130,246,0.25)', icon: '\u23F3' },
+  failed:    { border: '#ef4444', bg: 'rgba(239,68,68,0.08)', glow: '0 0 12px rgba(239,68,68,0.2)', icon: '\u2717' },
+  pending:   { border: '#4b5563', bg: 'transparent', glow: 'none', icon: '\u25CB' },
+};
+
+type ToolStatus = 'running' | 'completed' | 'failed' | 'pending';
+
+const TOOL_STATUS_ICONS: Record<ToolStatus, { icon: string; color: string }> = {
+  running:   { icon: '\u23F3', color: '#3b82f6' },
+  completed: { icon: '\u2705', color: '#10b981' },
+  failed:    { icon: '\u274C', color: '#ef4444' },
+  pending:   { icon: '\u25CB', color: '#6b7280' },
 };
 
 export interface AgentGroupNodeData extends DAGNode {
@@ -29,43 +40,116 @@ export interface AgentGroupNodeData extends DAGNode {
   collapsed?: boolean;
   childCount?: number;
   progress?: number;
+  skillsUsed?: Array<{ name: string; domain: string }>;
+  source?: 'orchestration' | 'execution' | 'llm-decomposition';
   onToggleCollapse?: (nodeId: string) => void;
-  onOpenDetail?: (node: Pick<DAGNode, 'id'|'type'|'label'|'status'|'args'|'summaryContent'|'content'>) => void;
+  onOpenDetail?: (node: Pick<DAGNode, 'id'|'type'|'label'|'status'|'args'|'summaryContent'|'content'> & { agentType?: string; taskDescription?: string; duration?: number; skillsUsed?: Array<{name:string;domain:string}>; toolMessage?: string }) => void;
+  /** 节点内的实时输出文本（来自 tool_progress） */
+  liveOutput?: string;
 }
+
+const SOURCE_STYLES: Record<string, { borderColor: string; opacity: number; label: string }> = {
+  'orchestration': { borderColor: '#8B5CF6', opacity: 0.8, label: '编排' },
+  'execution': { borderColor: '#3B82F6', opacity: 1.0, label: '执行' },
+  'llm-decomposition': { borderColor: '#10B981', opacity: 1.0, label: '自动' },
+};
 
 interface AgentGroupNodeProps {
   data: AgentGroupNodeData;
   selected?: boolean;
 }
 
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+/** 子工具调用步骤卡片 */
+const ChildToolItem = memo(function ChildToolItem({ node }: { node: DAGNode }) {
+  const toolName = node.label;
+  const status: ToolStatus = (node.status as ToolStatus) ?? 'pending';
+  const si = TOOL_STATUS_ICONS[status] ?? TOOL_STATUS_ICONS.pending;
+  const duration = node.endTime && node.startTime ? node.endTime - node.startTime : undefined;
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 4,
+      padding: '2px 6px',
+      fontSize: 9,
+      color: 'var(--text-secondary)',
+      borderBottom: '1px solid rgba(255,255,255,0.04)',
+    }}>
+      <span style={{ color: si.color, flexShrink: 0 }}>{si.icon}</span>
+      <span style={{
+        fontFamily: 'monospace', fontSize: 9, color: 'var(--text-secondary)',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        flex: 1,
+      }} title={toolName}>
+        {toolName}
+      </span>
+      {duration !== undefined && (
+        <span style={{ fontSize: 8, color: '#6b7280', flexShrink: 0 }}>{formatDuration(duration)}</span>
+      )}
+    </div>
+  );
+});
+
 const AgentGroupNode: React.FC<AgentGroupNodeProps> = memo(({ data, selected }) => {
   const {
     id, label, status = 'pending', agentType = 'default',
-    agentName, collapsed = false, childCount = 0,
+    agentName, collapsed = false, childCount = 0, taskDescription,
     progress, onToggleCollapse, onOpenDetail,
+    startTime, endTime, skillsUsed, toolMessage,
+    source, liveOutput,
   } = data;
+
+  // 从 store 获取 nodes Map（引用稳定，仅在 nodes 变更时触发重渲染）
+  const nodes = useTaskStore(s => s.nodes);
+
+  // 使用 useMemo 计算子工具节点，避免 selector 每次返回新数组触发无限渲染
+  const childToolNodes = useMemo(() => {
+    const children: DAGNode[] = [];
+    for (const [, node] of nodes) {
+      if (node.type === 'tool' && node.parentId === id) {
+        children.push(node);
+      }
+    }
+    return children;
+  }, [nodes, id]);
 
   const colors = AGENT_TYPE_COLORS[agentType] ?? AGENT_TYPE_COLORS['default'];
   const ss = STATUS_STYLES[status] ?? STATUS_STYLES['pending'];
+  const sourceStyle = source ? SOURCE_STYLES[source] : undefined;
   const isRunning = status === 'running';
   const isFailed = status === 'failed';
+  const duration = (endTime && startTime) ? endTime - startTime : undefined;
+  const displayName = agentName ?? label;
 
   const handleToggle = useCallback(() => onToggleCollapse?.(id), [id, onToggleCollapse]);
   const handleDetail = useCallback(() => {
-    onOpenDetail?.({ id, type: 'agent', label: agentName ?? label, status, args: undefined, summaryContent: undefined, content: undefined });
-  }, [id, agentName, label, status, onOpenDetail]);
+    onOpenDetail?.({
+      id, type: 'agent_group', label: displayName, status,
+      args: undefined, summaryContent: undefined, content: undefined,
+      agentType, taskDescription, duration, skillsUsed, toolMessage,
+    });
+  }, [id, displayName, status, agentType, taskDescription, duration, skillsUsed, toolMessage, onOpenDetail]);
+
+  // 工具调用子节点列表（仅展开 + 有数据时显示）
+  const showChildTools = !collapsed && childToolNodes.length > 0;
+  // 实时输出文本（来自 tool_progress）
+  const showLiveOutput = !collapsed && liveOutput;
 
   return (
     <div style={{
       background: ss.bg,
-      border: `1.5px solid ${isRunning ? colors.border : ss.border}`,
+      border: `1.5px solid ${sourceStyle ? sourceStyle.borderColor : (isRunning ? colors.border : ss.border)}`,
       borderRadius: 10,
       overflow: 'hidden',
-      minWidth: 200,
-      maxWidth: 360,
+      minWidth: 220,
+      maxWidth: 380,
       boxShadow: isRunning ? ss.glow : (selected ? '0 0 0 2px rgba(139,92,246,0.3)' : 'none'),
       animation: isRunning ? 'agent-pulse 2s infinite' : (isFailed ? 'agent-blink 1s infinite' : 'none'),
-      opacity: status === 'pending' ? 0.6 : 1,
+      opacity: sourceStyle ? sourceStyle.opacity : (status === 'pending' ? 0.6 : 1),
       transition: 'all 0.3s ease',
       position: 'relative',
     }}>
@@ -98,28 +182,120 @@ const AgentGroupNode: React.FC<AgentGroupNodeProps> = memo(({ data, selected }) 
           padding: '1px 5px', borderRadius: 3,
           fontSize: 9, fontWeight: 600, textTransform: 'capitalize',
         }}>{agentType}</span>
-        <span style={{ flex: 1, fontSize: 11, fontWeight: 500, color: 'var(--text-primary)',
+        {sourceStyle && (
+          <span style={{
+            background: `${sourceStyle.borderColor}20`, color: sourceStyle.borderColor,
+            padding: '1px 4px', borderRadius: 3,
+            fontSize: 8, fontWeight: 500,
+          }}>
+            {sourceStyle.label}
+          </span>
+        )}
+        <span style={{ flex: 1, fontSize: 11, fontWeight: 600, color: 'var(--text-primary)',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }} title={agentName ?? label}>
-          {agentName ?? label}
+        }} title={displayName}>
+          {displayName}
         </span>
-        {isRunning && <span style={{ fontSize: 10, color: colors.text }}>{'\u23F3'}</span>}
-        {status === 'completed' && <span style={{ fontSize: 10, color: '#10b981' }}>{'\u2713'}</span>}
-        {isFailed && <span style={{ fontSize: 10, color: '#ef4444' }}>{'\u2717'}</span>}
+        <span style={{ fontSize: 12, color: isRunning ? colors.text : (isFailed ? '#ef4444' : '#10b981') }}>
+          {ss.icon}
+        </span>
       </div>
 
-      {/* 未折叠：进度条 + 详情按钮 */}
+      {/* 未折叠：taskDescription + 元数据行 + 进度条 + 子流程步骤 + 详情按钮 */}
       {!collapsed && (
         <div style={{ padding: '6px 10px' }}>
-          {isRunning && progress !== undefined && (
-            <div style={{ height: 3, background: '#30363d', borderRadius: 2, marginBottom: 6 }}>
-              <div style={{
-                width: `${Math.min(progress, 100)}%`, height: '100%',
-                background: `linear-gradient(90deg, ${colors.border}, ${colors.text})`,
-                borderRadius: 2, transition: 'width 0.5s ease',
-              }} />
+          {/* taskDescription 副标题 */}
+          {taskDescription && (
+            <div style={{
+              fontSize: 10, color: 'var(--text-secondary)', lineHeight: 1.3,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              marginBottom: 4,
+            }} title={taskDescription}>
+              {taskDescription}
             </div>
           )}
+
+          {/* 元数据行 */}
+          <div style={{ display: 'flex', gap: 8, fontSize: 9, color: 'var(--text-muted)', marginBottom: 4, flexWrap: 'wrap' }}>
+            {agentType === 'planning' && <span title="已生成设计方案">📄 设计方案</span>}
+            {agentType === 'context' && <span title="已分析项目结构">📂 上下文分析</span>}
+            {agentType === 'execution' && <span title="已执行任务">⚡ 执行结果</span>}
+            {skillsUsed && skillsUsed.length > 0 && (
+              <span title={skillsUsed.map(s => s.name).join(', ')}>
+                🧩 {skillsUsed.length}项技能
+              </span>
+            )}
+            {childCount > 0 && <span title={`${childCount} 个子工具调用`}>🔧 {childCount}次调用</span>}
+            {duration !== undefined && <span title={`耗时 ${duration}ms`}>⏱ {formatDuration(duration)}</span>}
+          </div>
+
+          {/* 进度条 */}
+          {isRunning && (
+            <div style={{ marginBottom: 6 }}>
+              <div style={{ height: 3, background: '#30363d', borderRadius: 2 }}>
+                <div style={{
+                  width: `${Math.min(Math.max(progress ?? 10, 10), 100)}%`, height: '100%',
+                  background: `linear-gradient(90deg, ${colors.border}, ${colors.text})`,
+                  borderRadius: 2, transition: 'width 0.5s ease',
+                }} />
+              </div>
+            </div>
+          )}
+
+          {/* 实时输出文本 */}
+          {showLiveOutput && (
+            <div style={{
+              fontSize: 9, color: 'var(--text-muted)',
+              fontFamily: 'monospace',
+              background: 'rgba(0,0,0,0.15)',
+              borderRadius: 4, padding: '3px 6px',
+              marginBottom: 4,
+              maxHeight: 60, overflowY: 'auto',
+              lineHeight: 1.4,
+            }}>
+              {liveOutput}
+            </div>
+          )}
+
+          {/* 内部子流程步骤（工具调用列表） */}
+          {showChildTools && (
+            <div style={{
+              marginBottom: 6,
+              border: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: 4,
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                fontSize: 8,
+                color: '#6b7280',
+                padding: '2px 8px',
+                background: 'rgba(255,255,255,0.03)',
+                fontFamily: 'monospace',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}>
+                内部步骤 ({childToolNodes.length})
+              </div>
+              <div style={{ maxHeight: 120, overflowY: 'auto' }}>
+                {childToolNodes.map(child => (
+                  <ChildToolItem key={child.id} node={child} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 错误信息 */}
+          {isFailed && toolMessage && (
+            <div style={{
+              fontSize: 9, color: '#ef4444', background: 'rgba(239,68,68,0.08)',
+              borderRadius: 4, padding: '3px 6px', marginBottom: 6,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              ⚠️ {toolMessage}
+            </div>
+          )}
+
+          {/* 详情按钮 */}
           <button onClick={handleDetail} style={{
             background: 'none', border: 'none', padding: 0,
             cursor: 'pointer', fontSize: 10, color: colors.text,
@@ -130,10 +306,10 @@ const AgentGroupNode: React.FC<AgentGroupNodeProps> = memo(({ data, selected }) 
         </div>
       )}
 
-      {/* 折叠态：子节点数 */}
+      {/* 折叠态 */}
       {collapsed && (
         <div style={{ padding: '4px 10px', fontSize: 10, color: '#6b7280' }}>
-          {childCount} 个子工具
+          {childCount > 0 ? `${childCount} 个子工具` : taskDescription?.slice(0, 40)}
         </div>
       )}
 
