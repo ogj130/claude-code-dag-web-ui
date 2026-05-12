@@ -140,4 +140,56 @@ describe('Workspace Tab Switch Integration', () => {
     expect(filteredCards).toHaveLength(1);
     expect(filteredCards[0].workspaceId).toBe('ws-A');
   });
+
+  // ── 场景5：切换工作区B后仅显示 ws-B 的卡片（合并自 workspaceMarkdownFilter）──
+  it('切换工作区B后仅显示ws-B的卡片', () => {
+    useTaskStore.setState({
+      markdownCards: [
+        { id: 'card1', queryId: 'q1', timestamp: 1000, query: 'ws-A查询', analysis: '', workspaceId: 'ws-A' },
+        { id: 'card2', queryId: 'q2', timestamp: 2000, query: 'ws-B查询', analysis: '', workspaceId: 'ws-B' },
+      ],
+    });
+    useTerminalWorkspaceStore.setState({
+      activeTab: 'ws-B',
+      workspaceTabs: [
+        { id: 'ws-A', name: 'A', status: 'completed', addedAt: 1000, batchId: 1 },
+        { id: 'ws-B', name: 'B', status: 'completed', addedAt: 1000, batchId: 1 },
+      ],
+    });
+
+    const filteredCards = filterByWorkspace(
+      useTaskStore.getState().markdownCards,
+      useTerminalWorkspaceStore.getState().activeTab,
+      useTerminalWorkspaceStore.getState().workspaceTabs.length,
+    );
+
+    expect(filteredCards).toHaveLength(1);
+    expect(filteredCards[0].id).toBe('card2');
+  });
+
+  // ── 场景6：不存在的工作区显示空列表（合并自 workspaceMarkdownFilter）──
+  it('工作区C无卡片时显示空列表', () => {
+    useTaskStore.setState({
+      markdownCards: [
+        { id: 'card1', queryId: 'q1', timestamp: 1000, query: 'ws-A查询', analysis: '', workspaceId: 'ws-A' },
+        { id: 'card2', queryId: 'q2', timestamp: 2000, query: 'ws-B查询', analysis: '', workspaceId: 'ws-B' },
+      ],
+    });
+    useTerminalWorkspaceStore.setState({
+      activeTab: 'ws-C',
+      workspaceTabs: [
+        { id: 'ws-A', name: 'A', status: 'completed', addedAt: 1000, batchId: 1 },
+        { id: 'ws-B', name: 'B', status: 'completed', addedAt: 1000, batchId: 1 },
+        { id: 'ws-C', name: 'C', status: 'completed', addedAt: 1000, batchId: 1 },
+      ],
+    });
+
+    const filteredCards = filterByWorkspace(
+      useTaskStore.getState().markdownCards,
+      useTerminalWorkspaceStore.getState().activeTab,
+      useTerminalWorkspaceStore.getState().workspaceTabs.length,
+    );
+
+    expect(filteredCards).toHaveLength(0);
+  });
 });

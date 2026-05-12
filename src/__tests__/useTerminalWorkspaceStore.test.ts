@@ -124,4 +124,35 @@ describe('useTerminalWorkspaceStore', () => {
     // 新 Set 实例
     expect(runningWorkspaces.has('ws-before-reset')).toBe(false);
   });
+
+  // ── workspace tabs lifecycle（合并自 globalDispatchWorkspaceTabs.test.ts）──
+
+  it('onExecutionStart 添加所有工作区标签，初始状态为 running', () => {
+    const workspaces = [
+      { id: 'ws-A', name: '工作区 A' },
+      { id: 'ws-B', name: '工作区 B' },
+    ];
+    useTerminalWorkspaceStore.getState().onExecutionStart(workspaces);
+    const tabs = useTerminalWorkspaceStore.getState().workspaceTabs;
+    expect(tabs).toHaveLength(2);
+    expect(tabs.map(t => t.status)).toEqual(['running', 'running']);
+    expect(tabs.map(t => t.id)).toEqual(['ws-A', 'ws-B']);
+  });
+
+  it('updateWorkspaceTab 更新单个标签状态', () => {
+    const workspaces = [{ id: 'ws-A', name: 'A' }];
+    const store = useTerminalWorkspaceStore.getState();
+    store.onExecutionStart(workspaces);
+    store.updateWorkspaceTab('ws-A', 'completed');
+    const updated = useTerminalWorkspaceStore.getState();
+    expect(updated.workspaceTabs[0].status).toBe('completed');
+  });
+
+  it('clearWorkspaceTabs 清除所有标签', () => {
+    const workspaces = [{ id: 'ws-A', name: 'A' }];
+    const store = useTerminalWorkspaceStore.getState();
+    store.onExecutionStart(workspaces);
+    store.clearWorkspaceTabs();
+    expect(store.workspaceTabs).toEqual([]);
+  });
 });
