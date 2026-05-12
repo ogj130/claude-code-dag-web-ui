@@ -1,16 +1,19 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { dispatchGlobalPromptsWithDefaults } from '@/services/globalDispatchService';
 import { dispatchExecutePromptAdapter } from '@/services/globalDispatchExecutor';
 import { useMultiDispatchStore } from '@/stores/useMultiDispatchStore';
+import { useTaskStore } from '@/stores/useTaskStore';
 import type { DispatchResult } from '@/types/global-dispatch';
 import type { Workspace } from '@/types/workspace';
 import { getCEOAgent } from '@/services/multi-agent/ceo-agent/CEOAgent';
 import { createTerminalExecutor } from '@/services/multi-agent/TerminalExecutor';
 import { CEOAgentCard, type CEOPhase } from './CEOAgentCard';
-import { LLMDecomposer } from '@/services/multi-agent/ceo-agent/LLMDecomposer';
+import { LLMDecomposer, createLLMCall } from '@/services/multi-agent/ceo-agent/LLMDecomposer';
 import { PlanConfirmModal } from '@/components/DAG/PlanConfirmModal';
 import type { AgentPlanItem } from '@/types/multi-agent/ceo-agent';
 import type { TaskResult } from '@/types/multi-agent/worker-agents';
+import type { MarkdownCardData } from '@/stores/taskTypes';
+import type { FlowDefinition } from '@/types/multi-agent/flow-definition';
 
 export interface GlobalTerminalProps {
   workspaces: Workspace[];
@@ -23,6 +26,62 @@ interface WorkspaceResultEntry {
   workspaceName: string;
   status: 'success' | 'partial' | 'failed';
   prompts: Array<{ prompt: string; status: 'success' | 'failed' | 'skipped'; reason?: string }>;
+}
+
+function buildAgentMarkdownCard(inputText: string, report: {
+  summary: string;
+  completedGoals: { description: string }[];
+  missedGoals: { description: string }[];
+  taskResults: TaskResult[];
+  totalDuration: number;
+  skillsUsed?: string[];
+}): MarkdownCardData {
+  const now = Date.now();
+  const totalGoals = report.completedGoals.length + report.missedGoals.length;
+
+  // 提取恢复记录
+  const recoveries: Array<{ type: string; agentId: string; success: boolean }> = [];
+  const grouped = new Map<string, TaskResult[]>();
+  for (const r of report.taskResults) {
+    const arr = grouped.get(r.taskId) || [];
+    arr.push(r);
+    grouped.set(r.taskId, arr);
+  }
+  for (const [taskId, results] of grouped) {
+    const hasFailure = results.some(r => !r.success);
+    const hasSuccess = results.some(r => r.success);
+    if (hasFailure && hasSuccess) {
+      recoveries.push({ type: 'retry', agentId: taskId, success: true });
+    }
+  }
+
+  return {
+    id: `agent-${now}`,
+    queryId: `agent-${now}`,
+    timestamp: now,
+    query: inputText,
+    analysis: [
+      `### CEO 执行统计`,
+      ``,
+      `| 指标 | 值 |`,
+      `|------|-----|`,
+      `| 总目标数 | ${totalGoals} |`,
+      `| 已完成 | ${report.completedGoals.length} |`,
+      `| 未完成 | ${report.missedGoals.length} |`,
+      `| 总耗时 | ${report.totalDuration}ms |`,
+    ].join('\n'),
+    summary: report.summary,
+    completeSummary: report.summary,
+    variant: 'agent',
+    agentReport: {
+      totalGoals,
+      completedGoals: report.completedGoals.length,
+      missedGoals: report.missedGoals.length,
+      duration: report.totalDuration,
+      skillsUsed: (report.skillsUsed ?? []).map((s: string) => ({ name: s, domain: 'general' })),
+      recoveries,
+    },
+  };
 }
 
 // ── StatusBadge ─────────────────────────────────────────────────
@@ -83,8 +142,37 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [pendingInput, setPendingInput] = useState('');
 
+  // 编排模式：终端打开时从 localStorage 加载预定义 Flow 拓扑
+  const orchestrationFlowRef = useRef<FlowDefinition | null>(null);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('cc-agent-orchestration-flow');
+      if (stored) {
+        orchestrationFlowRef.current = JSON.parse(stored) as FlowDefinition;
+      } else {
+        orchestrationFlowRef.current = null;
+      }
+    } catch {
+      orchestrationFlowRef.current = null;
+    }
+  }, []);
+
   const handleSend = useCallback(async () => {
     if (!input.trim() || loading === 'loading') return;
+
+    const rawInput = input.trim();
+    const hasAgentPrefix = rawInput.startsWith('/agent ')
+      || rawInput === '/agent'
+      || rawInput.startsWith('/agent\n');
+    const cleanInput = hasAgentPrefix
+      ? rawInput.replace(/^\/agent(?:\s+|\n)?/, '').trim()
+      : rawInput;
+    const shouldUseAgentMode = multiAgentMode || hasAgentPrefix;
+
+    if (shouldUseAgentMode && !cleanInput) {
+      setError('请输入 /agent 后要执行的任务内容');
+      return;
+    }
 
     setLoading('loading');
     setError(null);
@@ -93,17 +181,18 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
 
     try {
       // 多代理模式：通过 CEO Agent + LLMDecomposer 分解目标并执行
-      if (multiAgentMode) {
+      if (shouldUseAgentMode) {
         try {
-          const decomposer = new LLMDecomposer({ llmAvailable: true });
+          const decomposer = new LLMDecomposer({ llmAvailable: true, llmCall: createLLMCall() });
 
           // 阶段一：规划
           setCeoPhase('planning');
-          const plan = decomposer.decomposeWithRules(input.trim());
+          // 使用 decompose() 而非 decomposeWithRules() —— LLM 在线时走 LLM，不可用时自动降级
+          const plan = await decomposer.decompose(cleanInput);
           setCeoPlan(plan.agents);
           setCeoStrategy(plan.strategy);
           setCeoTotalCount(plan.agents.length);
-          setPendingInput(input.trim());
+          setPendingInput(cleanInput);
 
           if (planMode === 'confirm') {
             // 计划确认模式：弹出弹窗等待用户确认
@@ -116,12 +205,23 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
           const ceo = getCEOAgent({ maxIterations: 3 });
           const executor = createTerminalExecutor(workspaces);
           ceo.setDecomposer(decomposer);
+          // 注入编排配置（编排模式 vs 独立模式）
+          if (orchestrationFlowRef.current) {
+            ceo.setOrchestrationFlow(orchestrationFlowRef.current);
+          } else {
+            ceo.clearOrchestrationFlow();
+          }
+          // 注入工作区信息，供 ContextAgent / PlanningAgent 获取项目路径
+          if (workspaces.length > 0) {
+            ceo.setWorkspace(workspaces[0].id, workspaces[0].workspacePath);
+          }
 
           setCeoPhase('executing');
           setCeoCompletedCount(0);
           setCeoTaskResults([]);
 
-          const report = await ceo.processWithDecomposer(input.trim(), executor, {
+          const report = await ceo.processWithDecomposer(cleanInput, executor, {
+            plan,
             onTaskStart: (taskId) => {
               setCeoTaskResults(prev => [...prev, {
                 taskId, workerType: 'execution',
@@ -140,6 +240,7 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
           // 阶段三：总结
           setCeoPhase('summary');
           setCeoSummary(report.summary);
+          useTaskStore.getState().addMarkdownCard(buildAgentMarkdownCard(cleanInput, report));
 
           setLoading('idle');
           setInput('');
@@ -192,10 +293,20 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
     try {
       const ceo = getCEOAgent({ maxIterations: 3 });
       const executor = createTerminalExecutor(workspaces);
-      const decomposer = new LLMDecomposer({ llmAvailable: true });
+      const decomposer = new LLMDecomposer({ llmAvailable: true, llmCall: createLLMCall() });
       ceo.setDecomposer(decomposer);
+      // 注入编排配置（编排模式 vs 独立模式）
+      if (orchestrationFlowRef.current) {
+        ceo.setOrchestrationFlow(orchestrationFlowRef.current);
+      } else {
+        ceo.clearOrchestrationFlow();
+      }
+      // 注入工作区信息
+      if (workspaces.length > 0) {
+        ceo.setWorkspace(workspaces[0].id, workspaces[0].workspacePath);
+      }
 
-      const plan = decomposer.decomposeWithRules(inputText);
+      const plan = await decomposer.decompose(inputText);
       setCeoPlan(plan.agents);
       setCeoStrategy(plan.strategy);
       setCeoTotalCount(plan.agents.length);
@@ -205,6 +316,7 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
       setCeoTaskResults([]);
 
       const report = await ceo.processWithDecomposer(inputText, executor, {
+        plan,
         onTaskStart: (taskId) => {
           setCeoTaskResults(prev => [...prev, {
             taskId, workerType: 'execution',
@@ -222,6 +334,7 @@ export function GlobalTerminal({ workspaces }: GlobalTerminalProps) {
 
       setCeoPhase('summary');
       setCeoSummary(report.summary);
+      useTaskStore.getState().addMarkdownCard(buildAgentMarkdownCard(inputText, report));
       setInput('');
     } catch (error) {
       setError(error instanceof Error ? error.message : '多代理执行失败');

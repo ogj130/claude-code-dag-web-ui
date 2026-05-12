@@ -631,3 +631,70 @@ describe('CEOAgent with hybrid decomposition', () => {
     expect(onTaskComplete).toHaveBeenCalled();
   });
 });
+
+// ── DAG 节点去重：processWithDecomposer 不创建重复 agent_group 节点 ──
+
+describe('DAG node dedup — processWithDecomposer', () => {
+  it('执行 goal 时不应直接注入 agent_group 节点（由 WebSocket 事件系统处理）', async () => {
+    const ceo = new CEOAgent({ maxIterations: 1 });
+    const decomposer = new LLMDecomposer({ llmAvailable: false });
+    ceo.setDecomposer(decomposer);
+
+    // 记录调用前的节点状态
+    useTaskStore.getState().reset();
+    const nodesBefore = new Map(useTaskStore.getState().nodes);
+
+    const mockExecutor: WorkerExecutor = {
+      execute: vi.fn().mockImplementation(async (_task: WorkerExecutorContext, _skills: SkillRef[]) => ({
+        taskId: _task.taskId,
+        workerType: 'execution',
+        output: { message: 'done' },
+        success: true,
+        duration: 10,
+        skillsUsed: [],
+        subTasks: [],
+      } as TaskResult)),
+    };
+
+    await ceo.processWithDecomposer('实现登录功能', mockExecutor);
+
+    const nodesAfter = useTaskStore.getState().nodes;
+
+    // 只应新增 ceo-summary 节点，不应有 agent_group 节点从 CEOAgent 注入
+    const newNodes = new Map(nodesAfter);
+    for (const [id] of nodesBefore) {
+      newNodes.delete(id);
+    }
+
+    // ceo-summary 是唯一应由 CEOAgent 直接创建的节点
+    const ceoSummaryNode = newNodes.get('ceo-summary');
+    expect(ceoSummaryNode).toBeDefined();
+    expect(ceoSummaryNode?.type).toBe('summary');
+
+    // 确认没有 agent_group 类型的新节点
+    const agentGroupNodes = Array.from(newNodes.values()).filter(n => n.type === 'agent_group');
+    expect(agentGroupNodes).toHaveLength(0);
+  });
+
+  it('injectSummaryNode 创建的 summary 节点 workspaceId 不为空', async () => {
+    const ceo = new CEOAgent({ maxIterations: 1 });
+    ceo.setWorkspace('ws-test', '/path/to/ws');
+    const decomposer = new LLMDecomposer({ llmAvailable: false });
+    ceo.setDecomposer(decomposer);
+    useTaskStore.getState().reset();
+
+    const mockExecutor: WorkerExecutor = {
+      execute: vi.fn().mockResolvedValue({
+        taskId: 'task-1', workerType: 'execution',
+        output: { message: 'done' }, success: true, duration: 10,
+        skillsUsed: [], subTasks: [],
+      } as TaskResult),
+    };
+
+    await ceo.processWithDecomposer('测试', mockExecutor);
+
+    const summaryNode = useTaskStore.getState().nodes.get('ceo-summary');
+    expect(summaryNode).toBeDefined();
+    expect(summaryNode?.workspaceId).toBe('ws-test');
+  });
+});

@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import '@xterm/xterm/css/xterm.css';
 import { useTaskStore } from '../../stores/useTaskStore';
+import type { MarkdownCardData } from '../../stores/taskTypes';
 import { useRAGContext } from '../../hooks/useRAGContext';
 import type { RAGContextItem } from '../../hooks/useRAGContext';
 import { MarkdownCard } from './MarkdownCard';
@@ -22,10 +20,19 @@ import { StatusBar } from './StatusBar';
 import { RecallPanel } from './RecallPanel';
 import { GlobalSummaryPanel } from './GlobalSummaryPanel';
 import { useTerminalWorkspaceStore } from '../../stores/useTerminalWorkspaceStore';
-import { useGlobalTerminalStore } from '../../stores/useGlobalTerminalStore';
+// (useGlobalTerminalStore no longer used — global terminal output box removed)
 import { useMultiDispatchStore } from '../../stores/useMultiDispatchStore';
 import { getEnabledPresets } from '../../stores/workspacePresetStorage';
 import type { Workspace } from '../../types/workspace';
+import { getCEOAgent } from '@/services/multi-agent/ceo-agent/CEOAgent';
+import { LLMDecomposer, createLLMCall } from '@/services/multi-agent/ceo-agent/LLMDecomposer';
+import { createTerminalExecutor } from '@/services/multi-agent/TerminalExecutor';
+import type { AgentPlan } from '@/types/multi-agent/ceo-agent';
+import type { TaskResult } from '@/types/multi-agent/worker-agents';
+import type { FlowDefinition } from '@/types/multi-agent/flow-definition';
+import { PlanConfirmModal } from '@/components/DAG/PlanConfirmModal';
+import { CEOAgentCard, type CEOPhase } from '@/components/GlobalTerminal/CEOAgentCard';
+import { WelcomePage } from '@/components/Welcome/WelcomePage';
 
 interface Props {
   theme: 'dark' | 'light';
@@ -33,53 +40,20 @@ interface Props {
   style?: React.CSSProperties;
 }
 
-/** 写入视觉分隔线（AI 回答结束后，下次输入前的分隔） */
-function writeSeparator(term: Terminal, isDark: boolean): void {
-  const dim = isDark ? '\x1b[90m' : '\x1b[2m';
-  const accent = '\x1b[36m'; // 青色
-  term.write('\n');
-  term.writeln(`${dim}┌${'─'.repeat(50)}┐${isDark ? '' : '\x1b[0m'}`);
-  term.writeln(`${dim}│${accent} Claude Code  •  /Users/ouguangji/2026/cc-web-ui${' '.repeat(Math.max(0, 50 - 54))}${dim}│${isDark ? '' : '\x1b[0m'}`);
-  term.writeln(`${dim}└${'─'.repeat(50)}┘${isDark ? '' : '\x1b[0m'}`);
-}
+// ── 神里绫华角色 Prompt ─────────────────────────────────────
+const AYAKA_PERSONA = `[回复风格]
+请以神里绫华（原神社奉行大小姐）的口吻回复，自称"本小姐"，称呼用户为"你"。保持优雅温柔的语调，偶尔用剑道或花道的比喻，句末偶尔加"~"表示轻松语气。
 
-function getXtermTheme(isDark: boolean) {
-  if (isDark) {
-    return {
-      background: '#050508',
-      foreground: '#c0c0c0',
-      cursor: '#4a8eff',
-      black: '#000000',
-      red: '#e74c3c',
-      green: '#2ecc71',
-      yellow: '#f1c40f',
-      blue: '#4a8eff',
-      magenta: '#c56cff',
-      cyan: '#6cf',
-      white: '#e0e0e0',
-    };
-  }
-  return {
-    background: '#ffffff',
-    foreground: '#1a1a2e',
-    cursor: '#3a6fd8',
-    black: '#000000',
-    red: '#d03030',
-    green: '#1a9e50',
-    yellow: '#c07800',
-    blue: '#3a6fd8',
-    magenta: '#9055db',
-    cyan: '#3498db',
-    white: '#e0e0e0',
-  };
-}
+[最重要原则]
+你的首要目标是准确、完整地回答用户的问题。绫华的语气只是让回答更亲切的风格包装，绝不能因为角色扮演而忽略或弱化实际内容。先确保信息正确，再考虑措辞。
 
-export function TerminalView({ theme, onInput, style }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const terminalRef = useRef<Terminal | null>(null);
-  const shownLinesRef = useRef(0);
-  // 标记 xterm 是否已挂载到 DOM（避免重复 open）
-  const mountedRef = useRef(false);
+[简短规则]
+- 代码、技术解释、步骤说明等内容要专业严谨
+- 用"~"、"本小姐"、"你这笨蛋"（仅限轻松调侃）点缀，但不要泛滥
+- 长回答中，技术段落保持专业，开头结尾可带角色语气
+- 不要每一句都强行角色扮演，技术密集时自然一些`;
+
+export function TerminalView({ theme: _theme, onInput, style }: Props) {
   const [inputValue, setInputValue] = useState('');
   /** 本次发送的 query 文本（用于在上方分离显示） */
   const [pendingQueryText, setPendingQueryText] = useState('');
@@ -89,8 +63,48 @@ export function TerminalView({ theme, onInput, style }: Props) {
   const [previewAttachment, setPreviewAttachment] = useState<PendingAttachment | null>(null);
   // V1.4.1: Sent attachments for current query
   const [sentAttachments, setSentAttachments] = useState<PendingAttachment[]>([]);
-  // 复制成功提示（xterm 选中文字后自动复制，或右键复制）
-  const [copyHint, setCopyHint] = useState<string | null>(null);
+  // Multi-Agent mode toggle
+  const [agentMode, setAgentMode] = useState(false);
+  // 计划确认模式 (planMode)
+  const [planMode, setPlanMode] = useState<'auto' | 'confirm'>('auto');
+  const [showPlanConfirm, setShowPlanConfirm] = useState(false);
+  const [pendingPlan, setPendingPlan] = useState<AgentPlan | null>(null);
+  const [pendingCleanInput, setPendingCleanInput] = useState('');
+  // Agent 执行状态（用于 CEOAgentCard 展示，替代 xterm 原始输出）
+  const [ceoPhase, setCeoPhase] = useState<CEOPhase>('planning');
+  const [ceoPlan, setCeoPlan] = useState<AgentPlan['agents']>([]);
+  const [ceoStrategy, setCeoStrategy] = useState('');
+  const [ceoTaskResults, setCeoTaskResults] = useState<TaskResult[]>([]);
+  const [ceoSummary, setCeoSummary] = useState('');
+  const [ceoCompletedCount, setCeoCompletedCount] = useState(0);
+  const [ceoTotalCount, setCeoTotalCount] = useState(0);
+  const [planConfirmed, setPlanConfirmed] = useState(false);
+  const [agentExecuting, setAgentExecuting] = useState(false);
+
+  // 编排模式：终端打开时从 localStorage 加载预定义 Flow 拓扑
+  const orchestrationFlowRef = useRef<FlowDefinition | null>(null);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('cc-agent-orchestration-flow');
+      if (stored) {
+        orchestrationFlowRef.current = JSON.parse(stored) as FlowDefinition;
+      } else {
+        orchestrationFlowRef.current = null;
+      }
+    } catch {
+      orchestrationFlowRef.current = null;
+    }
+  }, []);
+
+  // 监听编排画布事件：打开终端并切换到 Agent + Plan 确认模式
+  useEffect(() => {
+    const handler = () => {
+      setAgentMode(true);
+      setPlanMode('confirm');
+    };
+    window.addEventListener('cc-open-terminal-with-orchestration', handler);
+    return () => window.removeEventListener('cc-open-terminal-with-orchestration', handler);
+  }, []);
 
   // Task 5: Upper/lower split state
   const [workspaceList, setWorkspaceList] = useState<Workspace[]>([]);
@@ -109,23 +123,18 @@ export function TerminalView({ theme, onInput, style }: Props) {
   const batchResult = useMultiDispatchStore(s => s.batchResult);
   const requestAnalysis = useMultiDispatchStore(s => s.requestAnalysis);
 
-  // Task 2.1: Global terminal store for merge view
-  const mergedOrder = useGlobalTerminalStore(s => s.mergedOrder);
+  // Task 2.1: Global terminal store (keep import, mergedOrder no longer displayed inline)
 
   // V1.4.1: File upload hook
   const { handleFileSelect, handleRemoveAttachment, handleClearAll, getReadyAttachments } = useFileUpload();
   const { setPreviewExpanded } = useAttachmentStore();
   const pendingAttachments = usePendingAttachments();
   const {
-    terminalLines,
-    streamEndPending,
-    clearStreamEnd,
     isStarting,
     isRunning,
     error,
     tokenUsage,
     pendingInputsCount = 0,
-    processCollapsed,
     collapsedCardIds,
     summaryChunks,
   } = useTaskStore();
@@ -168,179 +177,6 @@ export function TerminalView({ theme, onInput, style }: Props) {
     onInputChange(query);
   }, [onInputChange]);
 
-  // xterm 初始化：只运行一次，term 实例持久化
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const term = new Terminal({
-      theme: getXtermTheme(theme === 'dark'),
-      fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-      fontSize: 12,
-      lineHeight: 1.6,
-      scrollback: 500,
-      cursorBlink: true,
-    });
-
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-
-    // xterm 键盘输入（供外部程序化调用）
-    term.onData((data: string) => {
-      if (data === '\r') {
-        if (inputValue.trim()) {
-          onInput?.(inputValue.trim());
-          setInputValue('');
-        }
-      }
-    });
-
-    // 选中文字自动复制到剪贴板
-    term.onSelectionChange(() => {
-      const sel = term.getSelection();
-      if (sel) {
-        navigator.clipboard.writeText(sel).then(() => {
-          setCopyHint('已复制');
-          setTimeout(() => setCopyHint(null), 2000);
-        }).catch(() => {/* ignore */});
-      }
-    });
-
-    // 右键菜单：复制选中文字
-    const ctxMenuHandler = (e: MouseEvent) => {
-      const sel = term.getSelection();
-      if (sel) {
-        e.preventDefault();
-        navigator.clipboard.writeText(sel).then(() => {
-          setCopyHint('已复制');
-          setTimeout(() => setCopyHint(null), 2000);
-        }).catch(() => {/* ignore */});
-      }
-    };
-    container.addEventListener('contextmenu', ctxMenuHandler);
-
-    // 等容器布局完成后再 open（flex 布局需要 paint 后才有真实高度）
-    let rafId: number;
-    const tryOpen = () => {
-      if (!containerRef.current) return;
-      const h = containerRef.current.clientHeight;
-      if (h <= 0) {
-        rafId = requestAnimationFrame(tryOpen); // 还没布局好，继续等
-        return;
-      }
-      fitAddon.fit();
-      term.open(containerRef.current);
-      terminalRef.current = term;
-      mountedRef.current = true;
-
-      // 重要：不使用 ResizeObserver！
-      // ResizeObserver 在 xterm 内容增长时触发 fitAddon.fit()，
-      // 而 fitAddon.fit() 会改变容器尺寸 → ResizeObserver 再次触发 → 无限循环
-      // 改为固定 height: 320px，让 xterm 自己处理行数计算
-
-      // 优雅的启动横幅
-      const accent = '\x1b[36m';
-      const dim = '\x1b[90m';
-      const bold = '\x1b[1m';
-      const reset = '\x1b[0m';
-      term.writeln('');
-      term.writeln(`${dim}╭${'─'.repeat(54)}╮${reset}`);
-      term.writeln(`${dim}│ ${bold}${accent}Claude Code${reset}  ${dim}Interactive Session${reset}${' '.repeat(16)}${dim}│${reset}`);
-      term.writeln(`${dim}│ ${dim}/Users/ouguangji/2026/cc-web-ui${' '.repeat(25)}${dim}│${reset}`);
-      term.writeln(`${dim}╰${'─'.repeat(54)}╯${reset}`);
-      term.writeln('');
-    };
-    rafId = requestAnimationFrame(tryOpen);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      // resizeObserver 已移除（不再监听容器尺寸变化）
-      container.removeEventListener('contextmenu', ctxMenuHandler);
-      term.dispose();
-      terminalRef.current = null;
-      mountedRef.current = false;
-      shownLinesRef.current = 0;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // processCollapsed 切换时：折叠时清空 xterm 内容，展开时 fit
-  useEffect(() => {
-    const term = terminalRef.current;
-    const container = containerRef.current;
-    if (!term || !container) return;
-
-    if (processCollapsed) {
-      // 折叠：清空 xterm 内容
-      term.clear();
-    } else {
-      // 展开：重新 fit
-      if (container.clientHeight > 0) {
-        const fitAddon = new FitAddon();
-        term.loadAddon(fitAddon);
-        fitAddon.fit();
-      }
-    }
-  }, [processCollapsed]);
-
-  // 主题切换时更新 xterm 配色
-  useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.options.theme = getXtermTheme(theme === 'dark');
-    }
-  }, [theme]);
-
-  // 追加新行（去重）
-  useEffect(() => {
-    const term = terminalRef.current;
-    if (!term || terminalLines.length <= shownLinesRef.current) return;
-
-    const newLines = terminalLines.slice(shownLinesRef.current);
-    shownLinesRef.current = terminalLines.length;
-
-    for (const line of newLines) {
-      term.writeln(line);
-    }
-  }, [terminalLines]);
-
-  // 工具交互提示：写入 xterm（不再重复显示，ToolCards 已统一展示）
-  // useEffect(() => {
-  //   const term = terminalRef.current;
-  //   if (!term) return;
-  //   for (const [toolId, message] of toolProgressMessages) {
-  //     if (prevToolProgressRef.current.get(toolId) === message) continue;
-  //     prevToolProgressRef.current.set(toolId, message);
-  //     const color = getToolProgressColor(toolProgressMessages, toolId);
-  //     const label = getToolLabel(toolId);
-  //     term.writeln(`${color}▸ \x1b[0m${color}${label}\x1b[0m ${message}`);
-  //   }
-  // }, [toolProgressMessages]);
-
-  // 流式回答结束：显示完成提示
-  useEffect(() => {
-    if (!streamEndPending) return;
-    const term = terminalRef.current;
-    if (term) {
-      term.writeln('');
-      term.writeln('\x1b[32m✓ 回答已生成\x1b[0m');
-    }
-    clearStreamEnd();
-  }, [streamEndPending, clearStreamEnd]);
-
-  // 启动成功：更新状态行
-  useEffect(() => {
-    const term = terminalRef.current;
-    if (!term || !isRunning) return;
-    term.writeln('\x1b[32m✓ Claude Code 已连接，正在工作...\x1b[0m');
-  }, [isRunning]);
-
-  // 出错：显示错误
-  useEffect(() => {
-    const term = terminalRef.current;
-    if (!term || !error) return;
-    term.writeln(`\x1b[31m✗ 错误: ${error}\x1b[0m`);
-  }, [error]);
-
   // Task 5: Load enabled workspaces on mount
   useEffect(() => {
     getEnabledPresets().then(presets => {
@@ -371,29 +207,191 @@ export function TerminalView({ theme, onInput, style }: Props) {
   }, []);
 
   // V1.4.1: Handle send with attachments
-  const handleSendWithAttachments = useCallback(() => {
+  const handleSendWithAttachments = useCallback(async () => {
     const text = inputValue.trim();
     if (!text && pendingAttachments.length === 0) return;
 
-    const term = terminalRef.current;
-    if (!term) return;
+    // ── Agent 前缀检测 ───────────────────────────────────────
+    const isAgentPrefix = text.startsWith('/agent');
+    const cleanInput = isAgentPrefix ? text.replace(/^\/agent\s*/, '').trim() : text;
+
+    // ── Multi-Agent 模式路由 ─────────────────────────────────
+    if (agentMode || isAgentPrefix) {
+      if (!cleanInput) return;
+
+      // 注入绫华角色设定（仅 LLM 调用使用，UI 显示用原始 cleanInput）
+      const agentInput = AYAKA_PERSONA + '\n\n[用户任务]\n' + cleanInput;
+
+      // 清空输入框
+      setInputValue('');
+
+      // 重置 Agent 状态
+      setCeoPhase('planning');
+      setCeoPlan([]);
+      setCeoTaskResults([]);
+      setCeoSummary('');
+      setCeoCompletedCount(0);
+      setCeoTotalCount(0);
+      setPlanConfirmed(false);
+      setAgentExecuting(true);
+
+      try {
+        const ceoAgent = getCEOAgent({ maxIterations: 3, autoSkillLoad: true });
+        const executor = createTerminalExecutor(workspaceList);
+        const decomposer = new LLMDecomposer({ llmAvailable: true, llmCall: createLLMCall() });
+        ceoAgent.setDecomposer(decomposer);
+        if (workspaceList.length > 0) {
+          ceoAgent.setWorkspace(workspaceList[0].id, workspaceList[0].workspacePath);
+        }
+        if (orchestrationFlowRef.current) {
+          ceoAgent.setOrchestrationFlow(orchestrationFlowRef.current);
+        } else {
+          ceoAgent.clearOrchestrationFlow();
+        }
+
+        const plan = await decomposer.decompose(agentInput);
+        setCeoPlan(plan.agents);
+        setCeoStrategy(plan.strategy);
+        setCeoTotalCount(plan.agents.length);
+
+        if (planMode === 'confirm') {
+          setPendingPlan(plan);
+          setPendingCleanInput(agentInput);
+          setShowPlanConfirm(true);
+          return;
+        }
+
+        setCeoPhase('executing');
+        setCeoCompletedCount(0);
+        setCeoTaskResults([]);
+        setPlanConfirmed(true);
+
+        const report = await ceoAgent.processWithDecomposer(agentInput, executor, {
+          plan,
+          onTaskStart: (taskId) => {
+            setCeoTaskResults(prev => [...prev, {
+              taskId, workerType: 'execution',
+              output: null, success: false,
+              duration: 0, skillsUsed: [], subTasks: [],
+            }]);
+            try {
+              const planAgent = plan.agents.find(a => a.id === taskId);
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (useTaskStore.getState().handleEvent as any)({
+                type: 'agent_start',
+                agentId: taskId,
+                label: planAgent?.name ?? taskId,
+                parentId: 'main-agent',
+                agentType: planAgent?.type ?? 'execution',
+                taskDescription: planAgent?.description ?? '',
+              });
+            } catch { /* 静默忽略 */ }
+          },
+          onTaskComplete: (result) => {
+            setCeoTaskResults(prev => prev.map(r =>
+              r.taskId === result.taskId ? result : r
+            ));
+            setCeoCompletedCount(prev => prev + 1);
+            try {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (useTaskStore.getState().handleEvent as any)({
+                type: 'agent_end',
+                agentId: result.taskId,
+                toolMessage: result.error,
+                duration: result.duration,
+                skillsUsed: result.skillsUsed,
+              });
+            } catch { /* 静默忽略 */ }
+          },
+        });
+
+        setCeoPhase('summary');
+        setCeoSummary(report.summary);
+        setAgentExecuting(false);
+
+        const agentCard: MarkdownCardData = {
+          id: `agent-${Date.now()}`,
+          queryId: `agent-${Date.now()}`,
+          timestamp: Date.now(),
+          query: cleanInput,
+          analysis: [
+            `### CEO 执行统计`,
+            ``,
+            `| 指标 | 值 |`,
+            `|------|-----|`,
+            `| 总目标数 | ${report.completedGoals.length + report.missedGoals.length} |`,
+            `| 已完成 | ${report.completedGoals.length} |`,
+            `| 未完成 | ${report.missedGoals.length} |`,
+            `| 总耗时 | ${report.totalDuration}ms |`,
+          ].join('\n'),
+          summary: report.summary,
+          completeSummary: report.summary,
+          variant: 'agent' as const,
+          agentReport: {
+            totalGoals: report.completedGoals.length + report.missedGoals.length,
+            completedGoals: report.completedGoals.length,
+            missedGoals: report.missedGoals.length,
+            duration: report.totalDuration,
+            skillsUsed: (report.skillsUsed ?? []).map((s: string) => ({ name: s, domain: 'general' })),
+            recoveries: (() => {
+              const grouped = new Map<string, import('@/types/multi-agent/worker-agents').TaskResult[]>();
+              for (const r of report.taskResults) {
+                const arr = grouped.get(r.taskId) || [];
+                arr.push(r);
+                grouped.set(r.taskId, arr);
+              }
+              const recovered: Array<{ type: string; agentId: string; success: boolean }> = [];
+              for (const [taskId, results] of grouped) {
+                const hasFailure = results.some(r => !r.success);
+                const hasSuccess = results.some(r => r.success);
+                if (hasFailure && hasSuccess) {
+                  recovered.push({ type: 'retry', agentId: taskId, success: true });
+                }
+              }
+              return recovered;
+            })(),
+          },
+          workspaceId: (() => {
+            const termTab = useTerminalWorkspaceStore.getState().activeTab;
+            return termTab !== 'global' ? termTab : undefined;
+          })(),
+        };
+
+        useTaskStore.getState().addMarkdownCard(agentCard);
+
+      } catch (error) {
+        setAgentExecuting(false);
+        setCeoPhase('summary');
+        const errMsg = error instanceof Error ? error.message : String(error);
+        setCeoSummary(`执行失败: ${errMsg}`);
+
+        // 推送错误卡片到对话框，确保用户能看到失败反馈
+        const errorCard: MarkdownCardData = {
+          id: `agent-error-${Date.now()}`,
+          queryId: `agent-error-${Date.now()}`,
+          timestamp: Date.now(),
+          query: cleanInput,
+          analysis: `### Agent 执行失败\n\n\`\`\`\n${errMsg}\n\`\`\``,
+          summary: 'Agent 执行出错，请检查配置后重试。',
+          completeSummary: 'Agent 执行出错，请检查配置后重试。',
+          variant: 'agent' as const,
+        };
+        useTaskStore.getState().addMarkdownCard(errorCard);
+      }
+      return;
+    }
 
     // 先清空输入框
     setInputValue('');
 
-    // 首次问题回答完毕后，第二次输入前显示分隔线
-    if (markdownCards.length > 0) {
-      writeSeparator(term, theme === 'dark');
-    }
-
     // 获取附件
     const readyAttachments = getReadyAttachments();
 
-    // 回显用户输入
-    term.writeln(`\n\x1b[36m›\x1b[0m \x1b[90m${text || '(仅附件)'}\x1b[0m`);
-
-    // ── 构造 payload ────────────────────────────────────────
-    const payload: Record<string, unknown> = { query: text };
+    // ── 构造 payload（绫华角色作为独立字段，不污染 query）─────
+    const payload: Record<string, unknown> = {
+      query: text,
+      systemPrompt: AYAKA_PERSONA,
+    };
     if (ragItems.length > 0) {
       payload.ragChunks = ragItems;
     }
@@ -453,8 +451,7 @@ export function TerminalView({ theme, onInput, style }: Props) {
       const sent = onInput?.(finalPayload);
       if (sent === false) {
         // sendInput 返回 false 表示 WS 未 OPEN（正在连接中或已关闭）
-        // 消息已自动加入重连队列，稍后会自动发送，无需显示误导性错误
-        term.writeln('\x1b[33m⚠ 正在等待连接，消息已加入队列...\x1b[0m');
+        // 消息已自动加入重连队列，稍后会自动发送
       } else {
         // 清除 RAG 上下文
         if (ragItems.length > 0) {
@@ -475,9 +472,152 @@ export function TerminalView({ theme, onInput, style }: Props) {
         }
       }
     } catch (err) {
-      term.writeln(`\x1b[31m✗ 发送异常: ${String(err)}\x1b[0m`);
+      console.error('[TerminalView] Send error:', err);
     }
-  }, [inputValue, pendingAttachments, markdownCards, ragItems, getPromptContext, getReadyAttachments, handleClearAll, onInput, theme]);
+  }, [inputValue, pendingAttachments, markdownCards, ragItems, getPromptContext, getReadyAttachments, handleClearAll, onInput, agentMode, planMode, workspaceList]);
+
+  // CEO Agent 计划确认后的执行函数
+  const executeCEOPlan = useCallback(async (inputText: string, plan: AgentPlan) => {
+    setCeoPhase('executing');
+    setCeoPlan(plan.agents);
+    setCeoStrategy(plan.strategy);
+    setCeoTotalCount(plan.agents.length);
+    setCeoCompletedCount(0);
+    setCeoTaskResults([]);
+    setPlanConfirmed(true);
+
+    try {
+      const ceoAgent = getCEOAgent({ maxIterations: 3, autoSkillLoad: true });
+      const executor = createTerminalExecutor(workspaceList);
+      const decomposer = new LLMDecomposer({ llmAvailable: true, llmCall: createLLMCall() });
+      ceoAgent.setDecomposer(decomposer);
+      // 注入工作区信息
+      if (workspaceList.length > 0) {
+        ceoAgent.setWorkspace(workspaceList[0].id, workspaceList[0].workspacePath);
+      }
+      // 编排模式：加载预定义 Flow 拓扑
+      if (orchestrationFlowRef.current) {
+        ceoAgent.setOrchestrationFlow(orchestrationFlowRef.current);
+      } else {
+        ceoAgent.clearOrchestrationFlow();
+      }
+
+      const report = await ceoAgent.processWithDecomposer(inputText, executor, {
+        plan,
+        onTaskStart: (taskId) => {
+          setCeoTaskResults(prev => [...prev, {
+            taskId, workerType: 'execution',
+            output: null, success: false,
+            duration: 0, skillsUsed: [], subTasks: [],
+          }]);
+          // DAG 联动
+          try {
+            const planAgent = plan.agents.find(a => a.id === taskId);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (useTaskStore.getState().handleEvent as any)({
+              type: 'agent_start',
+              agentId: taskId,
+              label: planAgent?.name ?? taskId,
+              parentId: 'main-agent',
+              agentType: planAgent?.type ?? 'execution',
+              taskDescription: planAgent?.description ?? '',
+            });
+          } catch { /* 静默忽略 */ }
+        },
+        onTaskComplete: (result) => {
+          setCeoTaskResults(prev => prev.map(r =>
+            r.taskId === result.taskId ? result : r
+          ));
+          setCeoCompletedCount(prev => prev + 1);
+          // DAG 联动
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (useTaskStore.getState().handleEvent as any)({
+              type: 'agent_end',
+              agentId: result.taskId,
+              toolMessage: result.error,
+              duration: result.duration,
+              skillsUsed: result.skillsUsed,
+            });
+          } catch { /* 静默忽略 */ }
+        },
+      });
+
+      setCeoPhase('summary');
+      setCeoSummary(report.summary);
+      setAgentExecuting(false);
+
+      // 构建 Agent 结果卡片
+      const agentCard: MarkdownCardData = {
+        id: `agent-${Date.now()}`,
+        queryId: `agent-${Date.now()}`,
+        timestamp: Date.now(),
+        query: inputText,
+        analysis: [
+          `### CEO 执行统计`,
+          ``,
+          `| 指标 | 值 |`,
+          `|------|-----|`,
+          `| 总目标数 | ${report.completedGoals.length + report.missedGoals.length} |`,
+          `| 已完成 | ${report.completedGoals.length} |`,
+          `| 未完成 | ${report.missedGoals.length} |`,
+          `| 总耗时 | ${report.totalDuration}ms |`,
+        ].join('\n'),
+        summary: report.summary,
+        completeSummary: report.summary,
+        variant: 'agent' as const,
+        agentReport: {
+          totalGoals: report.completedGoals.length + report.missedGoals.length,
+          completedGoals: report.completedGoals.length,
+          missedGoals: report.missedGoals.length,
+          duration: report.totalDuration,
+          skillsUsed: (report.skillsUsed ?? []).map((s: string) => ({ name: s, domain: 'general' })),
+          recoveries: (() => {
+            const grouped = new Map<string, import('@/types/multi-agent/worker-agents').TaskResult[]>();
+            for (const r of report.taskResults) {
+              const arr = grouped.get(r.taskId) || [];
+              arr.push(r);
+              grouped.set(r.taskId, arr);
+            }
+            const recovered: Array<{ type: string; agentId: string; success: boolean }> = [];
+            for (const [taskId, results] of grouped) {
+              const hasFailure = results.some(r => !r.success);
+              const hasSuccess = results.some(r => r.success);
+              if (hasFailure && hasSuccess) {
+                recovered.push({ type: 'retry', agentId: taskId, success: true });
+              }
+            }
+            return recovered;
+          })(),
+        },
+        workspaceId: (() => {
+          const termTab = useTerminalWorkspaceStore.getState().activeTab;
+          return termTab !== 'global' ? termTab : undefined;
+        })(),
+      };
+
+      useTaskStore.getState().addMarkdownCard(agentCard);
+
+      // 完成状态已通过 CEOAgentCard Phase 3 展示
+    } catch (error) {
+      setAgentExecuting(false);
+      setCeoPhase('summary');
+      const errMsg = error instanceof Error ? error.message : String(error);
+      setCeoSummary(`执行失败: ${errMsg}`);
+
+      const errorCard: MarkdownCardData = {
+        id: `agent-error-${Date.now()}`,
+        queryId: `agent-error-${Date.now()}`,
+        timestamp: Date.now(),
+        query: inputText,
+        analysis: `### Agent 执行失败\n\n\`\`\`\n${errMsg}\n\`\`\``,
+        summary: 'Agent 执行出错，请检查配置后重试。',
+        completeSummary: 'Agent 执行出错，请检查配置后重试。',
+        variant: 'agent' as const,
+      };
+      useTaskStore.getState().addMarkdownCard(errorCard);
+    }
+  }, [workspaceList, activeWorkspaceId]);
 
   // 兼容旧的 handleInputKeyDown（用于 Ctrl+Enter 发送）
   const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -488,13 +628,6 @@ export function TerminalView({ theme, onInput, style }: Props) {
   }, [handleSendWithAttachments]);
 
   // StatusBar now handles these
-
-  // Task 2.1: Color helper for global merge view workspace tags
-  const WORKSPACE_COLORS = ['#4a8eff', '#2ecc71', '#f1c40f', '#e74c3c', '#9b59b6', '#1abc9c'];
-  function getWorkspaceColor(workspaceId: string): string {
-    const hash = workspaceId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-    return WORKSPACE_COLORS[hash % WORKSPACE_COLORS.length];
-  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0, height: '100%', ...style }}>
@@ -526,11 +659,39 @@ export function TerminalView({ theme, onInput, style }: Props) {
         // 这避免了页面什么都不输入时内容区无限扩张的问题
         maxHeight: '65vh',
       }}>
+        {/* 欢迎页：无历史卡片、无进行中会话时展示 */}
+        {(() => {
+          const hasContent = agentExecuting
+            || markdownCards.length > 0
+            || currentCard !== null
+            || previousCard !== null
+            || summaryChunks.length > 0
+            || pendingQueryText !== ''
+            || pendingRAGChunks.length > 0;
+          return !hasContent;
+        })() && <WelcomePage />}
+
+        {/* Agent 执行卡片（Multi-Agent 模式下的结构化展示） */}
+        {agentExecuting && (
+          <div style={{ padding: '0 4px' }}>
+            <CEOAgentCard
+              phase={ceoPhase}
+              plan={ceoPlan}
+              taskResults={ceoTaskResults}
+              ceoSummary={ceoSummary}
+              strategy={ceoStrategy}
+              completedCount={ceoCompletedCount}
+              totalCount={ceoTotalCount}
+              planConfirmed={planConfirmed}
+            />
+          </div>
+        )}
+
         {/* MarkdownCard 列表（已完成） */}
         {markdownCards.length > 0 && (
           <div style={{ padding: '0 4px' }}>
             {markdownCards.map(card => (
-              <MarkdownCard key={`${card.queryId}-${collapsedCardIds.has(card.queryId)}`} card={card} defaultAnalysisOpen={false} defaultCollapsed={collapsedCardIds.has(card.queryId)} onAttachmentClick={(att) => setPreviewAttachment(att)} />
+              <MarkdownCard key={`${card.queryId}-${collapsedCardIds.has(card.queryId)}`} card={card} defaultAnalysisOpen={card.variant === 'agent'} defaultCollapsed={card.variant !== 'agent' && collapsedCardIds.has(card.queryId)} onAttachmentClick={(att) => setPreviewAttachment(att)} />
             ))}
           </div>
         )}
@@ -591,7 +752,18 @@ export function TerminalView({ theme, onInput, style }: Props) {
               maxHeight: 300,
               overflowY: 'auto',
             }}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  code: ({ className, children, ...props }) => {
+                    const isBlock = className?.startsWith('language-');
+                    return isBlock
+                      ? <code style={{ background: 'transparent', padding: 0, color: 'var(--text-secondary)', fontSize: 10 }} className={className} {...props}>{children}</code>
+                      : <code style={{ background: 'var(--bg-input)', borderRadius: 3, padding: '1px 4px', fontSize: 10, color: 'var(--accent)', fontFamily: "'JetBrains Mono', monospace" }} {...props}>{children}</code>;
+                  },
+                  pre: ({ children }) => <pre style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', overflowX: 'auto', margin: '6px 0' }}>{children}</pre>,
+                }}
+              >
                 {summaryChunks.join('')}
               </ReactMarkdown>
             </div>
@@ -710,81 +882,6 @@ export function TerminalView({ theme, onInput, style }: Props) {
           </div>
         )}
 
-        {/* xterm 工具调用日志 */}
-        <div
-          ref={containerRef}
-          style={{
-            minHeight: processCollapsed ? 0 : '120px',
-            // flex: 1 让终端与兄弟元素（历史面板）共享剩余空间
-            // maxHeight 限制最多 15 行（约 320px），避免终端过高挤压 DAG
-            flex: processCollapsed ? 0 : 1,
-            maxHeight: processCollapsed ? 0 : 320,
-            overflow: 'hidden',
-            background: 'var(--term-bg)',
-            padding: processCollapsed ? 0 : '12px 8px 12px 12px',
-            transition: 'padding 0.2s, height 0.2s',
-            flexShrink: 0,
-            position: 'relative',
-          }}
-        >
-          {/* 复制成功提示（选中文字后自动显示） */}
-          {copyHint && (
-            <div style={{
-              position: 'absolute',
-              top: 8,
-              right: 16,
-              zIndex: 10,
-              background: 'rgba(46, 204, 113, 0.15)',
-              border: '1px solid rgba(46, 204, 113, 0.4)',
-              color: 'var(--success)',
-              fontSize: 11,
-              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-              padding: '3px 10px',
-              borderRadius: 12,
-              pointerEvents: 'none',
-            }}>
-              {copyHint} ✂
-            </div>
-          )}
-        </div>
-
-        {/* Task 2.1: 全局合并终端输出（activeTab === 'global' 时显示） */}
-        {activeTab === 'global' && mergedOrder.length > 0 && (
-          <div style={{
-            padding: '8px 12px',
-            borderTop: '1px solid var(--border)',
-            maxHeight: 200,
-            overflowY: 'auto',
-          }}>
-            <div style={{
-              fontSize: 9,
-              color: 'var(--text-muted)',
-              marginBottom: 6,
-              fontFamily: "'JetBrains Mono', monospace",
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-            }}>
-              全局终端输出 ({mergedOrder.length} 条)
-            </div>
-            <div style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 11,
-              color: 'var(--text-secondary)',
-              lineHeight: 1.6,
-            }}>
-              {mergedOrder.map((item, i) => (
-                <div key={i} style={{ marginBottom: 2 }}>
-                  <span style={{ color: getWorkspaceColor(item.workspaceId), fontSize: 9, marginRight: 4 }}>
-                    [{item.workspaceId}]
-                  </span>
-                  <span style={{ color: 'var(--text-secondary)' }}>
-                    {item.chunk}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
       </div>
       <RecallPanel
@@ -827,19 +924,75 @@ export function TerminalView({ theme, onInput, style }: Props) {
         />
       )}
 
+      {/* Multi-Agent 模式开关 */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px' }}>
+        <label onClick={() => setAgentMode(!agentMode)} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', userSelect: 'none' as const }}>
+          <div
+            style={{
+              position: 'relative' as const, width: 36, height: 20, borderRadius: 10,
+              background: agentMode ? '#8b5cf6' : 'var(--border)',
+              transition: 'background 0.2s',
+              pointerEvents: 'none',
+            }}
+            >
+              <div style={{
+                position: 'absolute' as const, top: 2,
+                left: agentMode ? 18 : 2,
+                width: 16, height: 16, borderRadius: '50%',
+                background: 'white', transition: 'left 0.2s',
+              }} />
+            </div>
+            <span style={{ color: agentMode ? '#8b5cf6' : 'var(--text-secondary)', fontSize: 12 }}>
+              🧠 Agent
+            </span>
+            {agentMode && (
+              <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 4 }}>
+                输入后将由 CEO Agent 分解执行
+              </span>
+            )}
+          </label>
+          {/* 计划确认模式开关（仅 Agent 模式时显示） */}
+          {agentMode && (
+            <label onClick={() => setPlanMode(prev => prev === 'auto' ? 'confirm' : 'auto')} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, cursor: 'pointer', userSelect: 'none' as const }}>
+              <div style={{
+                position: 'relative' as const, width: 36, height: 20, borderRadius: 10,
+                background: planMode === 'confirm' ? '#f59e0b' : 'var(--border)',
+                transition: 'background 0.2s',
+                pointerEvents: 'none',
+              }}>
+                <div style={{
+                  position: 'absolute' as const, top: 2,
+                  left: planMode === 'confirm' ? 18 : 2,
+                  width: 16, height: 16, borderRadius: '50%',
+                  background: 'white', transition: 'left 0.2s',
+                }} />
+              </div>
+              <span style={{ color: planMode === 'confirm' ? '#f59e0b' : 'var(--text-secondary)', fontSize: 12 }}>
+                📋 Plan
+              </span>
+              {planMode === 'confirm' && (
+                <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 4 }}>
+                  分解后需确认再执行
+                </span>
+              )}
+            </label>
+          )}
+      </div>
+
       {/* 输入框 */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
+        border: agentMode ? '1px solid #8b5cf6' : '1px solid var(--border)',
         borderTop: 'none',
         borderRadius: '0 0 8px 8px',
         padding: '0 12px',
         transition: 'border-color 0.2s',
+        boxShadow: agentMode ? '0 0 0 1px rgba(139,92,246,0.3)' : undefined,
       }}
-        onFocus={e => { e.currentTarget.style.borderColor = 'var(--accent)'; }}
-        onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+        onFocus={e => { e.currentTarget.style.borderColor = agentMode ? '#8b5cf6' : 'var(--accent)'; }}
+        onBlur={e => { e.currentTarget.style.borderColor = agentMode ? '#8b5cf6' : 'var(--border)'; }}
       >
         {/* V1.4.1: 附件按钮 */}
         <AttachmentButton onFilesSelected={handleFileSelect} />
@@ -859,7 +1012,9 @@ export function TerminalView({ theme, onInput, style }: Props) {
           onChange={e => handleInputChange(e.target.value)}
           onKeyDown={handleInputKeyDown}
           placeholder={
-            isRunning
+            agentMode
+              ? '🧠 Agent 模式：输入目标，CEO Agent 分解执行...'
+              : isRunning
               ? 'Claude 工作中，可继续输入...'
               : isStarting
               ? '等待 Claude Code 启动...'
@@ -899,6 +1054,31 @@ export function TerminalView({ theme, onInput, style }: Props) {
         attachment={previewAttachment}
         onClose={() => setPreviewAttachment(null)}
       />
+
+      {/* 计划确认弹窗（Agent 模式 + Plan 确认模式） */}
+      {showPlanConfirm && pendingPlan && (
+        <PlanConfirmModal
+          agents={pendingPlan.agents}
+          strategy={pendingPlan.strategy}
+          onConfirm={(agents) => {
+            setShowPlanConfirm(false);
+            // 使用用户可能修改后的 agents 更新 plan
+            const updatedPlan: AgentPlan = {
+              ...pendingPlan!,
+              agents,
+            };
+            setCeoPlan(agents);
+            setCeoStrategy(pendingPlan!.strategy);
+            setCeoTotalCount(agents.length);
+            executeCEOPlan(pendingCleanInput, updatedPlan);
+          }}
+          onCancel={() => {
+            setShowPlanConfirm(false);
+            setPendingPlan(null);
+            setPendingCleanInput('');
+          }}
+        />
+      )}
     </div>
   );
 }
