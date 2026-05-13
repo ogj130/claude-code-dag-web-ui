@@ -180,7 +180,7 @@ function MarkdownCardInner({ card, defaultAnalysisOpen = false, defaultCollapsed
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ transition: 'transform 200ms', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-flex' }}>▶</span>
-          {card.variant === 'agent' ? <>🧠 Agent 执行报告</> : <>✦ 回答总结</>}
+          {card.variant === 'agent-process' ? <>🧠 Agent 执行过程</> : card.variant === 'agent' ? <>🧠 Agent 执行报告</> : <>✦ 回答总结</>}
         </span>
         <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>
           {open ? '收起' : '展开'}
@@ -394,8 +394,179 @@ function MarkdownCardInner({ card, defaultAnalysisOpen = false, defaultCollapsed
             </div>
           )}
 
-          {/* Analysis 区（可折叠） */}
-          {hasAnalysis && (
+          {/* ── Agent 三阶段过程卡片（variant='agent-process'）── */}
+          {card.variant === 'agent-process' && card.agentProcess && (() => {
+            const ap = card.agentProcess;
+            const typeColors: Record<string, string> = {
+              context: '#5c9cff', planning: '#f5b842', execution: '#3dd68c', review: '#9b6cff',
+            };
+            return (
+              <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* 阶段一：规划 */}
+                <div style={{
+                  border: '1px solid rgba(155,108,255,0.25)', borderRadius: 8,
+                  background: 'rgba(155,108,255,0.03)', overflow: 'hidden',
+                }}>
+                  <div style={{
+                    padding: '8px 12px', fontSize: 12, fontWeight: 600,
+                    color: '#c4b5fd', borderBottom: '1px solid rgba(155,108,255,0.12)',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    <span>🧠</span> 阶段一：CEO 规划
+                    <span style={{ marginLeft: 'auto', fontSize: 10, color: '#8b7fae' }}>
+                      {ap.strategy === 'pipeline' ? '流水线' : ap.strategy === 'parallel' ? '并行' : '混合'} · {ap.plan.length} Agent
+                    </span>
+                  </div>
+                  <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {ap.plan.map((a, i) => (
+                      <div key={a.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',
+                        background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: 6,
+                      }}>
+                        <span style={{
+                          width: 20, height: 20, borderRadius: '50%',
+                          background: typeColors[a.type] ?? '#6e7198',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#fff', fontSize: 10, fontWeight: 600, flexShrink: 0,
+                        }}>{i + 1}</span>
+                        <span style={{
+                          background: (typeColors[a.type] ?? '#6e7198') + '33',
+                          color: typeColors[a.type] ?? '#6e7198',
+                          padding: '1px 6px', borderRadius: 4, fontSize: 9, fontWeight: 600,
+                        }}>{a.type}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-primary)', fontWeight: 500 }}>{a.name}</div>
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.description}</div>
+                        </div>
+                        {a.dependsOn && a.dependsOn.length > 0 && (
+                          <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>🔗{a.dependsOn.length}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 阶段二：子 Agent 执行结果 */}
+                <div style={{
+                  border: '1px solid rgba(108,140,255,0.25)', borderRadius: 8,
+                  background: 'rgba(108,140,255,0.03)', overflow: 'hidden',
+                }}>
+                  <div style={{
+                    padding: '8px 12px', fontSize: 12, fontWeight: 600,
+                    color: '#a8d0ff', borderBottom: '1px solid rgba(108,140,255,0.12)',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}>
+                    <span>⚡</span> 阶段二：Agent 执行
+                    <span style={{ marginLeft: 'auto', fontSize: 10, color: '#7a8fb8' }}>
+                      {ap.results.filter(r => r.success).length}/{ap.results.length} 完成
+                    </span>
+                  </div>
+                  <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {ap.results.map((r, i) => {
+                      const tColor = typeColors[r.agentType] ?? '#6e7198';
+                      return (
+                        <div key={r.taskId} style={{
+                          border: `1px solid ${r.success ? 'rgba(61,214,140,0.2)' : 'rgba(240,96,112,0.2)'}`,
+                          borderRadius: 6, overflow: 'hidden',
+                          background: r.success ? 'rgba(61,214,140,0.02)' : 'rgba(240,96,112,0.02)',
+                        }}>
+                          <div style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '6px 10px', cursor: 'pointer',
+                            borderBottom: '1px solid rgba(255,255,255,0.04)',
+                          }}>
+                            <span style={{
+                              width: 18, height: 18, borderRadius: '50%',
+                              background: tColor, color: '#fff',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 9, fontWeight: 600, flexShrink: 0,
+                            }}>{i + 1}</span>
+                            <span style={{
+                              background: tColor + '33', color: tColor,
+                              padding: '1px 5px', borderRadius: 3, fontSize: 9, fontWeight: 600,
+                            }}>{r.agentType}</span>
+                            <span style={{ flex: 1, fontSize: 11, color: 'var(--text-primary)', fontWeight: 500 }}>
+                              {r.agentName}
+                            </span>
+                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>{r.duration}ms</span>
+                            <span style={{ fontSize: 12 }}>{r.success ? '✅' : '❌'}</span>
+                          </div>
+                          {r.output && (
+                            <div style={{
+                              padding: '8px 10px', fontSize: 10, color: 'var(--text-secondary)',
+                              whiteSpace: 'pre-wrap', lineHeight: 1.5,
+                              fontFamily: "'JetBrains Mono', 'SF Mono', monospace",
+                              maxHeight: 200, overflowY: 'auto',
+                              background: 'rgba(0,0,0,0.15)',
+                            }}>
+                              {r.output}
+                            </div>
+                          )}
+                          {r.error && (
+                            <div style={{
+                              padding: '6px 10px', fontSize: 10, color: '#f8a0b0',
+                              background: 'rgba(240,96,112,0.08)',
+                            }}>⚠️ {r.error}</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 阶段三：CEO 总结 (Markdown) */}
+                {ap.summary && (
+                  <div style={{
+                    border: '1px solid rgba(61,214,140,0.25)', borderRadius: 8,
+                    background: 'rgba(61,214,140,0.03)', overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      padding: '8px 12px', fontSize: 12, fontWeight: 600,
+                      color: '#80f0b8', borderBottom: '1px solid rgba(61,214,140,0.12)',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}>
+                      <span>📊</span> 阶段三：CEO 总结
+                    </div>
+                    <div style={{ padding: '10px 12px', fontSize: 11, lineHeight: 1.7, color: 'var(--text-primary)' }}>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h1: ({ children }) => <h1 style={markdownStyles.h1}>{children}</h1>,
+                          h2: ({ children }) => <h2 style={markdownStyles.h2}>{children}</h2>,
+                          h3: ({ children }) => <h3 style={markdownStyles.h3}>{children}</h3>,
+                          p: ({ children }) => <p style={markdownStyles.p}>{children}</p>,
+                          ul: ({ children }) => <ul style={markdownStyles.ul}>{children}</ul>,
+                          ol: ({ children }) => <ol style={markdownStyles.ol}>{children}</ol>,
+                          li: ({ children }) => <li style={markdownStyles.li}>{children}</li>,
+                          code: ({ className, children, ...props }) => {
+                            const isBlock = className?.startsWith('language-');
+                            return isBlock
+                              ? <code style={markdownStyles['pre code']} className={className} {...props}>{children}</code>
+                              : <code style={markdownStyles.code} {...props}>{children}</code>;
+                          },
+                          pre: ({ children }) => <pre style={markdownStyles.pre}>{children}</pre>,
+                          blockquote: ({ children }) => <blockquote style={markdownStyles.blockquote}>{children}</blockquote>,
+                          table: ({ children }) => <table style={markdownStyles.table}>{children}</table>,
+                          th: ({ children }) => <th style={markdownStyles.th}>{children}</th>,
+                          td: ({ children }) => <td style={markdownStyles.td}>{children}</td>,
+                          a: ({ children, href }) => <a style={markdownStyles.a} href={href} target="_blank" rel="noopener noreferrer">{children}</a>,
+                          strong: ({ children }) => <strong style={markdownStyles.strong}>{children}</strong>,
+                          em: ({ children }) => <em style={markdownStyles.em}>{children}</em>,
+                          hr: () => <hr style={markdownStyles.hr} />,
+                        }}
+                      >
+                        {ap.summary}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Analysis 区（可折叠）— agent-process 变体跳过此处 */}
+          {card.variant !== 'agent-process' && hasAnalysis && (
             <div>
               <div
                 onClick={() => setAnalysisOpen(o => !o)}

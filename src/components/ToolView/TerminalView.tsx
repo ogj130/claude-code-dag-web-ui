@@ -312,57 +312,62 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
         setCeoPhase('summary');
         setCeoSummary(report.summary);
 
-        // Phase 3 展示 1.5s 后，将完整三阶段内容打包为历史卡片永久保留
+        // Phase 3 展示 1.5s 后，将三阶段内容打包为永久历史卡片
         await new Promise(r => setTimeout(r, 1500));
 
-        // 构建阶段一文案：规划方案（用局部变量 plan，不用 state ceoPlan）
-        const planAgents = plan.agents;
-        const planStrategy = plan.strategy;
-        const planBlock = [
-          `### 🧠 阶段一：CEO 规划`,
-          ``,
-          `**策略**：${planStrategy === 'pipeline' ? '流水线' : planStrategy === 'parallel' ? '并行' : planStrategy === 'mixed' ? '混合' : planStrategy ?? '自动'}`,
-          `**子 Agent 数量**：${planAgents.length}`,
-          ``,
-          ...planAgents.map((a, i) =>
-            `${i + 1}. **${a.name}** (\`${a.type}\`) — ${a.description}${a.dependsOn?.length ? ` 依赖: ${a.dependsOn.join(', ')}` : ''}`
-          ),
-        ].join('\n');
-
-        // 构建阶段二文案：各子 Agent 执行结果
-        const execBlock = [
-          `### ⚡ 阶段二：Agent 执行`,
-          ``,
-          ...report.taskResults.map((r, _i) => {
-            const agent = planAgents.find(a => a.id === r.taskId);
-            const name = agent?.name ?? r.taskId;
-            const icon = r.success ? '✅' : '❌';
-            const outputSummary = typeof r.output === 'object' && r.output
-              ? Object.entries(r.output as Record<string, unknown>)
-                  .filter(([k]) => k !== '_started' && k !== 'agentType' && k !== 'agentName')
-                  .map(([k, v]) => `  - ${k}: ${typeof v === 'string' ? v.slice(0, 80) : JSON.stringify(v).slice(0, 80)}`)
-                  .join('\n')
-              : r.error ?? '(无输出)';
-            return `${icon} **${name}** (${r.duration}ms)\n${outputSummary}`;
-          }),
-        ].join('\n');
-
-        // 构建阶段三文案：CEO 总结
-        const summaryBlock = [
-          `### 📊 阶段三：CEO 总结`,
-          ``,
-          report.summary,
-        ].join('\n');
+        // 提取子 Agent 输出文本
+        const extractOutputText = (output: unknown): string => {
+          if (!output || typeof output !== 'object') return String(output ?? '');
+          const out = output as Record<string, unknown>;
+          // 跳过内部标记字段
+          const meaningful = Object.entries(out)
+            .filter(([k]) => !k.startsWith('_') && k !== 'agentType' && k !== 'agentName')
+            .map(([k, v]) => {
+              if (typeof v === 'string') return `${k}: ${v}`;
+              if (typeof v === 'object' && v !== null) {
+                // 递归提取嵌套对象的 summary/description 等有意义字段
+                const inner = v as Record<string, unknown>;
+                return inner.summary || inner.description || inner.message || JSON.stringify(v).slice(0, 120);
+              }
+              return `${k}: ${String(v)}`;
+            })
+            .join('\n');
+          return meaningful || JSON.stringify(out).slice(0, 200);
+        };
 
         const fullHistoryCard: MarkdownCardData = {
           id: `agent-${Date.now()}`,
           queryId: `agent-${Date.now()}`,
           timestamp: Date.now(),
           query: cleanInput,
-          analysis: [planBlock, execBlock, summaryBlock].join('\n\n---\n\n'),
+          analysis: '',
           summary: '',
           completeSummary: '',
-          variant: 'agent' as const,
+          variant: 'agent-process' as const,
+          agentProcess: {
+            query: cleanInput,
+            strategy: plan.strategy,
+            plan: plan.agents.map(a => ({
+              id: a.id,
+              name: a.name,
+              type: a.type,
+              description: a.description,
+              dependsOn: a.dependsOn,
+            })),
+            results: report.taskResults.map(r => {
+              const agent = plan.agents.find(a => a.id === r.taskId);
+              return {
+                taskId: r.taskId,
+                agentName: agent?.name ?? r.taskId,
+                agentType: agent?.type ?? r.workerType,
+                success: r.success,
+                duration: r.duration,
+                output: extractOutputText(r.output),
+                error: r.error,
+              };
+            }),
+            summary: report.summary,
+          },
           workspaceId: (() => {
             const termTab = useTerminalWorkspaceStore.getState().activeTab;
             return termTab !== 'global' ? termTab : undefined;
@@ -559,53 +564,55 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
       setCeoPhase('summary');
       setCeoSummary(report.summary);
 
-      // Phase 3 展示 1.5s 后，将完整三阶段内容打包为历史卡片
+      // Phase 3 展示 1.5s 后，将三阶段内容打包为永久历史卡片
       await new Promise(r => setTimeout(r, 1500));
 
-      const planAgents2 = plan.agents;
-      const planBlock2 = [
-        `### 🧠 阶段一：CEO 规划`,
-        ``,
-        `**策略**：${plan.strategy === 'pipeline' ? '流水线' : plan.strategy === 'parallel' ? '并行' : plan.strategy === 'mixed' ? '混合' : plan.strategy ?? '自动'}`,
-        `**子 Agent 数量**：${planAgents2.length}`,
-        ``,
-        ...planAgents2.map((a, i) =>
-          `${i + 1}. **${a.name}** (\`${a.type}\`) — ${a.description}${a.dependsOn?.length ? ` 依赖: ${a.dependsOn.join(', ')}` : ''}`
-        ),
-      ].join('\n');
-
-      const execBlock2 = [
-        `### ⚡ 阶段二：Agent 执行`,
-        ``,
-        ...report.taskResults.map((r, _i) => {
-          const agent = planAgents2.find(a => a.id === r.taskId);
-          const name = agent?.name ?? r.taskId;
-          const icon = r.success ? '✅' : '❌';
-          const outputSummary = typeof r.output === 'object' && r.output
-            ? Object.entries(r.output as Record<string, unknown>)
-                .filter(([k]) => k !== '_started' && k !== 'agentType' && k !== 'agentName')
-                .map(([k, v]) => `  - ${k}: ${typeof v === 'string' ? v.slice(0, 80) : JSON.stringify(v).slice(0, 80)}`)
-                .join('\n')
-            : r.error ?? '(无输出)';
-          return `${icon} **${name}** (${r.duration}ms)\n${outputSummary}`;
-        }),
-      ].join('\n');
-
-      const summaryBlock2 = [
-        `### 📊 阶段三：CEO 总结`,
-        ``,
-        report.summary,
-      ].join('\n');
+      const extractOut = (output: unknown): string => {
+        if (!output || typeof output !== 'object') return String(output ?? '');
+        const out = output as Record<string, unknown>;
+        const meaningful = Object.entries(out)
+          .filter(([k]) => !k.startsWith('_') && k !== 'agentType' && k !== 'agentName')
+          .map(([k, v]) => {
+            if (typeof v === 'string') return `${k}: ${v}`;
+            if (typeof v === 'object' && v !== null) {
+              const inner = v as Record<string, unknown>;
+              return inner.summary || inner.description || inner.message || JSON.stringify(v).slice(0, 120);
+            }
+            return `${k}: ${String(v)}`;
+          })
+          .join('\n');
+        return meaningful || JSON.stringify(out).slice(0, 200);
+      };
 
       const fullCard2: MarkdownCardData = {
         id: `agent-${Date.now()}`,
         queryId: `agent-${Date.now()}`,
         timestamp: Date.now(),
         query: inputText,
-        analysis: [planBlock2, execBlock2, summaryBlock2].join('\n\n---\n\n'),
+        analysis: '',
         summary: '',
         completeSummary: '',
-        variant: 'agent' as const,
+        variant: 'agent-process' as const,
+        agentProcess: {
+          query: inputText,
+          strategy: plan.strategy,
+          plan: plan.agents.map(a => ({
+            id: a.id, name: a.name, type: a.type, description: a.description, dependsOn: a.dependsOn,
+          })),
+          results: report.taskResults.map(r => {
+            const agent = plan.agents.find(a => a.id === r.taskId);
+            return {
+              taskId: r.taskId,
+              agentName: agent?.name ?? r.taskId,
+              agentType: agent?.type ?? r.workerType,
+              success: r.success,
+              duration: r.duration,
+              output: extractOut(r.output),
+              error: r.error,
+            };
+          }),
+          summary: report.summary,
+        },
       };
 
       useTaskStore.getState().addMarkdownCard(fullCard2);

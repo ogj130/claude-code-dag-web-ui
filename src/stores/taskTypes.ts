@@ -18,6 +18,38 @@ export interface MarkdownCardData {
   ragChunks?: RAGChunk[];
   attachments?: PendingAttachmentData[];
   workspaceId?: string;
+  // agent variant
+  variant?: 'normal' | 'agent' | 'agent-process';
+  agentReport?: {
+    totalGoals: number;
+    completedGoals: number;
+    missedGoals: number;
+    duration: number;
+    skillsUsed?: Array<{ name: string; domain: string; matchScore?: number }>;
+    recoveries?: Array<{ type: string; agentId: string; success: boolean }>;
+  };
+  /** 多 Agent 三阶段过程数据（variant='agent-process' 时使用） */
+  agentProcess?: {
+    query: string;
+    strategy: string;
+    plan: Array<{
+      id: string;
+      name: string;
+      type: string;
+      description: string;
+      dependsOn?: string[];
+    }>;
+    results: Array<{
+      taskId: string;
+      agentName: string;
+      agentType: string;
+      success: boolean;
+      duration: number;
+      output: string;       // 子 Agent 输出文本
+      error?: string;
+    }>;
+    summary: string;        // CEO 总结 (Markdown)
+  };
 }
 
 export interface CurrentCardData {
