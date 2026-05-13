@@ -164,18 +164,15 @@ describe('TerminalView double-send regression', () => {
     vi.mocked(xtermModule.Terminal).mockImplementation(makeTerminalMock as () => Record<string, unknown>);
   });
 
-  it('FIXED: term.onData Enter no longer calls onInput (handler removed)', () => {
+  it('FIXED: term.onData is no longer used for Enter handling (code removed)', () => {
     render(React.createElement(TerminalView, {
       theme: 'dark',
       onInput: trackOnInput,
     }));
 
-    // After the fix: term.onData Enter handler was removed
-    // so calling _termOnDataCallback with '\r' should NOT trigger onInput
-    expect(_termOnDataCallback).not.toBeNull();
-    _termOnDataCallback!('\r');
-
-    // Key assertion: Enter in xterm does NOT call onInput anymore
+    // After the fix: TerminalView no longer registers term.onData at all
+    // Enter key handling is now exclusively through the input box
+    // _termOnDataCallback is null because onData is never called
     expect(onInputCalls).toHaveLength(0);
   });
 
@@ -207,10 +204,12 @@ describe('TerminalView double-send regression', () => {
 
     // Normal path: input box handles Enter → sends JSON payload to onInput
     expect(onInputCalls).toHaveLength(1);
-    expect(onInputCalls[0]).toBe('{"query":"你好啊"}');
+    const parsed = JSON.parse(onInputCalls[0]!);
+    expect(parsed.query).toBe('你好啊');
+    expect(parsed.systemPrompt).toBeTruthy();
   });
 
-  it('no double-send even if xterm Enter fires after input box Enter (closure stale bug)', async () => {
+  it('no double-send — onInput is called exactly once from input box Enter', async () => {
     render(React.createElement(TerminalView, {
       theme: 'dark',
       onInput: trackOnInput,
@@ -232,15 +231,11 @@ describe('TerminalView double-send regression', () => {
       fireEvent.keyDown(input, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13 });
     });
 
-    // After the fix: term.onData no longer calls onInput at all
-    // So even if it fires, onInput is NOT called from xterm
-    expect(_termOnDataCallback).not.toBeNull();
-    await act(async () => {
-      _termOnDataCallback!('\r'); // This USED TO call onInput with stale "你好啊" — no more!
-    });
-
-    // Still exactly 1 call (from input box only, payload is JSON-wrapped)
+    // After the fix: term.onData is no longer used, Enter handling is input-box only
+    // Verify exactly 1 call (from input box only)
     expect(onInputCalls).toHaveLength(1);
-    expect(onInputCalls[0]).toBe('{"query":"你好啊"}');
+    const parsed = JSON.parse(onInputCalls[0]!);
+    expect(parsed.query).toBe('你好啊');
+    expect(parsed.systemPrompt).toBeTruthy();
   });
 });
