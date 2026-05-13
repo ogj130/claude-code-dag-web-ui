@@ -111,6 +111,8 @@ export async function dispatchGlobalPrompts(
   const allCompleted = workspaceResults.every(r => r.status === 'success' || r.status === 'failed');
   if (allCompleted) {
     useTerminalWorkspaceStore.getState().onAllCompleted();
+    // 标记全局终端已使用（门控全局终端输出显示）
+    useTerminalWorkspaceStore.getState().markGlobalTerminalUsed();
   }
 
   return {
@@ -129,16 +131,23 @@ export async function dispatchGlobalPromptsWithDefaults(
   input: DispatchGlobalPromptsWithDefaultsInput,
 ): Promise<DispatchResult> {
   const presets = await getEnabledPresets();
-  const workspaces = presets
-    .filter(p => p.configId !== null)  // 过滤 configId 已失效的 preset
+  let workspaces = presets
+    .filter(p => p.configId !== null)
     .map(p => ({
       id: p.id,
       name: p.name || p.workspacePath.split('/').pop() || '未命名',
       workspacePath: p.workspacePath,
-      modelConfigId: p.configId!,  // filter 保证非 null
+      modelConfigId: p.configId!,
       enabled: p.isEnabled,
       createdAt: p.createdAt || Date.now(),
       updatedAt: p.updatedAt || Date.now(),
     }));
+
+  // 按用户选择的工作区范围过滤（scope 为空时全量发送，向后兼容）
+  const selectedIds = useTerminalWorkspaceStore.getState().selectedDispatchWorkspaceIds;
+  if (selectedIds.length > 0) {
+    workspaces = workspaces.filter(ws => selectedIds.includes(ws.id));
+  }
+
   return dispatchGlobalPrompts({ ...input, workspaces });
 }
