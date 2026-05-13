@@ -159,8 +159,8 @@ describe('AgentGroupNode', () => {
     // Running status shows ⏳ (U+23F3) with agent type text color
     const indicator = screen.getByText('\u23F3');
     expect(indicator).toBeTruthy();
-    // context agentType text color = #93c5fd
-    expect(indicator.style.color).toBe('rgb(147, 197, 253)');
+    // context agentType text color = #a8d0ff (年轻化配色)
+    expect(indicator.style.color).toBe('rgb(168, 208, 255)');
   });
 
   it('shows completed status indicator ✓', () => {
@@ -169,8 +169,8 @@ describe('AgentGroupNode', () => {
 
     const indicator = screen.getByText('\u2713');
     expect(indicator).toBeTruthy();
-    // Completed color is hardcoded #10b981
-    expect(indicator.style.color).toBe('rgb(16, 185, 129)');
+    // Completed: style 使用 var(--success)
+    expect(indicator.style.color).toBe('var(--success)');
   });
 
   it('shows failed status indicator ✗', () => {
@@ -179,8 +179,8 @@ describe('AgentGroupNode', () => {
 
     const indicator = screen.getByText('\u2717');
     expect(indicator).toBeTruthy();
-    // Failed color is hardcoded #ef4444
-    expect(indicator.style.color).toBe('rgb(239, 68, 68)');
+    // Failed: style 使用 var(--error)
+    expect(indicator.style.color).toBe('var(--error)');
   });
 
   it('does not show status indicator for pending', () => {

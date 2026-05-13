@@ -1,5 +1,6 @@
 /* ================================================================
    CC Web UI — Theme System (CSS Variables)
+   配色：「霓虹青春」Cyber Bloom — 年轻化暗色主题
    支持：暗黑/明亮主题、6 种预设主题色、3 档节点密度、字体大小
    ================================================================ */
 
@@ -23,116 +24,156 @@ body {
 }
 
 /* ================================================================
-   1. 暗黑主题（默认）
+   1. 暗黑主题（默认）— 年轻化「霓虹青春」
    ================================================================ */
 [data-theme="dark"] {
-  --bg-root: #0d0d1a;
-  --bg-panel: #0a0a14;
-  --bg-card: #13132a;
-  --bg-card-hover: #161630;
-  --bg-input: #1a1a30;
-  --bg-terminal: #050508;
-  --bg-bar: #0c0c1a;
-  --bg-tab: #1a1a30;
-  --border: #1e1e3f;
-  --border-card: #1e1e3f;
-  --border-hover: #333;
-  --text-primary: #e0e0e0;
-  --text-secondary: #aaa;
-  --text-muted: #666;
-  --text-dim: #444;
-  --success: #2ecc71;
-  --success-bg: #0a1f0e;
-  --success-border: #1a4020;
-  --warn: #f1c40f;
-  --warn-bg: #1a1500;
-  --warn-border: #3a3000;
-  --error: #e74c3c;
-  --error-bg: #1f0a0a;
-  --error-border: #3a1a1a;
-  --pending: #555;
-  --pending-bg: #111120;
-  --pending-border: #222240;
-  --dag-bg: #0a0a14;
-  --dag-dot: #1a1a30;
-  --dag-node-border: #2a2a50;
-  --dag-node: #13132a;
-  --term-bg: #050508;
-  --term-border: #1a1a2a;
+  /* 背景层 — 柔和的深蓝紫底 */
+  --bg-root: #0a0c1f;
+  --bg-panel: #0d0f24;
+  --bg-card: #111430;
+  --bg-card-hover: #161940;
+  --bg-input: #151838;
+  --bg-terminal: #080a18;
+  --bg-bar: #0c0e22;
+  --bg-tab: #151838;
+
+  /* 边框 — 半透明紫调 */
+  --border: #252850;
+  --border-card: #252850;
+  --border-hover: #3a3d6b;
+
+  /* 文字 — 更明亮清晰 */
+  --text-primary: #e8eaf0;
+  --text-secondary: #a8abc8;
+  --text-muted: #6e7198;
+  --text-dim: #4a4d6e;
+
+  /* 强调色 — 明亮蓝紫渐变（年轻化核心） */
+  --accent: #6c8cff;
+  --accent-rgb: 108, 140, 255;
+  --accent-dim: #5a78f0;
+  --accent-glow: rgba(108, 140, 255, 0.25);
+  --agent-accent: #9b6cff;
+  --agent-accent-dim: #8458f0;
+  --agent-accent-glow: rgba(155, 108, 255, 0.2);
+
+  /* 成功 — 鲜亮薄荷绿 */
+  --success: #3dd68c;
+  --success-bg: rgba(61, 214, 140, 0.08);
+  --success-border: rgba(61, 214, 140, 0.25);
+
+  /* 警告 — 温暖琥珀 */
+  --warn: #f5b042;
+  --warn-bg: rgba(245, 176, 66, 0.08);
+  --warn-border: rgba(245, 176, 66, 0.25);
+
+  /* 错误 — 柔和珊瑚红 */
+  --error: #f06070;
+  --error-bg: rgba(240, 96, 112, 0.08);
+  --error-border: rgba(240, 96, 112, 0.25);
+
+  /* 待处理 — 柔和灰紫 */
+  --pending: #7a7d9e;
+  --pending-bg: #121428;
+  --pending-border: #262848;
+
+  /* DAG 画布 */
+  --dag-bg: #0a0c1f;
+  --dag-dot: #1a1d3a;
+  --dag-node-border: #2a2d52;
+  --dag-node: #111430;
+
+  /* 终端 */
+  --term-bg: #080a18;
+  --term-border: #1a1d35;
 }
 
 /* ================================================================
-   2. 明亮主题
+   2. 明亮主题 — 年轻化柔和亮色
    ================================================================ */
 [data-theme="light"] {
-  --bg-root: #f5f6fa;
+  --bg-root: #f0f2fa;
   --bg-panel: #ffffff;
-  --bg-card: #f8f9fc;
-  --bg-card-hover: #eff1f7;
-  --bg-input: #eff1f7;
-  --bg-terminal: #fafafa;
-  --bg-bar: #f0f1f5;
-  --bg-tab: #eef0f5;
-  --border: #e2e4ec;
-  --border-card: #e2e4ec;
-  --border-hover: #c8ccd8;
-  --text-primary: #1a1a2e;
-  --text-secondary: #5a5a7a;
-  --text-muted: #8888aa;
-  --text-dim: #b0b0cc;
-  --success: #1a9e50;
+  --bg-card: #f5f6fd;
+  --bg-card-hover: #edeff8;
+  --bg-input: #edeff8;
+  --bg-terminal: #fafafe;
+  --bg-bar: #f0f1f8;
+  --bg-tab: #edeff8;
+  --border: #e0e2f0;
+  --border-card: #e0e2f0;
+  --border-hover: #c4c7de;
+  --text-primary: #1a1c38;
+  --text-secondary: #5a5d78;
+  --text-muted: #888aaa;
+  --text-dim: #b0b2cc;
+  --accent: #5c8cff;
+  --accent-rgb: 92, 140, 255;
+  --accent-dim: #4478f0;
+  --accent-glow: rgba(92, 140, 255, 0.25);
+  --agent-accent: #7b52e0;
+  --agent-accent-dim: #6a40d0;
+  --agent-accent-glow: rgba(123, 82, 224, 0.2);
+  --success: #1aad5a;
   --success-bg: #edfaf2;
-  --success-border: #c0ecd0;
-  --warn: #c07800;
-  --warn-bg: #fff8e0;
-  --warn-border: #f0d880;
-  --error: #d03030;
-  --error-bg: #fff0f0;
-  --error-border: #f0c0c0;
-  --pending: #aaaacc;
-  --pending-bg: #f0f0fa;
+  --success-border: #b8ecd0;
+  --warn: #d08820;
+  --warn-bg: #fff8e8;
+  --warn-border: #f0d888;
+  --error: #d83848;
+  --error-bg: #fff0f2;
+  --error-border: #f0c0c6;
+  --pending: #a0a2c0;
+  --pending-bg: #f2f2fa;
   --pending-border: #d8d8f0;
-  --dag-bg: #fafbfe;
-  --dag-dot: #e8eaf2;
-  --dag-node-border: #d8d8ec;
+  --dag-bg: #f8f9fe;
+  --dag-dot: #e8eaf5;
+  --dag-node-border: #d8d8ee;
   --dag-node: #ffffff;
-  --term-bg: #fafafa;
-  --term-border: #e0e0e8;
+  --term-bg: #fafafe;
+  --term-border: #e0e2ee;
 }
 
 /* ================================================================
-   3. 预设主题色（6 种）— 覆盖 --accent 和 --accent-dim
+   3. 预设主题色（6 种）— 明亮饱和度提升
    ================================================================ */
 [data-accent="blue"] {
-  --accent: #4a9eff;
-  --accent-dim: #3a8eef;
+  --accent: #5c8cff;
+  --accent-dim: #4478f0;
+  --accent-glow: rgba(92, 140, 255, 0.25);
 }
 [data-accent="purple"] {
-  --accent: #8b5cf6;
-  --accent-dim: #7b4ce6;
+  --accent: #9b6cff;
+  --accent-dim: #8458f0;
+  --accent-glow: rgba(155, 108, 255, 0.25);
 }
 [data-accent="green"] {
-  --accent: #22c55e;
-  --accent-dim: #16a34a;
+  --accent: #34d068;
+  --accent-dim: #22b850;
+  --accent-glow: rgba(52, 208, 104, 0.25);
 }
 [data-accent="orange"] {
-  --accent: #f97316;
-  --accent-dim: #ea580c;
+  --accent: #ff8838;
+  --accent-dim: #f07020;
+  --accent-glow: rgba(255, 136, 56, 0.25);
 }
 [data-accent="red"] {
-  --accent: #ef4444;
-  --accent-dim: #dc2626;
+  --accent: #f85468;
+  --accent-dim: #e04050;
+  --accent-glow: rgba(248, 84, 104, 0.25);
 }
 [data-accent="pink"] {
-  --accent: #ec4899;
-  --accent-dim: #db2777;
+  --accent: #f060a8;
+  --accent-dim: #e04898;
+  --accent-glow: rgba(240, 96, 168, 0.25);
 }
 
 /* 默认主题色（未设置 data-accent 时） */
 [data-accent="blue"],
 :root:not([data-accent]) {
-  --accent: #4a9eff;
-  --accent-dim: #3a8eef;
+  --accent: #5c8cff;
+  --accent-dim: #4478f0;
+  --accent-glow: rgba(92, 140, 255, 0.25);
 }
 
 /* ================================================================
@@ -178,10 +219,20 @@ body {
 }
 
 /* ================================================================
+   6. 全局圆角 — 年轻化：更柔和的圆角
+   ================================================================ */
+:root {
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+}
+
+/* ================================================================
    全局动画
    ================================================================ */
 @keyframes pulse-green { 0%,100%{opacity:1} 50%{opacity:0.4} }
-@keyframes node-pulse { 0%,100%{box-shadow: 0 0 0 0 rgba(241,196,15,0.3)} 50%{box-shadow: 0 0 0 6px rgba(241,196,15,0)} }
+@keyframes node-pulse { 0%,100%{box-shadow: 0 0 0 0 rgba(108,140,255,0.3)} 50%{box-shadow: 0 0 0 6px rgba(108,140,255,0)} }
 @keyframes pulse-dot { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:0.5; transform:scale(0.7)} }
 @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 @keyframes card-in { from{opacity:0; transform:translateY(8px) scale(0.98)} to{opacity:1; transform:translateY(0) scale(1)} }
@@ -195,8 +246,8 @@ body {
 .react-flow__controls {
   background: var(--bg-card) !important;
   border: 1px solid var(--border) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25) !important;
   overflow: hidden;
 }
 .react-flow__controls-button {
@@ -229,16 +280,20 @@ body {
   color: var(--text-secondary) !important;
 }
 
-/* ── MarkdownCard ────────────────────────────────────────────── */
+/* ── MarkdownCard — 年轻化更柔和的圆角 ──────────────────────── */
 .markdown-card {
-  border-left: 3px solid var(--success);
+  border-left: 3px solid var(--accent);
   background: var(--bg-card);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   margin: 8px 0;
   overflow: hidden;
   border-top: 1px solid var(--border);
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.markdown-card:hover {
+  border-color: var(--border-hover);
 }
 .markdown-card-header {
   display: flex;
@@ -255,6 +310,7 @@ body {
 .process-region {
   border: 1px solid var(--term-border);
   border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
   overflow: hidden;
   transition: all 0.3s ease;
 }

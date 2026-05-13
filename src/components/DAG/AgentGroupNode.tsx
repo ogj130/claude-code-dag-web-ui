@@ -9,30 +9,57 @@ import { Handle, Position } from '@xyflow/react';
 import type { DAGNode } from '../../types/events';
 import { useTaskStore } from '../../stores/useTaskStore';
 
-// Agent 类型配色
+// Agent 类型配色（年轻化：更鲜艳的区分色）
 const AGENT_TYPE_COLORS: Record<string, { border: string; bg: string; text: string; accent: string }> = {
-  context:   { border: '#3b82f6', bg: 'rgba(59,130,246,0.08)', text: '#93c5fd', accent: '#3b82f6' },
-  planning:  { border: '#f59e0b', bg: 'rgba(245,158,11,0.08)', text: '#fcd34d', accent: '#f59e0b' },
-  execution: { border: '#10b981', bg: 'rgba(16,185,129,0.08)', text: '#6ee7b7', accent: '#10b981' },
-  review:    { border: '#8b5cf6', bg: 'rgba(139,92,246,0.08)', text: '#c4b5fd', accent: '#8b5cf6' },
-  default:   { border: '#6b7280', bg: 'rgba(107,114,128,0.06)', text: '#9ca3af', accent: '#6b7280' },
+  context:   { border: '#5c9cff', bg: 'rgba(92,156,255,0.08)', text: '#a8d0ff', accent: '#5c9cff' },
+  planning:  { border: '#f5b842', bg: 'rgba(245,184,66,0.08)', text: '#fdd888', accent: '#f5b842' },
+  execution: { border: '#3dd68c', bg: 'rgba(61,214,140,0.08)', text: '#80f0b8', accent: '#3dd68c' },
+  review:    { border: '#9b6cff', bg: 'rgba(155,108,255,0.08)', text: '#d0c0ff', accent: '#9b6cff' },
+  default:   { border: '#6e7198', bg: 'rgba(110,113,152,0.06)', text: '#a8abc8', accent: '#6e7198' },
 };
 
-const STATUS_STYLES: Record<string, { border: string; bg: string; glow: string; icon: string }> = {
-  completed: { border: '#10b981', bg: 'rgba(16,185,129,0.06)', glow: 'none', icon: '\u2713' },
-  running:   { border: '#3b82f6', bg: 'rgba(59,130,246,0.10)', glow: '0 0 16px rgba(59,130,246,0.25)', icon: '\u23F3' },
-  failed:    { border: '#ef4444', bg: 'rgba(239,68,68,0.08)', glow: '0 0 12px rgba(239,68,68,0.2)', icon: '\u2717' },
-  pending:   { border: '#4b5563', bg: 'transparent', glow: 'none', icon: '\u25CB' },
-};
+// 语义状态颜色 — 使用 CSS 变量确保主题一致性
+function getStatusStyle(status: string) {
+  const styles: Record<string, { border: string; bg: string; glow: string; icon: string }> = {
+    completed: {
+      border: 'var(--success)',
+      bg: 'var(--success-bg)',
+      glow: 'none',
+      icon: '\u2713'
+    },
+    running: {
+      border: 'var(--accent)',
+      bg: 'rgba(92, 140, 255, 0.10)',
+      glow: '0 0 16px var(--accent-glow)',
+      icon: '\u23F3'
+    },
+    failed: {
+      border: 'var(--error)',
+      bg: 'var(--error-bg)',
+      glow: '0 0 12px rgba(240, 96, 112, 0.2)',
+      icon: '\u2717'
+    },
+    pending: {
+      border: 'var(--pending)',
+      bg: 'transparent',
+      glow: 'none',
+      icon: '\u25CB'
+    },
+  };
+  return styles[status] ?? styles.pending;
+}
 
 type ToolStatus = 'running' | 'completed' | 'failed' | 'pending';
 
-const TOOL_STATUS_ICONS: Record<ToolStatus, { icon: string; color: string }> = {
-  running:   { icon: '\u23F3', color: '#3b82f6' },
-  completed: { icon: '\u2705', color: '#10b981' },
-  failed:    { icon: '\u274C', color: '#ef4444' },
-  pending:   { icon: '\u25CB', color: '#6b7280' },
-};
+function getToolStatusStyle(status: ToolStatus): { icon: string; color: string } {
+  const map: Record<ToolStatus, { icon: string; color: string }> = {
+    running:   { icon: '\u23F3', color: 'var(--accent)' },
+    completed: { icon: '\u2705', color: 'var(--success)' },
+    failed:    { icon: '\u274C', color: 'var(--error)' },
+    pending:   { icon: '\u25CB', color: 'var(--text-muted)' },
+  };
+  return map[status];
+}
 
 export interface AgentGroupNodeData extends DAGNode {
   agentType?: string;
@@ -68,7 +95,7 @@ function formatDuration(ms: number): string {
 const ChildToolItem = memo(function ChildToolItem({ node }: { node: DAGNode }) {
   const toolName = node.label;
   const status: ToolStatus = (node.status as ToolStatus) ?? 'pending';
-  const si = TOOL_STATUS_ICONS[status] ?? TOOL_STATUS_ICONS.pending;
+  const si = getToolStatusStyle(status);
   const duration = node.endTime && node.startTime ? node.endTime - node.startTime : undefined;
 
   return (
@@ -118,7 +145,7 @@ const AgentGroupNode: React.FC<AgentGroupNodeProps> = memo(({ data, selected }) 
   }, [nodes, id]);
 
   const colors = AGENT_TYPE_COLORS[agentType] ?? AGENT_TYPE_COLORS['default'];
-  const ss = STATUS_STYLES[status] ?? STATUS_STYLES['pending'];
+  const ss = getStatusStyle(status);
   const sourceStyle = source ? SOURCE_STYLES[source] : undefined;
   const isRunning = status === 'running';
   const isFailed = status === 'failed';
@@ -196,7 +223,7 @@ const AgentGroupNode: React.FC<AgentGroupNodeProps> = memo(({ data, selected }) 
         }} title={displayName}>
           {displayName}
         </span>
-        <span style={{ fontSize: 12, color: isRunning ? colors.text : (isFailed ? '#ef4444' : '#10b981') }}>
+        <span style={{ fontSize: 12, color: isRunning ? colors.text : (isFailed ? 'var(--error)' : 'var(--success)') }}>
           {ss.icon}
         </span>
       </div>

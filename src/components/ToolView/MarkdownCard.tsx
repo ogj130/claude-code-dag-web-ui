@@ -25,7 +25,7 @@ const markdownStyles: Record<string, React.CSSProperties> = {
   ol: { paddingLeft: 16, margin: '4px 0' },
   li: { margin: '2px 0' },
   code: {
-    background: 'rgba(255,255,255,0.06)',
+    background: 'var(--bg-input)',
     borderRadius: 3,
     padding: '1px 4px',
     fontSize: 10,
@@ -33,7 +33,8 @@ const markdownStyles: Record<string, React.CSSProperties> = {
     color: 'var(--accent)',
   },
   pre: {
-    background: 'rgba(0,0,0,0.3)',
+    background: 'var(--bg-input)',
+    border: '1px solid var(--border)',
     borderRadius: 6,
     padding: '8px 10px',
     overflowX: 'auto',
@@ -123,7 +124,7 @@ function MarkdownCardInner({ card, defaultAnalysisOpen = false, defaultCollapsed
 
   return (
     <div className="markdown-card" style={{
-      borderLeft: '3px solid var(--success)',
+      borderLeft: card.variant === 'agent' ? '3px solid var(--accent-purple, #9b6cff)' : '3px solid var(--success)',
       background: 'var(--bg-card)',
       borderRadius: 8,
       margin: '8px 0',
@@ -141,13 +142,13 @@ function MarkdownCardInner({ card, defaultAnalysisOpen = false, defaultCollapsed
             padding: '8px 12px',
             cursor: 'pointer',
             fontSize: 11,
-            color: 'var(--success)',
-            background: 'var(--success-bg)',
+            color: card.variant === 'agent' ? 'var(--agent-accent)' : 'var(--success)',
+            background: card.variant === 'agent' ? 'var(--agent-accent-glow)' : 'var(--success-bg)',
             userSelect: 'none',
             transition: 'background 0.2s',
           }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--success-border)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'var(--success-bg)')}
+          onMouseEnter={e => (e.currentTarget.style.background = card.variant === 'agent' ? 'rgba(139, 92, 246, 0.15)' : 'var(--success-border)')}
+          onMouseLeave={e => (e.currentTarget.style.background = card.variant === 'agent' ? 'var(--agent-accent-glow)' : 'var(--success-bg)')}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span>▶</span>
@@ -169,17 +170,17 @@ function MarkdownCardInner({ card, defaultAnalysisOpen = false, defaultCollapsed
           padding: '8px 12px',
           cursor: 'pointer',
           fontSize: 11,
-          color: 'var(--success)',
+          color: card.variant === 'agent' ? 'var(--agent-accent)' : 'var(--success)',
           userSelect: 'none',
-          background: 'var(--success-bg)',
+          background: card.variant === 'agent' ? 'var(--agent-accent-glow)' : 'var(--success-bg)',
           transition: 'background 0.2s',
         }}
-        onMouseEnter={e => (e.currentTarget.style.background = 'var(--success-border)')}
-        onMouseLeave={e => (e.currentTarget.style.background = 'var(--success-bg)')}
+        onMouseEnter={e => (e.currentTarget.style.background = card.variant === 'agent' ? 'rgba(139, 92, 246, 0.15)' : 'var(--success-border)')}
+        onMouseLeave={e => (e.currentTarget.style.background = card.variant === 'agent' ? 'var(--agent-accent-glow)' : 'var(--success-bg)')}
       >
         <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ transition: 'transform 200ms', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-flex' }}>▶</span>
-          ✦ 回答总结
+          {card.variant === 'agent' ? <>🧠 Agent 执行报告</> : <>✦ 回答总结</>}
         </span>
         <span style={{ color: 'var(--text-muted)', fontSize: 10 }}>
           {open ? '收起' : '展开'}
@@ -201,25 +202,53 @@ function MarkdownCardInner({ card, defaultAnalysisOpen = false, defaultCollapsed
               gap: 8,
               alignItems: 'flex-start',
             }}>
-              <span style={{ fontSize: 12, color: 'var(--accent)', flexShrink: 0, marginTop: 1 }}>💬</span>
+              <span style={{ fontSize: 12, color: card.variant === 'agent' ? 'var(--agent-accent)' : 'var(--accent)', flexShrink: 0, marginTop: 1 }}>
+                {card.variant === 'agent' ? '🧠' : '💬'}
+              </span>
               <span style={{ fontSize: 12, color: 'var(--text-primary)', lineHeight: 1.6, wordBreak: 'break-word' }}>
                 {card.query}
               </span>
             </div>
           )}
 
+          {/* Agent 执行统计 */}
+          {card.variant === 'agent' && card.agentReport && (
+            <div style={{
+              display: 'flex', gap: 12, padding: '8px 12px', margin: '0 12px 8px',
+              background: 'rgba(139, 92, 246, 0.06)', borderRadius: 8,
+              border: '1px solid rgba(139, 92, 246, 0.15)',
+            }}>
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--success)' }}>{card.agentReport.completedGoals}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>完成</div>
+              </div>
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--error)' }}>{card.agentReport.missedGoals}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>未完成</div>
+              </div>
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#f59e0b' }}>{card.agentReport.totalGoals}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>总计</div>
+              </div>
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--agent-accent)' }}>{(card.agentReport.duration / 1000).toFixed(1)}s</div>
+                <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>耗时</div>
+              </div>
+            </div>
+          )}
+
           {/* V1.4.1: 附件列表 */}
           {card.attachments && card.attachments.length > 0 && (
             <div style={{
-              border: '1px solid rgba(99, 102, 241, 0.35)',
+              border: '1px solid rgba(var(--accent-rgb),0.35)',
               borderRadius: 6,
               padding: '6px 10px',
               margin: '0 12px 8px',
-              background: 'rgba(99, 102, 241, 0.04)',
+              background: 'rgba(var(--accent-rgb),0.04)',
             }}>
               <div style={{
                 fontSize: 9,
-                color: 'rgba(99, 102, 241, 0.8)',
+                color: 'rgba(var(--accent-rgb),0.8)',
                 fontFamily: "'JetBrains Mono', monospace",
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
@@ -246,8 +275,8 @@ function MarkdownCardInner({ card, defaultAnalysisOpen = false, defaultCollapsed
                         maxWidth: 180,
                       }}
                       onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = '#6366F1';
-                        e.currentTarget.style.background = 'rgba(99, 102, 241, 0.1)';
+                        e.currentTarget.style.borderColor = 'var(--accent)';
+                        e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.1)';
                       }}
                       onMouseLeave={e => {
                         e.currentTarget.style.borderColor = 'var(--border)';
