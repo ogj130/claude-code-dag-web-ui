@@ -675,7 +675,8 @@ describe('DAG node dedup — processWithDecomposer', () => {
     expect(planNodes.length).toBeGreaterThan(0);
     for (const pn of planNodes) {
       expect(pn.source).toBe('orchestration');
-      expect(pn.status).toBe('pending');
+      // 执行完成后规划节点应从 pending 更新为 completed
+      expect(pn.status).toBe('completed');
     }
 
     // 不应有非 'plan-' 前缀的执行 agent_group 节点（由 WebSocket 创建）

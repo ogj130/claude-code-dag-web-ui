@@ -731,6 +731,8 @@ export class CEOAgent {
         this.allAgentOutputs.set(goal.id, result.output);
         options?.onTaskComplete?.(result);
 
+        // 更新规划节点状态：plan-{goal.id} 从 pending → completed/failed
+        await this.updatePlanNode(goal.id, result.success);
         // DAG 节点状态由 WebSocket 事件系统（agent_end）统一更新
         return result;
       } catch (error) {
@@ -1140,6 +1142,26 @@ export class CEOAgent {
       (planNode as import('@/types/events').DAGNode & { agentType: string }).agentType = goal.workerType;
       currentNodes.set(nodeId, planNode);
       useTaskStore.setState({ nodes: currentNodes });
+    } catch { /* 非浏览器环境，静默忽略 */ }
+  }
+
+  /**
+   * 更新规划节点状态 — 执行完成后从 pending → completed/failed
+   */
+  private async updatePlanNode(goalId: string, success: boolean): Promise<void> {
+    try {
+      const { useTaskStore } = await import('@/stores/useTaskStore');
+      const currentNodes = new Map(useTaskStore.getState().nodes);
+      const nodeId = `plan-${goalId}`;
+      const existing = currentNodes.get(nodeId);
+      if (existing) {
+        currentNodes.set(nodeId, {
+          ...existing,
+          status: success ? 'completed' : 'failed',
+          endTime: Date.now(),
+        });
+        useTaskStore.setState({ nodes: currentNodes });
+      }
     } catch { /* 非浏览器环境，静默忽略 */ }
   }
 

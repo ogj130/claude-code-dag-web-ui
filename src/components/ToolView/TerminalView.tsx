@@ -261,6 +261,8 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
           return;
         }
 
+        // 保持 Phase 1（规划）展示至少 0.8s，让用户看到分解方案
+        await new Promise(r => setTimeout(r, 800));
         setCeoPhase('executing');
         setCeoCompletedCount(0);
         setCeoTaskResults([]);
