@@ -699,6 +699,9 @@ export class CEOAgent {
 
       options?.onTaskStart?.(goal.id);
 
+      // 保持"运行中"状态可见至少 500ms，避免过快完成导致用户看不到进度
+      await new Promise(r => setTimeout(r, 500));
+
       // DAG agent_group 节点由 WebSocket 事件系统（agent_start/agent_end）统一创建
       // 此处不再重复注入，避免双重节点导致 DAGCanvas 渲染崩溃
 
