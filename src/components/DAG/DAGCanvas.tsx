@@ -15,6 +15,9 @@ import TaskNode, { TASK_NODE_TYPE } from './TaskNode';
 import CompactNode, { COMPACT_NODE_TYPE } from './CompactNode';
 import ImageNode, { IMAGE_NODE_TYPE } from './ImageNode';
 import { WorkspaceContainerNode, WORKSPACE_CONTAINER_NODE_TYPE } from './WorkspaceContainerNode';
+import { RecoveryNode } from './RecoveryNode';
+import { SkillNode } from './SkillNode';
+import { EvolutionNode } from './EvolutionNode';
 import { useImageDrop, DropOverlay } from '../../hooks/useImageDrop';
 import { useTerminalWorkspaceStore } from '../../stores/useTerminalWorkspaceStore';
 import { useTaskStore } from '../../stores/useTaskStore';
@@ -46,6 +49,10 @@ const nodeTypes: Record<string, React.ComponentType<any>> = {
   [IMAGE_NODE_TYPE]: ImageNode,
   // 全局视图容器节点
   [WORKSPACE_CONTAINER_NODE_TYPE]: WorkspaceContainerNode,
+  // V3: Skill / Recovery / Evolution closed-loop nodes
+  skill: SkillNode,
+  recovery: RecoveryNode,
+  evolution: EvolutionNode,
 };
 
 interface Props {
@@ -76,7 +83,7 @@ export function DAGCanvas({ style }: Props) {
 
   interface ModalState {
     open: boolean;
-    nodeType: 'tool' | 'summary' | 'rag' | 'agent';
+    nodeType: 'tool' | 'summary' | 'rag' | 'agent' | 'agent_group';
     nodeId: string;
     nodeLabel: string;
     nodeStatus?: DAGNode['status'];
@@ -87,6 +94,12 @@ export function DAGCanvas({ style }: Props) {
     ragScore?: number;
     ragSourceSessionId?: string;
     ragSourceSessionTitle?: string;
+    /** Agent Group 节点专属字段 */
+    agentType?: string;
+    agentTaskDescription?: string;
+    agentDuration?: number;
+    agentSkillsUsed?: Array<{name:string;domain:string}>;
+    agentToolMessage?: string;
   }
 
   const [modal, setModal] = useState<ModalState>({
@@ -99,22 +112,30 @@ export function DAGCanvas({ style }: Props) {
   // V1.4.1: 附件预览弹窗状态
   const [previewAttachment, setPreviewAttachment] = useState<PendingAttachmentData | null>(null);
 
-  const handleOpenDetail = useCallback((node: Pick<DAGNode, 'id' | 'type' | 'label' | 'status' | 'args' | 'summaryContent' | 'content' | 'score' | 'sourceSessionId' | 'sourceSessionTitle'>) => {
+  const handleOpenDetail = useCallback((node: Pick<DAGNode, 'id' | 'type' | 'label' | 'status' | 'args' | 'summaryContent' | 'content' | 'score' | 'sourceSessionId' | 'sourceSessionTitle'> & { agentType?: string; taskDescription?: string; duration?: number; skillsUsed?: Array<{name:string;domain:string}>; toolMessage?: string }) => {
     const dagNode = storeNodes.get(node.id);
+    // V3: skill/recovery/evolution 节点不打开详情弹窗（仅 DAG 可视化）
+    if (dagNode && ['skill', 'recovery', 'evolution'].includes(dagNode.type)) return;
     const isRag = dagNode?.type === 'rag';
     const isAgent = dagNode?.type === 'agent';
+    const isAgentGroup = dagNode?.type === 'agent_group' || node.type === 'agent_group';
     setModal({
       open: true,
-      nodeType: isRag ? 'rag' : isAgent ? 'agent' : (node.type as 'tool' | 'summary'),
+      nodeType: isRag ? 'rag' : isAgent ? 'agent' : isAgentGroup ? 'agent_group' : (node.type as 'tool' | 'summary'),
       nodeId: node.id,
       nodeLabel: node.label,
       nodeStatus: node.status,
-      args: node.args as Record<string, unknown> | null,
+      args: (node as Record<string, unknown>).args as Record<string, unknown> | null,
       summaryContent: node.summaryContent,
       ragContent: isRag ? dagNode.content : undefined,
       ragScore: isRag ? dagNode.score : undefined,
       ragSourceSessionId: isRag ? dagNode.sourceSessionId : undefined,
       ragSourceSessionTitle: isRag ? dagNode.sourceSessionTitle : undefined,
+      agentType: node.agentType,
+      agentTaskDescription: node.taskDescription,
+      agentDuration: node.duration,
+      agentSkillsUsed: node.skillsUsed,
+      agentToolMessage: node.toolMessage,
     });
   }, [storeNodes]);
 
@@ -126,19 +147,44 @@ export function DAGCanvas({ style }: Props) {
     useTaskStore.getState().toggleDagQueryCollapse(queryId);
   }, []);
 
+  // Agent Group 专用折叠回调（走 collapsedAgentIds）
+  const handleAgentGroupToggleCollapse = useCallback((nodeId: string) => {
+    useTaskStore.getState().setCollapsedAgentIds((prev: Set<string>) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return next;
+    });
+  }, []);
+
   const collapseAllGroups = useCallback(() => {
     useTaskStore.getState().collapseAllGroups();
   }, []);
 
   // 工具节点布局计算
+  // 将 store 节点类型映射到 ReactFlow 组件类型
+  const resolveNodeType = (nodeType: DAGNode['type']): string => {
+    if (nodeType === 'agent_group') return AGENT_GROUP_NODE_TYPE;
+    if (nodeType === 'skill') return 'skill';
+    if (nodeType === 'recovery') return 'recovery';
+    if (nodeType === 'evolution') return 'evolution';
+    return 'dagNode';
+  };
+
   const flowNodes: Node[] = Array.from(storeNodes.values()).map((node: DAGNode) => ({
     id: node.id,
-    type: 'dagNode',
+    type: resolveNodeType(node.type),
     data: {
       ...node,
       onOpenDetail: handleOpenDetail,
-      onToggleCollapse: handleToggleCollapse,
       isCollapsed: node.type === 'query' && collapsedQueryIds.has(node.id),
+      // AgentGroupNode 专用 props
+      agentType: node.type === 'agent_group' ? (node as DAGNode & { agentType?: string }).agentType ?? 'default' : undefined,
+      agentName: node.type === 'agent_group' ? node.agentName : undefined,
+      liveOutput: node.type === 'agent_group' ? (node.toolMessage ?? undefined) : undefined,
+      collapsed: node.type === 'agent_group' ? useTaskStore.getState().collapsedAgentIds.has(node.id) : undefined,
+      childCount: node.type === 'agent_group' ? (node.childCount ?? 0) : undefined,
+      onToggleCollapse: node.type === 'agent_group' ? handleAgentGroupToggleCollapse : handleToggleCollapse,
       // V1.4.1: 附件徽章数量
       attachmentCount: attachmentCountByQueryId.get(node.id) ?? 0,
       // V1.4.1: 完整附件数据（用于渲染附件列表）
@@ -154,6 +200,10 @@ export function DAGCanvas({ style }: Props) {
     if (n.data.type === 'query') return true;   // query 节点本身永远显示
     if (n.id === 'main-agent') return true;
     if (n.data.type === 'summary') return true;  // summary 是链条必须保留
+    if (n.data.type === 'agent_group') return true;  // Agent 分组节点永远显示
+    if (n.data.type === 'skill') return true;
+    if (n.data.type === 'recovery') return true;
+    if (n.data.type === 'evolution') return true;
     const parentId = (n.data as DAGNode).parentId ?? 'main-agent';
     return !collapsedQueryIds.has(parentId);       // 工具节点隐藏
   });
@@ -224,7 +274,7 @@ export function DAGCanvas({ style }: Props) {
     // Agent group 节点垂直排列在 CEO 根节点下方
     const agentNodes = filteredFlowNodes.filter(n => {
       const nd = n.data as DAGNode;
-      return nd.type === 'agent_group' || nd.type === 'agent';
+      return (nd.type === 'agent_group' || nd.type === 'agent') && n.id !== 'main-agent';
     });
     const agentNodesSorted = [...agentNodes].sort((a, b) => {
       const da = a.data as DAGNode & { priority?: number };
@@ -707,7 +757,7 @@ export function DAGCanvas({ style }: Props) {
   const agentEdges: Edge[] = [];
   const ceoNodeId = 'main-agent';
   const agentNodesForEdges = finalNodes.filter(
-    n => (n.data as DAGNode).type === 'agent_group' || (n.data as DAGNode).type === 'agent'
+    n => ((n.data as DAGNode).type === 'agent_group' || (n.data as DAGNode).type === 'agent') && n.id !== 'main-agent'
   );
 
   // CEO → Agent（紫色实线）
@@ -733,7 +783,69 @@ export function DAGCanvas({ style }: Props) {
     }
   }
 
-  const allEdges = [...edges, ...extraEdges, ...groupEdges, ...agentEdges];
+  // ── V3: Skill / Recovery / Evolution 闭环边 ─────────
+  const closedLoopEdges: Edge[] = [];
+
+  // Agent → Skill（蓝色虚线）
+  const skillNodes = finalNodes.filter(n => (n.data as DAGNode).type === 'skill');
+  for (const skill of skillNodes) {
+    const parentAgentId = (skill.data as DAGNode).parentId ?? 'main-agent';
+    if (finalNodes.some(n => n.id === parentAgentId)) {
+      closedLoopEdges.push({
+        id: `${parentAgentId}-skill-${skill.id}`,
+        source: parentAgentId,
+        target: skill.id,
+        style: { stroke: '#3b82f6', strokeWidth: 1.5, strokeDasharray: '4 3' },
+        className: 'skill-edge',
+      });
+    }
+  }
+
+  // Agent → Recovery（橙色虚线）
+  const recoveryNodes = finalNodes.filter(n => (n.data as DAGNode).type === 'recovery');
+  for (const rec of recoveryNodes) {
+    const dagData = rec.data as DAGNode;
+    const parentAgentId = dagData.recoveryAgentId ?? dagData.parentId ?? 'main-agent';
+    if (finalNodes.some(n => n.id === parentAgentId)) {
+      closedLoopEdges.push({
+        id: `${parentAgentId}-recovery-${rec.id}`,
+        source: parentAgentId,
+        target: rec.id,
+        style: { stroke: '#f59e0b', strokeWidth: 1.5, strokeDasharray: '4 3' },
+        className: 'recovery-edge',
+      });
+    }
+  }
+
+  // CEO Summary → Evolution（绿色虚线）
+  const evolutionNodes = finalNodes.filter(n => (n.data as DAGNode).type === 'evolution');
+  for (const evo of evolutionNodes) {
+    if (finalNodes.some(n => n.id === 'ceo-summary')) {
+      closedLoopEdges.push({
+        id: `ceo-summary-evolution-${evo.id}`,
+        source: 'ceo-summary',
+        target: evo.id,
+        style: { stroke: '#10b981', strokeWidth: 2, strokeDasharray: '5 3' },
+        className: 'evolution-edge',
+      });
+    }
+  }
+
+  const allEdges = [...edges, ...extraEdges, ...groupEdges, ...agentEdges, ...closedLoopEdges];
+
+  // 工作区视图：边同口径过滤（与节点过滤一致）
+  const workspaceVisibleNodeIds = useMemo(() => {
+    if (activeTab === 'global' || workspaceTabs.length === 0) return null;
+    return new Set(finalNodes.map(n => n.id));
+  }, [activeTab, workspaceTabs.length, finalNodes]);
+
+  const filteredEdges = workspaceVisibleNodeIds
+    ? allEdges.filter(e => {
+        // 容器节点（type='group'）边不过滤
+        if (e.id.startsWith('group-')) return true;
+        return workspaceVisibleNodeIds.has(e.source) && workspaceVisibleNodeIds.has(e.target);
+      })
+    : allEdges;
 
   // 4.3.1: 节点数限制警告
   const nodeCount = storeNodes.size;
@@ -794,7 +906,7 @@ export function DAGCanvas({ style }: Props) {
         {isDragging && <DropOverlay message="拖放图片到 DAG 画布" />}
         <ReactFlow
           nodes={finalNodes}
-          edges={allEdges}
+          edges={filteredEdges}
           nodeTypes={nodeTypes}
           // 虚拟化配置：只渲染可视区域内的节点
           onlyRenderVisibleElements={true}

@@ -20,7 +20,6 @@ import { StatusBar } from './StatusBar';
 import { RecallPanel } from './RecallPanel';
 import { GlobalSummaryPanel } from './GlobalSummaryPanel';
 import { useTerminalWorkspaceStore } from '../../stores/useTerminalWorkspaceStore';
-// (useGlobalTerminalStore no longer used — global terminal output box removed)
 import { useMultiDispatchStore } from '../../stores/useMultiDispatchStore';
 import { getEnabledPresets } from '../../stores/workspacePresetStorage';
 import type { Workspace } from '../../types/workspace';
@@ -118,6 +117,7 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
 
   const activeTab = useTerminalWorkspaceStore(s => s.activeTab);
   const workspaceTabs = useTerminalWorkspaceStore(s => s.workspaceTabs);
+  const isGlobalView = activeTab === 'global';
 
   // Task 7: Connect batchResult for GlobalSummaryPanel
   const batchResult = useMultiDispatchStore(s => s.batchResult);
@@ -645,7 +645,9 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
         <StatusBar isRunning={isRunning} error={error} tokenUsage={tokenUsage} />
 
       {/* 主内容区 */}
-      <div style={{
+      <div
+        data-testid={isGlobalView ? 'global-workspace-home' : 'workspace-current-workbench'}
+        style={{
         flex: 1,
         overflow: 'auto',
         display: 'flex',
@@ -655,10 +657,9 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
         borderTop: 'none',
         borderBottom: 'none',
         transition: 'background 0.3s, border-color 0.3s',
-        // 防止无限增高：内容区最多占据视口的 65vh，超出后滚动
-        // 这避免了页面什么都不输入时内容区无限扩张的问题
         maxHeight: '65vh',
       }}>
+
         {/* 欢迎页：无历史卡片、无进行中会话时展示 */}
         {(() => {
           const hasContent = agentExecuting
