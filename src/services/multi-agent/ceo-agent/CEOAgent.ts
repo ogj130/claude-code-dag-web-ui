@@ -427,6 +427,12 @@ export class CEOAgent {
     const goals = this.agentPlanToGoals(agentPlan);
     console.log(`[CEO] Decomposed into ${goals.length} goals`);
 
+    // Step 2.5: 注入规划拓扑节点（DAG 可视化：展示 CEO 分解方案）
+    // 使用 'plan-' 前缀区分执行时 WebSocket 创建的 agent_group 节点
+    for (const goal of goals) {
+      await this.injectPlanNode(goal);
+    }
+
     // Step 3-5: 迭代执行
     const iterationSummaries: IterationSummary[] = [];
     const allTaskResults: TaskResult[] = [];
@@ -1103,6 +1109,36 @@ export class CEOAgent {
         endTime: Date.now(),
       };
       currentNodes.set(summaryNode.id, summaryNode);
+      useTaskStore.setState({ nodes: currentNodes });
+    } catch { /* 非浏览器环境，静默忽略 */ }
+  }
+
+  /**
+   * 注入规划拓扑节点 — 在 DAG 中展示 CEO 分解方案（独立模式）
+   * 使用 'plan-' 前缀区分执行时 WebSocket 创建的 agent_group 节点
+   */
+  private async injectPlanNode(goal: AgentGoal): Promise<void> {
+    try {
+      const { useTaskStore } = await import('@/stores/useTaskStore');
+      const currentNodes = new Map(useTaskStore.getState().nodes);
+      const nodeId = `plan-${goal.id}`;
+      const planNode: import('@/types/events').DAGNode = {
+        id: nodeId,
+        type: 'agent_group',
+        label: goal.agentName,
+        status: 'pending',
+        parentId: 'main-agent',
+        source: 'orchestration' as import('@/types/events').DAGNode['source'],
+        agentName: goal.agentName,
+        childCount: 0,
+        collapsed: false,
+        taskDescription: goal.description,
+        workspaceId: this.workspaceId,
+        startTime: Date.now(),
+      };
+      // 注入 agentType 用于颜色标签
+      (planNode as import('@/types/events').DAGNode & { agentType: string }).agentType = goal.workerType;
+      currentNodes.set(nodeId, planNode);
       useTaskStore.setState({ nodes: currentNodes });
     } catch { /* 非浏览器环境，静默忽略 */ }
   }

@@ -667,10 +667,9 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
         maxHeight: '65vh',
       }}>
 
-        {/* 欢迎页：无历史卡片、无进行中会话时展示 */}
+        {/* 欢迎页：无历史卡片、无用户交互时展示（绫华欢迎内容） */}
         {(() => {
           const hasContent = agentExecuting
-            || isRunning
             || markdownCards.length > 0
             || currentCard !== null
             || previousCard !== null

@@ -902,11 +902,16 @@ describe('独立模式 ↔ 编排模式切换', () => {
     const report = await ceo.processWithDecomposer('Build feature', mockExecutor);
     expect(report).toBeDefined();
 
-    // 不应出现 orchestration source 节点
+    // 独立模式也创建规划拓扑节点（'plan-' 前缀, source='orchestration'）
+    // 这是 CEO 分解方案的可视化，与编排模式的区别是不走 executeWithOrchestration 路径
     const nodes = useTaskStore.getState().nodes;
     const orchNodes = Array.from(nodes.values()).filter(
       n => n.source === 'orchestration'
     );
-    expect(orchNodes.length).toBe(0);
+    // 独立模式下应有规划节点，且 id 以 'plan-' 开头
+    expect(orchNodes.length).toBeGreaterThan(0);
+    for (const n of orchNodes) {
+      expect(n.id.startsWith('plan-')).toBe(true);
+    }
   });
 });

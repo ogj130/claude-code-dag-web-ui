@@ -635,12 +635,11 @@ describe('CEOAgent with hybrid decomposition', () => {
 // ── DAG 节点去重：processWithDecomposer 不创建重复 agent_group 节点 ──
 
 describe('DAG node dedup — processWithDecomposer', () => {
-  it('执行 goal 时不应直接注入 agent_group 节点（由 WebSocket 事件系统处理）', async () => {
+  it('独立模式注入规划拓扑节点 + ceo-summary，不创建执行节点', async () => {
     const ceo = new CEOAgent({ maxIterations: 1 });
     const decomposer = new LLMDecomposer({ llmAvailable: false });
     ceo.setDecomposer(decomposer);
 
-    // 记录调用前的节点状态
     useTaskStore.getState().reset();
     const nodesBefore = new Map(useTaskStore.getState().nodes);
 
@@ -659,21 +658,31 @@ describe('DAG node dedup — processWithDecomposer', () => {
     await ceo.processWithDecomposer('实现登录功能', mockExecutor);
 
     const nodesAfter = useTaskStore.getState().nodes;
-
-    // 只应新增 ceo-summary 节点，不应有 agent_group 节点从 CEOAgent 注入
     const newNodes = new Map(nodesAfter);
     for (const [id] of nodesBefore) {
       newNodes.delete(id);
     }
 
-    // ceo-summary 是唯一应由 CEOAgent 直接创建的节点
+    // CEOAgent 应创建：规划拓扑节点（'plan-' 前缀）+ ceo-summary
     const ceoSummaryNode = newNodes.get('ceo-summary');
     expect(ceoSummaryNode).toBeDefined();
     expect(ceoSummaryNode?.type).toBe('summary');
 
-    // 确认没有 agent_group 类型的新节点
-    const agentGroupNodes = Array.from(newNodes.values()).filter(n => n.type === 'agent_group');
-    expect(agentGroupNodes).toHaveLength(0);
+    // 规划节点：source='orchestration', status='pending', id 以 'plan-' 开头
+    const planNodes = Array.from(newNodes.values()).filter(
+      n => n.type === 'agent_group' && n.id.startsWith('plan-')
+    );
+    expect(planNodes.length).toBeGreaterThan(0);
+    for (const pn of planNodes) {
+      expect(pn.source).toBe('orchestration');
+      expect(pn.status).toBe('pending');
+    }
+
+    // 不应有非 'plan-' 前缀的执行 agent_group 节点（由 WebSocket 创建）
+    const execNodes = Array.from(newNodes.values()).filter(
+      n => n.type === 'agent_group' && !n.id.startsWith('plan-')
+    );
+    expect(execNodes).toHaveLength(0);
   });
 
   it('injectSummaryNode 创建的 summary 节点 workspaceId 不为空', async () => {
