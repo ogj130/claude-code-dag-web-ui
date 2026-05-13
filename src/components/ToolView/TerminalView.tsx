@@ -272,9 +272,10 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
           plan,
           systemPrompt: AYAKA_PERSONA,
           onTaskStart: (taskId) => {
+            // 标记 _started=true，让 CEOAgentCard 显示为"运行中"（蓝圈）而非"失败"（红叉）
             setCeoTaskResults(prev => [...prev, {
               taskId, workerType: 'execution',
-              output: null, success: false,
+              output: { _started: true }, success: true,
               duration: 0, skillsUsed: [], subTasks: [],
             }]);
             try {
