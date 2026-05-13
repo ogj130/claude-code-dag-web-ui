@@ -308,6 +308,9 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
 
         setCeoPhase('summary');
         setCeoSummary(report.summary);
+
+        // 保持 CEOAgentCard Phase 3（总结）展示至少 1.5s，避免快执行时用户看不到进度
+        await new Promise(r => setTimeout(r, 1500));
         setAgentExecuting(false);
 
         const agentCard: MarkdownCardData = {
@@ -546,6 +549,9 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
 
       setCeoPhase('summary');
       setCeoSummary(report.summary);
+
+      // 保持 CEOAgentCard Phase 3 展示至少 1.5s
+      await new Promise(r => setTimeout(r, 1500));
       setAgentExecuting(false);
 
       // 构建 Agent 结果卡片
@@ -664,6 +670,7 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
         {/* 欢迎页：无历史卡片、无进行中会话时展示 */}
         {(() => {
           const hasContent = agentExecuting
+            || isRunning
             || markdownCards.length > 0
             || currentCard !== null
             || previousCard !== null
@@ -944,12 +951,20 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
                 background: 'white', transition: 'left 0.2s',
               }} />
             </div>
-            <span style={{ color: agentMode ? '#8b5cf6' : 'var(--text-secondary)', fontSize: 12 }}>
-              🧠 Agent
+            <span
+              title={agentMode ? 'Agent 模式已开启：输入后由 CEO Agent 分解为子任务并行执行' : '点击开启 Agent 模式，让 CEO Agent 自动分解并执行复杂任务'}
+              style={{ color: agentMode ? '#8b5cf6' : 'var(--text-secondary)', fontSize: 12, fontWeight: agentMode ? 600 : 400 }}
+            >
+              🧠 Agent{agentMode ? ' ON' : ''}
             </span>
             {agentMode && (
               <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 4 }}>
                 输入后将由 CEO Agent 分解执行
+              </span>
+            )}
+            {!agentMode && (
+              <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 2 }} title="开启后输入 /agent 或直接输入目标即可体验多 Agent 协作">
+                OFF
               </span>
             )}
           </label>

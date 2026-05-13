@@ -25,7 +25,9 @@ import { RAGContextBar } from './components/RAGContextBar';
 import { GlobalTerminalModal } from './components/GlobalTerminal/GlobalTerminalModal';
 import { HelpGuideModal } from './components/HelpGuideModal';
 import { GlobalAgentTrigger } from './components/GlobalAgent/GlobalAgentTrigger';
+import { LoginForm } from './components/LoginForm';
 import { useSessionStore } from './stores/useSessionStore';
+import { useAuthStore } from './stores/useAuthStore';
 import { useTaskStore, type MarkdownCardData } from './stores/useTaskStore';
 import { useTerminalWorkspaceStore } from './stores/useTerminalWorkspaceStore';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -84,6 +86,8 @@ async function loadSessionCards(sessionId: string): Promise<MarkdownCardData[]> 
   }
 }
 export function App() {
+  const { isAuthenticated, isInitializing, initialize } = useAuthStore();
+
   const {
     theme, mode, accent, density, fontSize,
     setMode, setAccent, setDensity, setFontSize,
@@ -235,14 +239,17 @@ export function App() {
     if (!hasDagNodes && isStarting) {
       return <LoadingSkeleton type="dag" />;
     }
-    if (!hasHistory) {
-      return <EmptyState type="no-history" />;
-    }
-    // 正常内容：左侧 DAG，右侧终端+工具卡片（响应式布局）
+    // 始终渲染 TerminalView（用户需要输入框），DAG 侧按状态显示
     return (
       <>
         <ErrorBoundary name="DAGCanvas">
-          <DAGCanvas style={layout.dag} />
+          {!hasHistory && !isStarting ? (
+            <EmptyState type="no-history" />
+          ) : !hasDagNodes && isStarting ? (
+            <LoadingSkeleton type="dag" />
+          ) : (
+            <DAGCanvas style={layout.dag} />
+          )}
         </ErrorBoundary>
         <ErrorBoundary name="TerminalView">
           <TerminalView
@@ -294,6 +301,11 @@ export function App() {
       window.removeEventListener('unhandledrejection', handleRejection);
     };
   }, []);
+
+  // 认证状态初始化（从 localStorage 恢复会话）
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
 
   // 从 IndexedDB 加载历史卡片（会话切换时）
   useEffect(() => {
@@ -437,6 +449,34 @@ export function App() {
     }
 
     return null;
+  }
+
+  // 认证门控：初始化中显示加载，未认证显示登录表单
+  if (isInitializing) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        height: '100vh', background: 'var(--bg-root)',
+      }}>
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+        }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: 12,
+            background: 'linear-gradient(135deg, var(--accent), var(--accent-dim))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 20, fontWeight: 800, color: '#fff',
+          }}>
+            CC
+          </div>
+          <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>加载中...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginForm />;
   }
 
   return (
