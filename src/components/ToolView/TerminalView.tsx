@@ -272,40 +272,20 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
           plan,
           systemPrompt: AYAKA_PERSONA,
           onTaskStart: (taskId) => {
-            // 标记 _started=true，让 CEOAgentCard 显示为"运行中"（蓝圈）而非"失败"（红叉）
+            // 标记 _started=true，让 CEOAgentCard 显示为"运行中"（蓝圈）
+            // DAG 节点由 WebSocket 真实事件驱动，不注入假 agent_start 事件
             setCeoTaskResults(prev => [...prev, {
               taskId, workerType: 'execution',
               output: { _started: true }, success: true,
               duration: 0, skillsUsed: [], subTasks: [],
             }]);
-            try {
-              const planAgent = plan.agents.find(a => a.id === taskId);
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (useTaskStore.getState().handleEvent as any)({
-                type: 'agent_start',
-                agentId: taskId,
-                label: planAgent?.name ?? taskId,
-                parentId: 'main-agent',
-                agentType: planAgent?.type ?? 'execution',
-                taskDescription: planAgent?.description ?? '',
-              });
-            } catch { /* 静默忽略 */ }
           },
           onTaskComplete: (result) => {
             setCeoTaskResults(prev => prev.map(r =>
               r.taskId === result.taskId ? result : r
             ));
             setCeoCompletedCount(prev => prev + 1);
-            try {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              (useTaskStore.getState().handleEvent as any)({
-                type: 'agent_end',
-                agentId: result.taskId,
-                toolMessage: result.error,
-                duration: result.duration,
-                skillsUsed: result.skillsUsed,
-              });
-            } catch { /* 静默忽略 */ }
+            // DAG 节点状态由 WebSocket agent_end 真实事件更新
           },
         });
 
