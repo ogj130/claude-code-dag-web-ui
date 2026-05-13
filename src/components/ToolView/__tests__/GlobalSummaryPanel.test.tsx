@@ -13,6 +13,7 @@ import '@testing-library/jest-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GlobalSummaryPanel } from '../GlobalSummaryPanel';
+import { useMultiDispatchStore } from '../../../stores/useMultiDispatchStore';
 import type { Workspace } from '@/types/workspace';
 import type { DispatchWorkspaceResult } from '@/types/global-dispatch';
 
@@ -163,5 +164,46 @@ describe('GlobalSummaryPanel', () => {
       />
     );
     expect(screen.queryByText('查看全局分析')).not.toBeInTheDocument();
+  });
+});
+
+// ── useMultiDispatchStore 分析生命周期测试 ──
+
+describe('useMultiDispatchStore analysis lifecycle', () => {
+  beforeEach(() => {
+    useMultiDispatchStore.getState().reset();
+  });
+
+  it('startAnalysis 存储请求元数据', () => {
+    useMultiDispatchStore.getState().startAnalysis(['ws-a', 'ws-b'], 1001);
+
+    expect(useMultiDispatchStore.getState().analysisStatus).toBe('loading');
+    expect(useMultiDispatchStore.getState().analysisRequestId).toBe(1001);
+    expect(useMultiDispatchStore.getState().analysisScopeSnapshot).toEqual(['ws-a', 'ws-b']);
+  });
+
+  it('finishAnalysis 在 requestId 匹配时写入结果', () => {
+    useMultiDispatchStore.getState().startAnalysis(['ws-a'], 1001);
+    useMultiDispatchStore.getState().finishAnalysis(1001, { report: 'done' } as never);
+
+    expect(useMultiDispatchStore.getState().analysisStatus).toBe('success');
+    expect(useMultiDispatchStore.getState().analysisResult).toEqual({ report: 'done' });
+  });
+
+  it('旧 requestId 的 finishAnalysis 结果被忽略（防竞态）', () => {
+    useMultiDispatchStore.getState().startAnalysis(['ws-a'], 1001);
+    useMultiDispatchStore.getState().startAnalysis(['ws-b'], 1002);
+    useMultiDispatchStore.getState().finishAnalysis(1001, { report: 'old' } as never);
+
+    expect(useMultiDispatchStore.getState().analysisResult).toBeNull();
+    expect(useMultiDispatchStore.getState().analysisRequestId).toBe(1002);
+  });
+
+  it('failAnalysis 在 requestId 匹配时写入错误', () => {
+    useMultiDispatchStore.getState().startAnalysis(['ws-a'], 1001);
+    useMultiDispatchStore.getState().failAnalysis(1001, 'Network error');
+
+    expect(useMultiDispatchStore.getState().analysisStatus).toBe('error');
+    expect(useMultiDispatchStore.getState().analysisError).toBe('Network error');
   });
 });
