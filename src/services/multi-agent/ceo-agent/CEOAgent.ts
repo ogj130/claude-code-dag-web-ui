@@ -384,6 +384,8 @@ export class CEOAgent {
       onTaskComplete?: (result: TaskResult) => void;
       /** 预计算的 AgentPlan — 传入后跳过内部 decompose() 步骤 */
       plan?: AgentPlan;
+      /** LLM 调用用的角色设定（不参与分解，仅转发给 executor） */
+      systemPrompt?: string;
     }
   ): Promise<ExecutionReport> {
     // 编排模式：有预定义 Flow 时走 executeWithOrchestration
@@ -668,6 +670,7 @@ export class CEOAgent {
     options?: {
       onTaskStart?: (taskId: string) => void;
       onTaskComplete?: (result: TaskResult) => void;
+      systemPrompt?: string;
     }
   ): Promise<TaskResult[]> {
     const results: TaskResult[] = [];
@@ -707,6 +710,8 @@ export class CEOAgent {
           criteria: goal.verificationCriteria,
           workerType: goal.workerType,
           agentName: goal.agentName,
+          // 角色设定仅转发给 executor，不参与分解或 CEO 摘要
+          systemPrompt: options?.systemPrompt,
           // Pass outputs from dependency goals into context
           dependencyOutputs: (goal.dependsOn ?? [])
             .filter(depId => this.allAgentOutputs.has(depId))
@@ -787,11 +792,13 @@ export class CEOAgent {
 
     // Create the specialized agent
     let agentOutput: unknown;
+    let actualDuration = 0;
 
     switch (goal.workerType) {
       case 'context': {
         const contextAgent = new ContextAgent();
         const contextResult = await contextAgent.execute(taskContext as unknown as import('@/types/multi-agent/worker-agents').WorkerContext);
+        actualDuration = contextResult.duration;
         agentOutput = {
           agentType: 'context',
           agentName: 'ContextAgent',
@@ -802,6 +809,7 @@ export class CEOAgent {
       case 'planning': {
         const planningAgent = new PlanningAgent();
         const planResult = await planningAgent.execute(taskContext as unknown as import('@/types/multi-agent/worker-agents').WorkerContext);
+        actualDuration = planResult.duration;
         agentOutput = {
           agentType: 'planning',
           agentName: 'PlanningAgent',
@@ -812,6 +820,7 @@ export class CEOAgent {
       case 'execution': {
         // Execution goes through the real executor (CLI/WS in prod, simulated in dev)
         const execResult = await executor.execute(taskContext, skills);
+        actualDuration = execResult.duration;
         agentOutput = {
           agentType: 'execution',
           agentName: 'ExecutionAgent',
@@ -823,13 +832,16 @@ export class CEOAgent {
       default: {
         // Fallback to generic executor
         const result = await executor.execute(taskContext, skills);
+        actualDuration = result.duration;
         agentOutput = result.output;
       }
     }
 
-    const isSuccess = goal.workerType === 'execution'
-      ? (agentOutput as { success?: boolean }).success !== false
-      : true;
+    // 读取 agent 输出的 success 字段；非 execution 类型也检查输出是否有实际内容
+    const outputHasSuccess = (agentOutput as { success?: boolean } | null)?.['success'];
+    const isSuccess = outputHasSuccess !== undefined
+      ? outputHasSuccess !== false
+      : agentOutput !== null && agentOutput !== undefined;
 
     // Step N: ProblemDetector — 追踪工具调用并获取状态
     const pDetector = getProblemDetector();
@@ -864,7 +876,7 @@ export class CEOAgent {
       workerType: goal.workerType as WorkerAgentType,
       output: agentOutput,
       success: isSuccess,
-      duration: 500,
+      duration: actualDuration,
       skillsUsed: skills.map(s => s.id) as unknown as import('@/types/multi-agent/skill').SkillRef[],
       subTasks: [],
     };
@@ -1244,21 +1256,41 @@ export class CEOAgent {
       const relatedResults = taskResults.filter(r =>
         JSON.stringify(r).includes(goal.id)
       );
-      const criteriaMet = goal.verificationCriteria.every(() =>
-        relatedResults.some(r => r.success)
-      );
+
+      // 最小内容检查：output 不能为空/null（ContextAgent 至少应扫描了文件）
+      const hasContent = relatedResults.some(r => {
+        if (!r.success) return false;
+        if (r.output === null || r.output === undefined) return false;
+        if (typeof r.output === 'object' && Object.keys(r.output as object).length === 0) return false;
+        return true;
+      });
+
+      // 每个 criteria 独立验证：检查 criteria 关键词是否在结果中出现
+      const criteriaMet = hasContent && goal.verificationCriteria.every(criteria => {
+        const criteriaLower = criteria.toLowerCase();
+        return relatedResults.some(r => {
+          const outputStr = JSON.stringify(r.output ?? '').toLowerCase();
+          return outputStr.includes(criteriaLower) || r.success;
+        });
+      });
+
+      const met = criteriaMet && hasContent;
+
       return {
         goal,
-        met: criteriaMet || relatedResults.some(r => r.success),
-        evidence: criteriaMet
-          ? 'All verification criteria met'
-          : 'Partial completion - some criteria not met',
+        met,
+        evidence: met
+          ? 'All verification criteria met with content'
+          : !hasContent
+            ? 'Agent returned empty output — no real analysis performed'
+            : 'Partial completion - some criteria not met',
         taskResults: relatedResults,
       };
     });
 
+    const metCount = goalResults.filter(g => g.met).length;
     const allGoalsMet = goalResults.every(g => g.met);
-    const metRatio = goalResults.filter(g => g.met).length / goalResults.length;
+    const metRatio = goals.length > 0 ? metCount / goals.length : 0;
 
     return {
       allGoalsMet: allGoalsMet || metRatio >= this.config.verificationThreshold,
@@ -1266,7 +1298,7 @@ export class CEOAgent {
       missedGoals: goalResults.filter(g => !g.met).map(g => g.goal),
       reasoning: allGoalsMet
         ? 'All goals verified successfully'
-        : `${goalResults.filter(g => g.met).length}/${goalResults.length} goals met`,
+        : `${metCount}/${goals.length} goals met (${goalResults.filter(g => !g.met).map(g => g.goal.description).join(', ')})`,
     };
   }
 

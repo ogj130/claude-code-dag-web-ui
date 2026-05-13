@@ -219,8 +219,8 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
     if (agentMode || isAgentPrefix) {
       if (!cleanInput) return;
 
-      // 注入绫华角色设定（仅 LLM 调用使用，UI 显示用原始 cleanInput）
-      const agentInput = AYAKA_PERSONA + '\n\n[用户任务]\n' + cleanInput;
+      // Persona 不参与分解和执行，仅作为 systemPrompt 传递给 LLM 调用
+      // 避免角色设定文本污染分解器输入和 CEO 摘要中的 "原始需求"
 
       // 清空输入框
       setInputValue('');
@@ -249,14 +249,14 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
           ceoAgent.clearOrchestrationFlow();
         }
 
-        const plan = await decomposer.decompose(agentInput);
+        const plan = await decomposer.decompose(cleanInput);
         setCeoPlan(plan.agents);
         setCeoStrategy(plan.strategy);
         setCeoTotalCount(plan.agents.length);
 
         if (planMode === 'confirm') {
           setPendingPlan(plan);
-          setPendingCleanInput(agentInput);
+          setPendingCleanInput(cleanInput);
           setShowPlanConfirm(true);
           return;
         }
@@ -266,8 +266,9 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
         setCeoTaskResults([]);
         setPlanConfirmed(true);
 
-        const report = await ceoAgent.processWithDecomposer(agentInput, executor, {
+        const report = await ceoAgent.processWithDecomposer(cleanInput, executor, {
           plan,
+          systemPrompt: AYAKA_PERSONA,
           onTaskStart: (taskId) => {
             setCeoTaskResults(prev => [...prev, {
               taskId, workerType: 'execution',

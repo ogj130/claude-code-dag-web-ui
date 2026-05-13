@@ -51,12 +51,16 @@ async function executeWithWorkspace(
       forceNew: false,
     });
 
+    // 构造 prompt：如果有 systemPrompt，放在前面（参考普通模式下 payload 的分离方式）
+    const systemPrompt = task.context?.systemPrompt as string | undefined;
+    const prompt = systemPrompt ? `${systemPrompt}\n\n[用户任务]\n${task.description}` : task.description;
+
     const result = await dispatchExecutePromptAdapter({
       workspaceId: workspace.id,
       workspacePath: workspace.workspacePath,
       modelConfigId: workspace.modelConfigId,
       sessionId: sessionResult.session.id,
-      prompt: task.description,
+      prompt,
     });
 
     return makeResult(

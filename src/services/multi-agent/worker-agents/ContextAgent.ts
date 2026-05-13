@@ -27,19 +27,40 @@ export class ContextAgent extends BaseWorkerAgent {
     // 规则引擎分析（用作 prompt hints + 降级结果）
     const contextNeeded = this.analyzeContextNeeds(description);
 
-    // 尝试 LLM 分析
-    const llmResult = await tryLLMCall(this.buildContextPrompt(description, workspacePath, contextNeeded));
+    // 始终先执行文件系统扫描，获取真实数据
+    const effectivePath = workspacePath || process.cwd();
+    let projectStructure = { directories: [] as string[], files: [] as string[], fileCount: 0 };
+    let relevantCode: Array<{ path: string; snippet: string }> = [];
+
+    try {
+      projectStructure = this.scanProjectStructure(effectivePath);
+      relevantCode = this.extractRelevantCode(projectStructure, description);
+    } catch (err) {
+      // 浏览器环境或无 fs 权限时优雅降级
+      console.warn('[ContextAgent] File scan failed (browser/no-fs?), proceeding with LLM only');
+    }
+
+    // 尝试 LLM 分析（用真实扫描数据增强 prompt）
+    const llmResult = await tryLLMCall(
+      this.buildContextPrompt(description, workspacePath, contextNeeded, projectStructure),
+    );
 
     if (llmResult) {
-      // LLM 成功 → 解析结构化输出
-      return this.parseLLMResponse(llmResult, description, contextNeeded);
+      // LLM 成功 → 解析结构化输出 + 附加真实扫描数据
+      const parsed = this.parseLLMResponse(llmResult, description, contextNeeded);
+      return {
+        ...parsed,
+        // 用真实扫描数据覆盖 LLM 的虚数
+        projectStructure,
+        relevantCode,
+        filesAnalyzed: relevantCode.length,
+        directoriesScanned: projectStructure.directories.length,
+        totalFilesFound: projectStructure.fileCount,
+      };
     }
 
     // 降级到规则引擎 — 使用真实文件系统扫描
     console.warn('[ContextAgent] LLM unavailable, falling back to rule-based analysis');
-    const effectivePath = workspacePath || process.cwd();
-    const projectStructure = this.scanProjectStructure(effectivePath);
-    const relevantCode = this.extractRelevantCode(projectStructure, description);
     const summary = this.generateSummary(description, projectStructure, relevantCode);
     return {
       description,
@@ -48,6 +69,8 @@ export class ContextAgent extends BaseWorkerAgent {
       relevantCode,
       summary,
       filesAnalyzed: relevantCode.length,
+      directoriesScanned: projectStructure.directories.length,
+      totalFilesFound: projectStructure.fileCount,
       _source: 'rules',
     };
   }
@@ -59,14 +82,21 @@ export class ContextAgent extends BaseWorkerAgent {
     requirement: string,
     workspacePath: string | undefined,
     hints: string[],
+    projectStructure?: { directories: string[]; files: string[]; fileCount: number },
   ): string {
     const projectInfo = workspacePath
       ? `项目路径：${workspacePath}`
       : '项目路径：未知（请在 workspace 中配置）';
 
+    const scanInfo = projectStructure && projectStructure.fileCount > 0
+      ? `已扫描项目结构：${projectStructure.fileCount} 个文件，${projectStructure.directories.length} 个目录\n` +
+        `根目录内容：${projectStructure.directories.slice(0, 10).join('、')}`
+      : '项目未扫描（路径不存在或无可读权限）';
+
     return `你是一位资深软件架构师，负责分析用户需求并确定需要检查的项目上下文。
 
 ${projectInfo}
+${scanInfo}
 用户需求：${requirement}
 
 规则引擎建议关注以下目录/领域：${hints.join('、')}

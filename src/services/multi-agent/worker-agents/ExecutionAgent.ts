@@ -19,18 +19,31 @@ export class ExecutionAgent extends BaseWorkerAgent {
   protected async doExecute(context: WorkerContext): Promise<unknown> {
     this.trackToolCall('ExecutionAgent.execute');
 
-    const { description } = context;
+    const { description, workspaceId, workspacePath } = context;
 
-    // Step 1: Parse execution plan
+    // 如果有 workspace 信息，说明应该走真实执行路径（通过 CEOAgent 的 executor）
+    // 此 doExecute 仅在无 executor 可用时作为降级方案被调用
+    const hasRealExecution = !!(workspaceId && workspacePath);
+
+    if (hasRealExecution) {
+      // 真实执行由 CEOAgent.executeWithAgent() 通过 executor 完成
+      // 此处不应被调用 — 如果到达这里，说明调用链有问题
+      return {
+        plan: this.parseExecutionPlan(description),
+        subTaskResults: [],
+        aggregated: { totalTasks: 0, successfulTasks: 0, failedTasks: 0, successRate: 0 },
+        verification: { allCompleted: false, partialCompletion: false, nothingDone: true, verificationPassed: false },
+        totalSubTasks: 0,
+        successfulSubTasks: 0,
+        _source: 'bypassed',
+        _warning: 'ExecutionAgent.doExecute called directly — real execution should go through executor',
+      };
+    }
+
+    // 降级方案：无 workspace 时仅做 LLM 分析（非真实执行）
     const plan = this.parseExecutionPlan(description);
-
-    // Step 2: Execute sub-tasks
     const subTaskResults = await this.executeSubTasks(plan, context);
-
-    // Step 3: Aggregate results
     const aggregated = this.aggregateResults(subTaskResults);
-
-    // Step 4: Verify execution
     const verification = this.verifyExecution(aggregated, plan);
 
     return {
@@ -40,6 +53,8 @@ export class ExecutionAgent extends BaseWorkerAgent {
       verification,
       totalSubTasks: plan.length,
       successfulSubTasks: subTaskResults.filter(r => r.success).length,
+      _source: 'llm-analysis-only',
+      _warning: 'No real execution performed — LLM analysis only. Connect a workspace to enable real execution.',
     };
   }
 
