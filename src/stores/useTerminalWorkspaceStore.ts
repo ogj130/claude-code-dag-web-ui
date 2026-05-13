@@ -35,10 +35,12 @@ interface TerminalWorkspaceState {
   isGlobalSummaryExpanded: boolean;
   runningWorkspaces: Set<string>;
   currentBatchId: string | null;
-  // 新增：视图切换状态
   activeTab: 'global' | string;
-  // 新增：动态工作区标签
   workspaceTabs: WorkspaceTab[];
+  // 多工作区 UI state
+  hasUsedGlobalTerminal: boolean;
+  selectedDispatchWorkspaceIds: string[];
+  selectedAnalysisWorkspaceIds: string[];
 }
 
 interface TerminalWorkspaceActions {
@@ -48,16 +50,17 @@ interface TerminalWorkspaceActions {
   addRunningWorkspace: (workspaceId: string) => void;
   removeRunningWorkspace: (workspaceId: string) => void;
   reset: () => void;
-  // 新增：开始执行时添加所有工作区标签
   onExecutionStart: (workspaces: Array<{ id: string; name: string }>) => void;
-  // 新增：单个状态更新
   updateWorkspaceTab: (workspaceId: string, status: TabStatus) => void;
-  // 新增：所有完成时竞态安全的延迟移除
   onAllCompleted: () => void;
-  // 新增：重置标签
   clearWorkspaceTabs: () => void;
-  // 新增：视图切换
   setActiveTab: (tab: 'global' | string) => void;
+  // 多工作区 UI state actions
+  setSelectedDispatchWorkspaceIds: (ids: string[]) => void;
+  setSelectedAnalysisWorkspaceIds: (ids: string[]) => void;
+  markGlobalTerminalUsed: () => void;
+  clearGlobalTerminalUsage: () => void;
+  reconcileEnabledWorkspaces: (enabledIds: string[]) => void;
 }
 
 type TerminalWorkspaceStore = TerminalWorkspaceState & TerminalWorkspaceActions;
@@ -69,6 +72,9 @@ const initialState: TerminalWorkspaceState = {
   currentBatchId: null,
   activeTab: 'global',
   workspaceTabs: [],
+  hasUsedGlobalTerminal: false,
+  selectedDispatchWorkspaceIds: [],
+  selectedAnalysisWorkspaceIds: [],
 };
 
 export const useTerminalWorkspaceStore = create<TerminalWorkspaceStore>((set) => ({
@@ -102,8 +108,32 @@ export const useTerminalWorkspaceStore = create<TerminalWorkspaceStore>((set) =>
   reset: () =>
     set({ ...initialState, runningWorkspaces: new Set<string>() }),
 
-  // 新增：视图切换
-  setActiveTab: (tab) => set({ activeTab: tab }),
+  setActiveTab: (tab) =>
+    set((state) => ({
+      activeTab: tab,
+      activeWorkspaceId: tab === 'global' ? state.activeWorkspaceId : tab,
+    })),
+
+  setSelectedDispatchWorkspaceIds: (ids) => set({ selectedDispatchWorkspaceIds: ids }),
+  setSelectedAnalysisWorkspaceIds: (ids) => set({ selectedAnalysisWorkspaceIds: ids }),
+
+  markGlobalTerminalUsed: () => set({ hasUsedGlobalTerminal: true }),
+  clearGlobalTerminalUsage: () => set({ hasUsedGlobalTerminal: false }),
+
+  reconcileEnabledWorkspaces: (enabledIds) =>
+    set((state) => {
+      const nextDispatch = state.selectedDispatchWorkspaceIds.filter((id) => enabledIds.includes(id));
+      const nextAnalysis = state.selectedAnalysisWorkspaceIds.filter((id) => enabledIds.includes(id));
+      const nextActiveTab = state.activeTab !== 'global' && !enabledIds.includes(state.activeTab)
+        ? 'global'
+        : state.activeTab;
+
+      return {
+        selectedDispatchWorkspaceIds: nextDispatch,
+        selectedAnalysisWorkspaceIds: nextAnalysis,
+        activeTab: nextActiveTab,
+      };
+    }),
 
   // 新增：开始执行时添加所有工作区标签
   onExecutionStart: (workspaces) => {

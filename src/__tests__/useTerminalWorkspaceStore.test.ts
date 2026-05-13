@@ -155,4 +155,45 @@ describe('useTerminalWorkspaceStore', () => {
     store.clearWorkspaceTabs();
     expect(store.workspaceTabs).toEqual([]);
   });
+
+  // ── 多工作区 UI state（Task 1: 扩展 store）──
+
+  it('selectedDispatchWorkspaceIds 和 selectedAnalysisWorkspaceIds 分别存储', () => {
+    useTerminalWorkspaceStore.getState().setSelectedDispatchWorkspaceIds(['ws-a', 'ws-b']);
+    useTerminalWorkspaceStore.getState().setSelectedAnalysisWorkspaceIds(['ws-b']);
+
+    expect(useTerminalWorkspaceStore.getState().selectedDispatchWorkspaceIds).toEqual(['ws-a', 'ws-b']);
+    expect(useTerminalWorkspaceStore.getState().selectedAnalysisWorkspaceIds).toEqual(['ws-b']);
+  });
+
+  it('setActiveTab 切换到工作区时同步 activeWorkspaceId', () => {
+    useTerminalWorkspaceStore.getState().setActiveTab('ws-a');
+
+    expect(useTerminalWorkspaceStore.getState().activeTab).toBe('ws-a');
+    expect(useTerminalWorkspaceStore.getState().activeWorkspaceId).toBe('ws-a');
+  });
+
+  it('activeTab 对应的工作区被禁用后回退到 global', () => {
+    useTerminalWorkspaceStore.getState().setActiveTab('ws-gone');
+    useTerminalWorkspaceStore.getState().reconcileEnabledWorkspaces(['ws-a', 'ws-b']);
+
+    expect(useTerminalWorkspaceStore.getState().activeTab).toBe('global');
+  });
+
+  it('reconcileEnabledWorkspaces 清除禁用工作区的选择范围', () => {
+    useTerminalWorkspaceStore.getState().setSelectedDispatchWorkspaceIds(['ws-a', 'ws-gone']);
+    useTerminalWorkspaceStore.getState().setSelectedAnalysisWorkspaceIds(['ws-gone']);
+    useTerminalWorkspaceStore.getState().reconcileEnabledWorkspaces(['ws-a', 'ws-b']);
+
+    expect(useTerminalWorkspaceStore.getState().selectedDispatchWorkspaceIds).toEqual(['ws-a']);
+    expect(useTerminalWorkspaceStore.getState().selectedAnalysisWorkspaceIds).toEqual([]);
+  });
+
+  it('markGlobalTerminalUsed 跟踪全局终端使用状态', () => {
+    useTerminalWorkspaceStore.getState().markGlobalTerminalUsed();
+    expect(useTerminalWorkspaceStore.getState().hasUsedGlobalTerminal).toBe(true);
+
+    useTerminalWorkspaceStore.getState().clearGlobalTerminalUsage();
+    expect(useTerminalWorkspaceStore.getState().hasUsedGlobalTerminal).toBe(false);
+  });
 });
