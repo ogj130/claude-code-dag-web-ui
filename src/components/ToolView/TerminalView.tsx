@@ -312,59 +312,10 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
         setCeoPhase('summary');
         setCeoSummary(report.summary);
 
-        // 保持 CEOAgentCard Phase 3（总结）展示至少 1.5s，避免快执行时用户看不到进度
+        // Phase 3 展示 1.5s 后 CEOAgentCard 淡出
+        // 不推送额外 MarkdownCard — 三阶段卡片本身就是完整的执行结果
         await new Promise(r => setTimeout(r, 1500));
         setAgentExecuting(false);
-
-        const agentCard: MarkdownCardData = {
-          id: `agent-${Date.now()}`,
-          queryId: `agent-${Date.now()}`,
-          timestamp: Date.now(),
-          query: cleanInput,
-          analysis: [
-            `### CEO 执行统计`,
-            ``,
-            `| 指标 | 值 |`,
-            `|------|-----|`,
-            `| 总目标数 | ${report.completedGoals.length + report.missedGoals.length} |`,
-            `| 已完成 | ${report.completedGoals.length} |`,
-            `| 未完成 | ${report.missedGoals.length} |`,
-            `| 总耗时 | ${report.totalDuration}ms |`,
-          ].join('\n'),
-          summary: report.summary,
-          completeSummary: report.summary,
-          variant: 'agent' as const,
-          agentReport: {
-            totalGoals: report.completedGoals.length + report.missedGoals.length,
-            completedGoals: report.completedGoals.length,
-            missedGoals: report.missedGoals.length,
-            duration: report.totalDuration,
-            skillsUsed: (report.skillsUsed ?? []).map((s: string) => ({ name: s, domain: 'general' })),
-            recoveries: (() => {
-              const grouped = new Map<string, import('@/types/multi-agent/worker-agents').TaskResult[]>();
-              for (const r of report.taskResults) {
-                const arr = grouped.get(r.taskId) || [];
-                arr.push(r);
-                grouped.set(r.taskId, arr);
-              }
-              const recovered: Array<{ type: string; agentId: string; success: boolean }> = [];
-              for (const [taskId, results] of grouped) {
-                const hasFailure = results.some(r => !r.success);
-                const hasSuccess = results.some(r => r.success);
-                if (hasFailure && hasSuccess) {
-                  recovered.push({ type: 'retry', agentId: taskId, success: true });
-                }
-              }
-              return recovered;
-            })(),
-          },
-          workspaceId: (() => {
-            const termTab = useTerminalWorkspaceStore.getState().activeTab;
-            return termTab !== 'global' ? termTab : undefined;
-          })(),
-        };
-
-        useTaskStore.getState().addMarkdownCard(agentCard);
 
       } catch (error) {
         setAgentExecuting(false);
@@ -553,62 +504,9 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
       setCeoPhase('summary');
       setCeoSummary(report.summary);
 
-      // 保持 CEOAgentCard Phase 3 展示至少 1.5s
+      // Phase 3 展示 1.5s 后 CEOAgentCard 淡出，不推送额外 MarkdownCard
       await new Promise(r => setTimeout(r, 1500));
       setAgentExecuting(false);
-
-      // 构建 Agent 结果卡片
-      const agentCard: MarkdownCardData = {
-        id: `agent-${Date.now()}`,
-        queryId: `agent-${Date.now()}`,
-        timestamp: Date.now(),
-        query: inputText,
-        analysis: [
-          `### CEO 执行统计`,
-          ``,
-          `| 指标 | 值 |`,
-          `|------|-----|`,
-          `| 总目标数 | ${report.completedGoals.length + report.missedGoals.length} |`,
-          `| 已完成 | ${report.completedGoals.length} |`,
-          `| 未完成 | ${report.missedGoals.length} |`,
-          `| 总耗时 | ${report.totalDuration}ms |`,
-        ].join('\n'),
-        summary: report.summary,
-        completeSummary: report.summary,
-        variant: 'agent' as const,
-        agentReport: {
-          totalGoals: report.completedGoals.length + report.missedGoals.length,
-          completedGoals: report.completedGoals.length,
-          missedGoals: report.missedGoals.length,
-          duration: report.totalDuration,
-          skillsUsed: (report.skillsUsed ?? []).map((s: string) => ({ name: s, domain: 'general' })),
-          recoveries: (() => {
-            const grouped = new Map<string, import('@/types/multi-agent/worker-agents').TaskResult[]>();
-            for (const r of report.taskResults) {
-              const arr = grouped.get(r.taskId) || [];
-              arr.push(r);
-              grouped.set(r.taskId, arr);
-            }
-            const recovered: Array<{ type: string; agentId: string; success: boolean }> = [];
-            for (const [taskId, results] of grouped) {
-              const hasFailure = results.some(r => !r.success);
-              const hasSuccess = results.some(r => r.success);
-              if (hasFailure && hasSuccess) {
-                recovered.push({ type: 'retry', agentId: taskId, success: true });
-              }
-            }
-            return recovered;
-          })(),
-        },
-        workspaceId: (() => {
-          const termTab = useTerminalWorkspaceStore.getState().activeTab;
-          return termTab !== 'global' ? termTab : undefined;
-        })(),
-      };
-
-      useTaskStore.getState().addMarkdownCard(agentCard);
-
-      // 完成状态已通过 CEOAgentCard Phase 3 展示
     } catch (error) {
       setAgentExecuting(false);
       setCeoPhase('summary');
