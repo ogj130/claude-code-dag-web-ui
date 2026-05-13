@@ -1,5 +1,7 @@
 import type { AgentPlan, WorkerType } from '@/types/multi-agent/ceo-agent';
 import { LLM_DECOMPOSE_PROMPT } from '../types';
+import { getDefaultConfig } from '@/stores/modelConfigStorage';
+import { callChatCompletion } from '@/services/modelApiClient';
 
 export interface LLMDecomposerConfig {
   llmAvailable?: boolean;
@@ -48,7 +50,10 @@ export class LLMDecomposer {
     if (!Array.isArray(parsed.agents) || parsed.agents.length === 0) {
       throw new Error('LLM returned invalid AgentPlan: no agents');
     }
-    return this.validateAndNormalize(parsed);
+    const normalized = this.validateAndNormalize(parsed);
+    // 标记为 LLM 分解（用于 processWithDecomposer 检测分解来源）
+    (normalized as unknown as Record<string, unknown>)._llmDecomposed = true;
+    return normalized;
   }
 
   decomposeWithRules(requirement: string): AgentPlan {
@@ -163,5 +168,53 @@ export class LLMDecomposer {
       review: ['quality_checks_passed'],
     };
     return map[type];
+  }
+}
+
+/**
+ * 创建真实的 LLM 调用函数，注入到 LLMDecomposer 或 Worker Agent 中。
+ * 自动从 modelConfigStorage 获取默认模型配置，通过 callChatCompletion 发起 API 调用。
+ *
+ * @returns (prompt: string) => Promise<string> LLM 响应内容
+ * @throws 当无默认模型配置或无 API key 时抛出错误
+ */
+export function createLLMCall(): (prompt: string) => Promise<string> {
+  return async (prompt: string): Promise<string> => {
+    const cfg = await getDefaultConfig();
+    if (!cfg || !cfg.apiKey) {
+      throw new Error('[LLMDecomposer] No default model config available — please configure a model with an API key');
+    }
+    const response = await callChatCompletion({
+      messages: [{ role: 'user', content: prompt }],
+      model: cfg.model,
+      baseUrl: cfg.baseUrl,
+      apiKey: cfg.apiKey,
+      maxTokens: 4096,
+      temperature: 0.3,
+    });
+    return response.content;
+  };
+}
+
+/**
+ * 安全版 LLM 调用工厂 —— 当 LLM 不可用时返回 null 而非抛出异常。
+ * 适用于需要优雅降级到规则引擎的场景。
+ */
+export async function tryLLMCall(prompt: string): Promise<string | null> {
+  try {
+    const cfg = await getDefaultConfig();
+    if (!cfg || !cfg.apiKey) return null;
+    const response = await callChatCompletion({
+      messages: [{ role: 'user', content: prompt }],
+      model: cfg.model,
+      baseUrl: cfg.baseUrl,
+      apiKey: cfg.apiKey,
+      maxTokens: 4096,
+      temperature: 0.3,
+    });
+    return response.content;
+  } catch (err) {
+    console.warn('[LLMDecomposer] LLM call failed, falling back to rules:', (err as Error).message);
+    return null;
   }
 }

@@ -12,10 +12,7 @@ import type { SkillRef } from '@/types/multi-agent/skill';
 import type { WorkerExecutor } from '@/services/multi-agent/types';
 import type { FlowDefinition, FlowAgent } from '@/types/multi-agent/flow-definition';
 import { getSkillRetriever } from '../skill-store/SkillRetriever';
-import { ContextAgent } from '../worker-agents/ContextAgent';
-import { PlanningAgent } from '../worker-agents/PlanningAgent';
 import { LLMDecomposer } from './LLMDecomposer';
-import { RecoveryEngine } from './RecoveryEngine';
 import { getProblemDetector } from '../problem-detector/ProblemDetector';
 
 // Extended Goal with worker routing
@@ -42,7 +39,6 @@ export class CEOAgent {
   private skillsUsed: Set<string> = new Set();
   private allAgentOutputs: Map<string, unknown> = new Map();
   private decomposer?: LLMDecomposer;
-  private recoveryEngine?: RecoveryEngine;
   /** 当前工作区 ID（由调用方通过 setWorkspace() 注入） */
   private workspaceId: string = '';
   /** 当前工作区路径（项目根目录） */
@@ -134,10 +130,6 @@ export class CEOAgent {
     this.iteration = 0;
     this.skillsUsed = new Set();
     this.allAgentOutputs = new Map();
-
-    if (!this.recoveryEngine) {
-      this.recoveryEngine = new RecoveryEngine();
-    }
 
     // Step 1: 注入编排拓扑节点到 DAG (source: 'orchestration')
     for (const agent of flow.agents) {
@@ -398,11 +390,6 @@ export class CEOAgent {
     this.skillsUsed = new Set();
     this.allAgentOutputs = new Map();
 
-    // Step 0: 初始化恢复引擎
-    if (!this.recoveryEngine) {
-      this.recoveryEngine = new RecoveryEngine();
-    }
-
     // Step 1: 混合分解（优先使用调用方传入的预计算 plan）
     let agentPlan: AgentPlan;
     const decompositionSource: string[] = [];
@@ -445,37 +432,13 @@ export class CEOAgent {
       const taskResults = await this.executeGoalsWithAgents(pendingGoals, executor, options);
       allTaskResults.push(...taskResults);
 
-      // 智能恢复：检查失败的任务
+      // 失败任务：Claude Code 内部已重试，此处标记为已处理
       for (const result of taskResults) {
-        if (!result.success && result.error) {
+        if (!result.success) {
           const goal = goals.find(g => g.id === result.taskId);
-          if (goal && this.recoveryEngine) {
-            const category = this.recoveryEngine.diagnose(result.error, result.workerType as WorkerType);
-            const action = this.recoveryEngine.recover(category, goal, agentPlan);
-            console.log(`[CEO] Recovery: ${category} → ${action.type} for ${goal.id}`);
-
-            // 注入恢复 DAG 节点
-            await this.injectRecoveryNode(goal.id, action.type, result.error);
-
-            if (action.type === 'retry') {
-              goal.verified = false;
-            } else if (action.type === 'split') {
-              action.subTasks.forEach((sub, si) => {
-                const parentGoal = goal as AgentGoal;
-                goals.push({
-                  id: `${goal.id}-r${si + 1}`,
-                  description: sub,
-                  verified: false,
-                  verificationCriteria: goal.verificationCriteria,
-                  workerType: parentGoal.workerType,
-                  agentName: parentGoal.agentName,
-                });
-              });
-            } else if (action.type === 'fail') {
-              goal.verified = true; // 标记为已处理（不再重试）
-              console.warn(`[CEO] Recovery failed for ${goal.id}, marking as done`);
-            }
-            // 'skip' 类型静默跳过（goal 保持 verified: false，下一轮迭代重试）
+          if (goal) {
+            goal.verified = true; // 不再重试，让 CEO 汇总时展示失败信息
+            console.warn(`[CEO] Task ${goal.id} failed: ${result.error ?? 'unknown'}`);
           }
         }
       }
@@ -790,7 +753,8 @@ export class CEOAgent {
   }
 
   /**
-   * Execute a goal with the appropriate specialized agent
+   * Execute a goal via the real executor (Claude Code session)
+   * All agent types (context/planning/execution/review) go through the same real execution path
    */
   private async executeWithAgent(
     goal: AgentGoal,
@@ -798,98 +762,20 @@ export class CEOAgent {
     executor: WorkerExecutor,
     skills: SkillRef[]
   ): Promise<TaskResult> {
-    // Step 0: ProblemDetector 开始追踪
     getProblemDetector().startTracking(taskContext.taskId);
 
-    // Create the specialized agent
-    let agentOutput: unknown;
-    let actualDuration = 0;
+    const result = await executor.execute(taskContext, skills);
 
-    switch (goal.workerType) {
-      case 'context': {
-        const contextAgent = new ContextAgent();
-        const contextResult = await contextAgent.execute(taskContext as unknown as import('@/types/multi-agent/worker-agents').WorkerContext);
-        actualDuration = contextResult.duration;
-        agentOutput = {
-          agentType: 'context',
-          agentName: 'ContextAgent',
-          ...(contextResult.output as Record<string, unknown> ?? {}),
-        };
-        break;
-      }
-      case 'planning': {
-        const planningAgent = new PlanningAgent();
-        const planResult = await planningAgent.execute(taskContext as unknown as import('@/types/multi-agent/worker-agents').WorkerContext);
-        actualDuration = planResult.duration;
-        agentOutput = {
-          agentType: 'planning',
-          agentName: 'PlanningAgent',
-          ...(planResult.output as Record<string, unknown> ?? {}),
-        };
-        break;
-      }
-      case 'execution': {
-        // Execution goes through the real executor (CLI/WS in prod, simulated in dev)
-        const execResult = await executor.execute(taskContext, skills);
-        actualDuration = execResult.duration;
-        agentOutput = {
-          agentType: 'execution',
-          agentName: 'ExecutionAgent',
-          output: execResult.output,
-          success: execResult.success,
-        };
-        break;
-      }
-      default: {
-        // Fallback to generic executor
-        const result = await executor.execute(taskContext, skills);
-        actualDuration = result.duration;
-        agentOutput = result.output;
-      }
-    }
-
-    // 读取 agent 输出的 success 字段；非 execution 类型也检查输出是否有实际内容
-    const outputHasSuccess = (agentOutput as { success?: boolean } | null)?.['success'];
-    const isSuccess = outputHasSuccess !== undefined
-      ? outputHasSuccess !== false
-      : agentOutput !== null && agentOutput !== undefined;
-
-    // Step N: ProblemDetector — 追踪工具调用并获取状态
-    const pDetector = getProblemDetector();
-    // 根据 agent 输出模拟工具调用追踪（WorkerAgent 内部的 trackToolCall 未桥接到 ProblemDetector）
-    if (agentOutput && typeof agentOutput === 'object') {
-      const out = agentOutput as Record<string, unknown>;
-      // PlanningAgent: track spec/design generation steps
-      if (out.specDocument) pDetector.trackToolCall(taskContext.taskId, 'generateSpec', {});
-      if (out.designDocument) pDetector.trackToolCall(taskContext.taskId, 'generateDesign', {});
-      if (out.reviewResult) pDetector.trackToolCall(taskContext.taskId, 'reviewPlan', {});
-      // ExecutionAgent: track sub-tasks
-      if (Array.isArray(out.subTaskResults)) {
-        for (const st of out.subTaskResults) {
-          pDetector.trackToolCall(taskContext.taskId, 'executeSubTask', { task: (st as Record<string, unknown>).task });
-        }
-      }
-      // ContextAgent: track file analysis
-      if (out.filesAnalyzed !== undefined) {
-        pDetector.trackToolCall(taskContext.taskId, 'analyzeFiles', { count: out.filesAnalyzed });
-      }
-    }
-    pDetector.stopTracking(taskContext.taskId);
-    const problemStatus = pDetector.getStatus(taskContext.taskId);
-
-    // 注入 DAG 节点进度（困难问题标记）
-    if (problemStatus.isHardProblem) {
-      await this.injectDAGProblemStatus(goal.id, problemStatus);
-    }
+    getProblemDetector().stopTracking(taskContext.taskId);
 
     return {
       taskId: goal.id,
       workerType: goal.workerType as WorkerAgentType,
-      output: agentOutput,
-      success: isSuccess,
-      duration: actualDuration,
-      skillsUsed: skills.map(s => s.id) as unknown as import('@/types/multi-agent/skill').SkillRef[],
-      subTasks: [],
+      output: result.output,
+      success: result.success,
+      duration: result.duration,
+      skillsUsed: result.skillsUsed,
+      subTasks: result.subTasks ?? [],
     };
   }
 
@@ -1169,36 +1055,6 @@ export class CEOAgent {
   }
 
   /**
-   * 注入恢复操作 DAG 节点
-   */
-  private async injectRecoveryNode(
-    agentId: string,
-    recoveryType: 'retry' | 'split' | 'skip' | 'fail',
-    errorMessage?: string
-  ): Promise<void> {
-    try {
-      const { useTaskStore } = await import('@/stores/useTaskStore');
-      const currentNodes = new Map(useTaskStore.getState().nodes);
-      const nodeId = `recovery-${agentId}-${Date.now()}`;
-      const recoveryNode: import('@/types/events').DAGNode = {
-        id: nodeId,
-        type: 'recovery',
-        label: recoveryType,
-        status: recoveryType === 'fail' ? 'failed' : 'completed',
-        parentId: agentId,
-        recoveryType,
-        recoveryAgentId: agentId,
-        errorMessage,
-        workspaceId: '',
-        startTime: Date.now(),
-        endTime: Date.now(),
-      };
-      currentNodes.set(nodeId, recoveryNode);
-      useTaskStore.setState({ nodes: currentNodes });
-    } catch { /* 非浏览器环境 */ }
-  }
-
-  /**
    * 注入技能使用 DAG 节点
    */
   private async injectSkillNode(
@@ -1259,31 +1115,6 @@ export class CEOAgent {
       };
       currentNodes.set(nodeId, evoNode);
       useTaskStore.setState({ nodes: currentNodes });
-    } catch { /* 非浏览器环境 */ }
-  }
-
-  /**
-   * 将 ProblemDetector 状态推送到 Agent Group 节点的 progress 字段
-   */
-  private async injectDAGProblemStatus(
-    goalId: string,
-    status: import('@/types/multi-agent/problem-detector').ProblemStatus
-  ): Promise<void> {
-    try {
-      const { useTaskStore } = await import('@/stores/useTaskStore');
-      const currentNodes = new Map(useTaskStore.getState().nodes);
-      const nodeId = `agent-${goalId}`;
-      const existing = currentNodes.get(nodeId);
-      if (existing) {
-        currentNodes.set(nodeId, {
-          ...existing,
-          childCount: status.progress.toolCalls,
-          taskDescription: status.isHardProblem
-            ? `⚠️ 困难问题 (级别: ${status.difficulty}, 工具调用: ${status.progress.toolCalls}/${status.thresholds.toolCallCount})`
-            : existing.taskDescription,
-        });
-        useTaskStore.setState({ nodes: currentNodes });
-      }
     } catch { /* 非浏览器环境 */ }
   }
 

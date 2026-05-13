@@ -323,10 +323,8 @@ describe('编排模式 (Orchestration Mode)', () => {
       tracingExec
     );
 
-    // 注意：context 和 planning 类型使用内部 agent（不走 executor）。
-    // execution 和 review（default 分支）类型通过 executor 调用。
-    // 因此 flow-agent-2 (execution) 和 flow-agent-3 (review, default) 走 executor
-    expect(tracingExec.callOrder).toEqual(['flow-agent-2', 'flow-agent-3']);
+    // 所有 agent 类型统一走 executor（不再有内部 context/planning LLM 调用）
+    expect(tracingExec.callOrder).toEqual(['flow-agent-1', 'flow-agent-2', 'flow-agent-3']);
 
     // 验证报告结构
     expect(report).toBeDefined();
@@ -435,12 +433,10 @@ describe('编排模式 (Orchestration Mode)', () => {
 
     const report = await ceo.processWithDecomposer('Build two modules', tracingExec);
 
-    // coordinator 模式：planning (内部 agent) 先执行，然后两个 execution 并行通过 executor 执行
-    // executor 只调用 execution 类型的 agents
+    // 所有 agent 类型统一走 executor
+    expect(tracingExec.callOrder).toContain('coord-planner');
     expect(tracingExec.callOrder).toContain('coord-worker-1');
     expect(tracingExec.callOrder).toContain('coord-worker-2');
-    // planner 不经过 executor
-    expect(tracingExec.callOrder).not.toContain('coord-planner');
     expect(report.taskResults.length).toBe(3);
   });
 
