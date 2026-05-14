@@ -52,6 +52,8 @@ interface TaskState {
   pendingTokenUsageUpdate: Map<string, number>;
   /** 最近一次 query_summary 事件的 queryId（currentQueryId 被清空后，作为 token_usage 的 fallback） */
   lastEventQueryId: string | null;
+  /** CEO 子 Agent session ID 集合 — query_summary 不自动创建卡片 */
+  ceoSubAgentSessionIds: Set<string>;
   /** 待添加到 DAG 的 RAG 检索结果（下次 query_start 时消费） */
   pendingRAGItems: Array<{
     id: string;
@@ -108,6 +110,8 @@ interface TaskState {
     timestamp: number;
   }>) => void;  // 设置待消费的 RAG 项目
   setPendingAttachments: (items: PendingAttachmentData[]) => void;  // V1.4.1: 设置待消费的附件
+  registerCEOSubAgentSession: (sessionId: string) => void;
+  unregisterCEOSubAgentSession: (sessionId: string) => void;
   reset: () => void;
 }
 
@@ -252,6 +256,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   savedQueryIdByEventQueryId: new Map(),
   pendingTokenUsageUpdate: new Map(),
   lastEventQueryId: null,
+  ceoSubAgentSessionIds: new Set<string>(),
   pendingRAGItems: [],
   pendingAttachments: [],  // V1.4.1
   attachmentCountByQueryId: new Map(),  // V1.4.1
@@ -709,6 +714,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         const { pendingAnalysisByQueryId, toolCalls, lastTokenUsage, summaryChunks } = get();
         // ── 多工作区隔离：优先从 workspace-specific 状态查找卡片 ──────────────────
         const wid = workspaceId ?? 'default';
+        const sessionIdForEvent = (event as unknown as { sessionId?: string }).sessionId ?? '';
         const workspaceCards = get().currentCardByWorkspace;
         const workspacePrevCards = get().previousCardByWorkspace;
         const wsCurrentCard = workspaceCards[wid] ?? null;
@@ -808,7 +814,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           : previousCard?.queryId === event.queryId ? previousCard
           : null;
 
-        if (cardForQuery) {
+        if (cardForQuery && !get().ceoSubAgentSessionIds.has(sessionIdForEvent)) {
           // 情况1：当前卡片（正常流程，含 workspace-specific）
           newMarkdownCardId = `card_${cardForQuery.timestamp}_${event.queryId}`;
           // 折叠前一张已完成的卡片
@@ -855,7 +861,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             ],
           });
           // 保存到 IndexedDB（用于分析统计）
-          saveQueryToDB({
+          if (!get().ceoSubAgentSessionIds.has(sessionIdForEvent)) {
+            saveQueryToDB({
             queryId: event.queryId,
             question: cardForQuery.query,
             answer: event.summary || analysis,
@@ -863,7 +870,8 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             duration: Date.now() - cardForQuery.timestamp,
             status: 'success',
           }, event.queryId);
-        } else if (prevCardForQuery) {
+          }
+        } else if (prevCardForQuery && !get().ceoSubAgentSessionIds.has(sessionIdForEvent)) {
           // 情况2：前一张被折叠的卡片（Q2发送时Q1还未完成，含 workspace-specific）
           newMarkdownCardId = `card_${prevCardForQuery.timestamp}_${event.queryId}`;
           newCollapsedCardIds.add(prevCardForQuery.queryId);
@@ -908,8 +916,9 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             duration: Date.now() - prevCardForQuery.timestamp,
             status: 'success',
           }, event.queryId);
-        } else {
+        } else if (!get().ceoSubAgentSessionIds.has(sessionIdForEvent)) {
           // 情况3：无 currentCard（如服务端直接开始 query），创建新卡片
+          // 跳过 CEO 子 Agent session（由 CEOAgent 统一推 agent-process 卡片）
           newMarkdownCardId = `card_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
           set({
             nodes: newNodesQS,
@@ -1094,6 +1103,15 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ pendingAttachments: items });
   },
 
+  registerCEOSubAgentSession: (sessionId) => set(s => ({
+    ceoSubAgentSessionIds: new Set([...s.ceoSubAgentSessionIds, sessionId])
+  })),
+  unregisterCEOSubAgentSession: (sessionId) => set(s => {
+    const next = new Set(s.ceoSubAgentSessionIds);
+    next.delete(sessionId);
+    return { ceoSubAgentSessionIds: next };
+  }),
+
   reset: () => {
     set({
       nodes: new Map(),
@@ -1130,6 +1148,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       savedQueryIdByEventQueryId: new Map(),
       pendingTokenUsageUpdate: new Map(),
       lastEventQueryId: null,
+  ceoSubAgentSessionIds: new Set<string>(),
       pendingRAGItems: [],
       pendingAttachments: [],  // V1.4.1
       attachmentCountByQueryId: new Map(),  // V1.4.1

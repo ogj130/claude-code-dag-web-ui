@@ -51,6 +51,12 @@ async function executeWithWorkspace(
       forceNew: false,
     });
 
+    // 注册为 CEO 子 Agent session（防止 query_summary 重复创建 MarkdownCard）
+    try {
+      const { useTaskStore } = await import('@/stores/useTaskStore');
+      useTaskStore.getState().registerCEOSubAgentSession(sessionResult.session.id);
+    } catch { /* 非浏览器环境 */ }
+
     // 构造 prompt：如果有 systemPrompt，放在前面（参考普通模式下 payload 的分离方式）
     const systemPrompt = task.context?.systemPrompt as string | undefined;
     const prompt = systemPrompt ? `${systemPrompt}\n\n[用户任务]\n${task.description}` : task.description;
