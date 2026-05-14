@@ -24,6 +24,7 @@ interface TaskState {
   error: string | null;
   currentQueryId: string | null;
   pendingInputsCount: number;
+  currentAgentId: string | null;  // 当前正在执行的 Agent ID（用于关联 tool_call 到 Agent）
   markdownCards: MarkdownCardData[];
   processCollapsed: boolean;
   pendingQuery: string;     // 当前问题的文本
@@ -229,6 +230,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   error: null,
   currentQueryId: null,
   pendingInputsCount: 0,
+  currentAgentId: null,
   markdownCards: [],
   processCollapsed: false,
   pendingQuery: '',
@@ -283,14 +285,18 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       }
       case 'session_start': {
         const newNodes = new Map(nodes);
-        const mainNode: DAGNode = {
-          id: 'main-agent',
-          label: 'Claude Agent',
-          status: 'running',
-          type: 'agent',
-          startTime: Date.now(),
-          ...(workspaceId ? { workspaceId } : {}),
-        };
+        // 如果已有 main-agent（可能被 CEOAgent 更新过），保留其 label/type
+        const existing = newNodes.get('main-agent');
+        const mainNode: DAGNode = existing
+          ? { ...existing, status: 'running' as const, startTime: Date.now() }
+          : {
+              id: 'main-agent',
+              label: 'Claude Agent',
+              status: 'running',
+              type: 'agent',
+              startTime: Date.now(),
+              ...(workspaceId ? { workspaceId } : {}),
+            };
         newNodes.set('main-agent', mainNode);
         set({ isStarting: false, isRunning: true, error: null, nodes: newNodes, lastSummaryNodeId: null });
         break;
@@ -301,51 +307,86 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       }
       case 'agent_start': {
         const newNodes = new Map(nodes);
+        // 从事件中提取 Agent 元数据（由 TerminalView/GlobalTerminal 注入）
+        const agentMeta = (event as unknown as { agentType?: string; taskDescription?: string }).agentType
+          ? { agentType: (event as unknown as { agentType: string }).agentType,
+              taskDescription: (event as unknown as { taskDescription: string }).taskDescription }
+          : { agentType: 'execution', taskDescription: event.label };
         const newNode: DAGNode = {
           id: event.agentId,
           label: event.label,
           status: 'running',
-          type: 'agent',
+          type: 'agent_group',
           parentId: event.parentId,
           startTime: Date.now(),
+          agentName: event.label,
+          taskDescription: agentMeta.taskDescription,
+          childCount: 0,
+          source: 'execution',
           ...(workspaceId ? { workspaceId } : {}),
         };
+        // 注入 agentType 到节点（用于 AgentGroupNode 的类型标签颜色）
+        (newNode as DAGNode & { agentType: string }).agentType = agentMeta.agentType;
         newNodes.set(event.agentId, newNode);
-        set({ nodes: newNodes, isRunning: true });
+        set({ nodes: newNodes, isRunning: true, currentAgentId: event.agentId });
         break;
       }
       case 'agent_end': {
         const newNodes = new Map(nodes);
         const node = newNodes.get(event.agentId);
         if (node) {
-          newNodes.set(event.agentId, { ...node, status: 'completed', endTime: Date.now() });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const meta = event as unknown as { status?: string; toolMessage?: string; duration?: number; skillsUsed?: Array<{name:string;domain:string}> };
+          // 统计该 Agent 下的工具调用子节点数量
+          let childCnt = 0;
+          for (const [, n] of newNodes) {
+            if (n.type === 'tool' && n.parentId === event.agentId) childCnt++;
+          }
+          const updatedNode: DAGNode = {
+            ...node,
+            status: meta.status === 'failed' ? 'failed' : 'completed',
+            endTime: Date.now(),
+            toolMessage: meta.toolMessage ?? node.toolMessage,
+            childCount: childCnt,
+          };
+          // 注入额外元数据
+          if (meta.duration) (updatedNode as DAGNode & { duration: number }).duration = meta.duration;
+          if (meta.skillsUsed) (updatedNode as DAGNode & { skillsUsed: Array<{name:string;domain:string}> }).skillsUsed = meta.skillsUsed;
+          newNodes.set(event.agentId, updatedNode);
         }
-        set({ nodes: newNodes });
+        set({ nodes: newNodes, currentAgentId: get().currentAgentId === event.agentId ? null : get().currentAgentId });
         break;
       }
       case 'tool_call': {
         const currentQueryId = get().currentQueryId;
+        // 优先关联到当前正在执行的 Agent（多 Agent 模式下），否则关联到 query
+        const parentId = get().currentAgentId ?? currentQueryId ?? 'main-agent';
         const toolCall: EventToolCall = {
           id: event.toolId,
           tool: event.tool,
           args: event.args,
           status: 'running',
           startTime: Date.now(),
-          parentId: currentQueryId ?? 'main-agent',
+          parentId,
         };
-        // 同时创建 DAG node（parentId 关联当前 query node）
+        // 同时创建 DAG node
         const newNodes = new Map(nodes);
         const toolNode: DAGNode = {
           id: event.toolId,
           label: event.tool,
           status: 'running',
           type: 'tool',
-          parentId: currentQueryId ?? 'main-agent',
+          parentId,
           startTime: Date.now(),
           args: event.args,
           ...(workspaceId ? { workspaceId } : {}),
         };
         newNodes.set(event.toolId, toolNode);
+        // 更新父节点的 childCount
+        const parentNode = newNodes.get(parentId);
+        if (parentNode && parentNode.type === 'agent_group') {
+          newNodes.set(parentId, { ...parentNode, childCount: (parentNode.childCount ?? 0) + 1 });
+        }
         set({ toolCalls: [...toolCalls, toolCall], nodes: newNodes });
         break;
       }
@@ -451,6 +492,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           // V1.4.1: 先提取 query（payload 格式固定有 query，attachments 是可选的）
           if (parsed.query !== undefined) {
             queryText = String(parsed.query ?? '');
+            // 剥离内建角色 Prompt：只提取 [用户消息] 之后的内容用于 UI 展示
+            const userMsgMarker = '[用户消息]';
+            const markerIdx = queryText.lastIndexOf(userMsgMarker);
+            if (markerIdx > -1) {
+              queryText = queryText.slice(markerIdx + userMsgMarker.length).trim();
+            }
           }
           // ragChunks 独立判断（有 RAG 上下文时才解析）
           if (Array.isArray(parsed.ragChunks)) {
@@ -464,7 +511,12 @@ export const useTaskStore = create<TaskState>((set, get) => ({
             }));
           }
         } catch {
-          // 非 JSON 格式，保持原 text 作为普通 query
+          // 非 JSON 格式：剥离内建角色 Prompt
+          const userMsgMarker = '[用户消息]';
+          const markerIdx = queryText.lastIndexOf(userMsgMarker);
+          if (markerIdx > -1) {
+            queryText = queryText.slice(markerIdx + userMsgMarker.length).trim();
+          }
         }
 
         const newNodesU = new Map(nodes);
@@ -528,9 +580,23 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       }
       case 'query_start': {
         const newNodesQ = new Map(nodes);
+        // 提取用于 UI 显示的标签：优先解析 JSON 中的 query 字段
+        let nodeLabel = event.label;
+        try {
+          const parsed = JSON.parse(nodeLabel);
+          if (parsed.query !== undefined) {
+            nodeLabel = String(parsed.query);
+          }
+        } catch { /* 非 JSON，用原始 label */ }
+        // 剥离内建角色 Prompt（兼容旧格式）
+        const userMsgMarker = '[用户消息]';
+        const markerIdx = nodeLabel.lastIndexOf(userMsgMarker);
+        if (markerIdx > -1) {
+          nodeLabel = nodeLabel.slice(markerIdx + userMsgMarker.length).trim();
+        }
         const queryNode: DAGNode = {
           id: event.queryId,
-          label: event.label,
+          label: nodeLabel,
           status: 'running',
           type: 'query',
           // 串联：第一个 query 从 main-agent 出，后续从上一个 summary 出
@@ -1043,6 +1109,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       error: null,
       currentQueryId: null,
       pendingInputsCount: 0,
+      currentAgentId: null,
       markdownCards: [],
       processCollapsed: false,
       pendingQuery: '',

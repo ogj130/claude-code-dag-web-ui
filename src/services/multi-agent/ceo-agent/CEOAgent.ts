@@ -989,6 +989,19 @@ export class CEOAgent {
     try {
       const { useTaskStore } = await import('@/stores/useTaskStore');
       const currentNodes = new Map(useTaskStore.getState().nodes);
+
+      // 升级 main-agent 为 CEO 标签（覆盖 session_start 的 "Claude Agent"）
+      const mainNode = currentNodes.get('main-agent');
+      if (mainNode) {
+        currentNodes.set('main-agent', {
+          ...mainNode,
+          label: '🧠 CEO',
+          type: 'agent_group',
+          agentName: 'CEO',
+          taskDescription: `用户需求: ${this.currentRequirement.slice(0, 60)}`,
+        } as import('@/types/events').DAGNode);
+      }
+
       const nodeId = `plan-${goal.id}`;
       const planNode: import('@/types/events').DAGNode = {
         id: nodeId,
@@ -1004,7 +1017,6 @@ export class CEOAgent {
         workspaceId: this.workspaceId,
         startTime: Date.now(),
       };
-      // 注入 agentType 用于颜色标签
       (planNode as import('@/types/events').DAGNode & { agentType: string }).agentType = goal.workerType;
       currentNodes.set(nodeId, planNode);
       useTaskStore.setState({ nodes: currentNodes });
