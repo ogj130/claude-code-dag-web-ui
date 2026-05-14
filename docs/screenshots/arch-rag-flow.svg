@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4580.2 596" width="4580.2" height="596" style="--bg:#1a1b26;--fg:#a9b1d6;--line:#3d59a1;--accent:#7aa2f7;--muted:#565f89;background:var(--bg)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4894.799999999999 596" width="100%" height="596" style="--bg:#1a1b26;--fg:#a9b1d6;--line:#3d59a1;--accent:#7aa2f7;--muted:#565f89;background:var(--bg)">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Inter', system-ui, sans-serif; }
@@ -26,75 +26,75 @@
     <polygon points="8 0, 0 2.4, 8 4.8" fill="var(--_arrow)" />
   </marker>
 </defs>
-<rect x="40" y="150" width="2288.75" height="116" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="40" y="150" width="2288.75" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="52" y="164" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;📥 索引阶段&quot;</text>
-<rect x="1396.9" y="40" width="2029.5" height="126" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="1396.9" y="40" width="2029.5" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="1408.9" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;🔍 检索阶段&quot;</text>
-<rect x="3506.4000000000005" y="50" width="1033.7999999999997" height="116" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="3506.4000000000005" y="50" width="1033.7999999999997" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="3518.4000000000005" y="64" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;💉 注入阶段&quot;</text>
-<rect x="513.75" y="250" width="803.1500000000001" height="176" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="513.75" y="250" width="803.1500000000001" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="525.75" y="264" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;⚡ 自动索引&quot;</text>
-<rect x="40" y="410" width="1786.4" height="146" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="40" y="410" width="1786.4" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="52" y="424" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;⚙️ 配置管理&quot;</text>
-<polyline points="342.25,226 537.3249999999999,226" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="790.975,226 950.3,226" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1261.1499999999999,226 1611.65,226 1611.65,468" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1806.4,486 1846.4,486 1846.4,226 1926.4000000000003,226" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1656.25,116 2019.3500000000004,116" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="2215.8,116 2594.9,116 2594.9,108" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="2761.05,126 2881.05,126" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="3744.2999999999997,126 3864.3,126" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="4132.25,126 4252.25,126" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="2308.7500000000005,226 2348.75,226 2348.75,136 2594.9,136 2594.9,144" fill="none" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
-<polyline points="3406.4000000000005,126 3526.4,126" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="769.525,326 935.9999999999999,326" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1275.4499999999998,326 1336.9,326 1336.9,486 1416.9,486" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="769.525,386 914.55,386" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1296.8999999999999,386 1336.9,386 1336.9,486 1416.9,486" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="413.75,516 533.75,516" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="794.55,516 986.05,516" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1225.3999999999999,516 1611.65,516 1611.65,504" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<rect x="131.5" y="208" width="210.75000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="537.3249999999999" y="208" width="253.65" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="950.3" y="208" width="310.85" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1416.9" y="468" width="389.50000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1926.4000000000003" y="208" width="382.35" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1567.0500000000002" y="98" width="89.2" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="2019.3500000000004" y="98" width="196.45000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="2428.75" y="108" width="332.3" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="2881.05" y="108" width="525.35" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3526.4" y="108" width="217.9" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3864.3" y="108" width="267.95000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="4252.25" y="108" width="267.95000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="558.775" y="308" width="210.75000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="935.9999999999999" y="308" width="339.45000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="558.775" y="368" width="210.75000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="914.55" y="368" width="382.35" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="60" y="498" width="353.75" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="533.75" y="498" width="260.8" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="986.05" y="498" width="239.35000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<text x="236.875" y="226" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;CCWebDB&lt;br/&gt;会话数据 + 查询记录&quot;</text>
-<text x="664.15" y="226" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;文本提取&lt;br/&gt;mammoth / xlsx / txt&quot;</text>
-<text x="1105.725" y="226" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;分块处理&lt;br/&gt;段落 → 句子&lt;br/&gt;MAX=1000 MIN=100&quot;</text>
-<text x="1611.65" y="486" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;embedText()&lt;br/&gt;向量化&lt;br/&gt;OpenAI / Ollama / Cohere&quot;</text>
-<text x="2117.5750000000003" y="226" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;向量存储&lt;br/&gt;LanceDB (Electron)&lt;br/&gt;IndexedDB (Dev)&quot;</text>
-<text x="1611.65" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;用户查询输入&quot;</text>
-<text x="2117.5750000000003" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;向量化查询&lt;br/&gt;embedText()&quot;</text>
-<text x="2594.9" y="126" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;相似度匹配&lt;br/&gt;cosine (Dev)&lt;br/&gt;ANN (LanceDB)&quot;</text>
-<text x="3143.7250000000004" y="126" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Top-K 过滤&lt;br/&gt;type: all/conversation/attachment&lt;br/&gt;workspacePath 隔离&quot;</text>
-<text x="3635.35" y="126" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useRAGContext&lt;br/&gt;收集选中结果&quot;</text>
-<text x="3998.275" y="126" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;getPromptContext()&lt;br/&gt;格式化知识上下文&quot;</text>
-<text x="4386.225" y="126" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;注入 Claude Code Prompt&lt;br/&gt;[知识上下文</text>
-<text x="664.15" y="326" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;createQuery()&lt;br/&gt;保存问答时&quot;</text>
-<text x="1105.725" y="326" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;indexQueryChunk()&lt;br/&gt;indexAnswerChunks()&quot;</text>
-<text x="664.15" y="386" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useFileUpload&lt;br/&gt;上传附件时&quot;</text>
-<text x="1105.725" y="386" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;indexAttachmentChunks()&lt;br/&gt;带 fileName/mimeType&quot;</text>
-<text x="236.875" y="516" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;EmbeddingConfig&lt;br/&gt;provider/endpoint/model&quot;</text>
-<text x="664.15" y="516" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;IndexedDB&lt;br/&gt;cc-web-embedding&quot;</text>
-<text x="1105.725" y="516" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;ApiKey AES-GCM 加密&lt;br/&gt;多配置切换&quot;</text>
+<rect x="40" y="150" width="2360.25" height="116" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="40" y="150" width="2360.25" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="52" y="164" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Index Phase&quot;</text>
+<rect x="1446.9500000000003" y="40" width="2036.6499999999999" height="126" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="1446.9500000000003" y="40" width="2036.6499999999999" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="1458.9500000000003" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Retrieval Phase&quot;</text>
+<rect x="3563.6000000000004" y="50" width="1291.1999999999994" height="116" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="3563.6000000000004" y="50" width="1291.1999999999994" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="3575.6000000000004" y="64" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Injection Phase&quot;</text>
+<rect x="492.29999999999995" y="250" width="874.6500000000001" height="176" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="492.29999999999995" y="250" width="874.6500000000001" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="504.29999999999995" y="264" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Auto-Indexing&quot;</text>
+<rect x="40" y="410" width="1836.45" height="146" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="40" y="410" width="1836.45" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="52" y="424" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Config Management&quot;</text>
+<polyline points="363.70000000000005,226 519.45,226" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="801.7,226 928.8500000000001,226" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1346.95,226 1661.7,226 1661.7,468" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1856.45,486 1896.45,486 1896.45,226 1976.4499999999998,226" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1742.05,116 2055.1,116" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="2301.6,116 2500.25,116.96339113680153" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="2875.45,126 2995.45,126" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="3908.7499999999995,126 4028.75,126" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="4389.65,126 4509.65,126" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="2380.25,226 2420.25,226 2420.25,126 2500.25,126" fill="none" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline points="3463.5999999999995,126 3583.6,126" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="776.6750000000001,326 989.6250000000001,326" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1286.1750000000002,326 1386.95,326 1386.95,486 1466.95,486" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="808.85,386 968.1750000000001,386" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1307.625,386 1386.95,386 1386.95,486 1466.95,486" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="392.3,516 540.9000000000001,516" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="780.25,516 953.8750000000001,516" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1321.9250000000002,516 1661.7,516 1661.7,504" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<rect x="88.6" y="208" width="275.1" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="519.45" y="208" width="282.25" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="928.8500000000001" y="208" width="418.1" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1466.95" y="468" width="389.50000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1976.4499999999998" y="208" width="403.8" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1581.3500000000001" y="98" width="160.70000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2055.1" y="98" width="246.50000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2500.25" y="108" width="375.20000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2995.45" y="108" width="468.15000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="3583.6" y="108" width="325.15000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="4028.75" y="108" width="360.90000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="4509.65" y="108" width="325.15000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="544.475" y="308" width="232.20000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="989.6250000000001" y="308" width="296.55" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="512.3000000000001" y="368" width="296.55" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="968.1750000000001" y="368" width="339.45000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="60" y="498" width="332.3" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="540.9000000000001" y="498" width="239.35000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="953.8750000000001" y="498" width="368.05" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="226.15" y="226" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;CCWebDB: Session + Query Records&quot;</text>
+<text x="660.575" y="226" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Text Extraction: mammoth/xlsx/txt&quot;</text>
+<text x="1137.9" y="226" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Chunking: Paragraph→Sentence, MAX=1000 MIN=100 chars&quot;</text>
+<text x="1661.7" y="486" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;embedText(): Vectorization, OpenAI/Ollama/Cohere&quot;</text>
+<text x="2178.35" y="226" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Vector Store: LanceDB (Electron) | IndexedDB (Dev)&quot;</text>
+<text x="1661.7" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;User Query Input&quot;</text>
+<text x="2178.35" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Vectorize Query: embedText()&quot;</text>
+<text x="2687.85" y="126" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Similarity Match: cosine (Dev) | ANN (LanceDB)&quot;</text>
+<text x="3229.5249999999996" y="126" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Top-K Filter: type=all/conv/attach, workspacePath Isolation&quot;</text>
+<text x="3746.1749999999997" y="126" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useRAGContext: Collect Selected Results&quot;</text>
+<text x="4209.2" y="126" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;getPromptContext(): Format Knowledge Context&quot;</text>
+<text x="4672.224999999999" y="126" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Inject into Claude Code Prompt: [context</text>
+<text x="660.575" y="326" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;createQuery(): On Q&amp;A Save&quot;</text>
+<text x="1137.9" y="326" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;indexQueryChunk + indexAnswerChunks&quot;</text>
+<text x="660.575" y="386" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useFileUpload: On Attachment Upload&quot;</text>
+<text x="1137.9" y="386" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;indexAttachmentChunks (fileName/mimeType)&quot;</text>
+<text x="226.15" y="516" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;EmbeddingConfig: provider/endpoint/model&quot;</text>
+<text x="660.575" y="516" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;IndexedDB: cc-web-embedding&quot;</text>
+<text x="1137.9" y="516" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;ApiKey AES-GCM Encrypted, Multi-config Switch&quot;</text>
 </svg>

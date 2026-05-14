@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 6480.512500000001 2120" width="6480.512500000001" height="2120" style="--bg:#1a1b26;--fg:#a9b1d6;--line:#3d59a1;--accent:#7aa2f7;--muted:#565f89;background:var(--bg)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 7673.837500000001 2120" width="100%" height="2120" style="--bg:#1a1b26;--fg:#a9b1d6;--line:#3d59a1;--accent:#7aa2f7;--muted:#565f89;background:var(--bg)">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Inter', system-ui, sans-serif; }
@@ -26,134 +26,134 @@
     <polygon points="8 0, 0 2.4, 8 4.8" fill="var(--_arrow)" />
   </marker>
 </defs>
-<rect x="1067.4875" y="40" width="469.25" height="152" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="1067.4875" y="40" width="469.25" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="1079.4875" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;🖥️ 用户层&quot;</text>
-<rect x="40" y="260" width="6374.0375" height="876" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="40" y="260" width="6374.0375" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="52" y="274" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;⚛️ 前端 (React 18 + Zustand + ReactFlow + Vite)&quot;</text>
-<rect x="2187.7124999999996" y="532" width="1931.4000000000003" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="2187.7124999999996" y="532" width="1931.4000000000003" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="2199.7124999999996" y="546" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;🧠 V3 智能层&quot;</text>
-<rect x="157.3125" y="296" width="4567.3625" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="157.3125" y="296" width="4567.3625" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="169.3125" y="310" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;💬 终端交互层&quot;</text>
-<rect x="2039.3374999999996" y="768" width="2334.125" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="2039.3374999999996" y="768" width="2334.125" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="2051.3374999999996" y="782" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;📊 DAG 可视化层 (ReactFlow v12)&quot;</text>
-<rect x="1722.2000000000003" y="1004" width="4671.8375" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="1722.2000000000003" y="1004" width="4671.8375" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="1734.2000000000003" y="1018" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;🗄️ Zustand 状态层&quot;</text>
-<rect x="60" y="532" width="861.2999999999997" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="60" y="532" width="861.2999999999997" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="72" y="546" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;📎 附件管线 (V1.4.1)&quot;</text>
-<rect x="462.77499999999986" y="768" width="1556.5625" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="462.77499999999986" y="768" width="1556.5625" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="474.77499999999986" y="782" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;🔍 RAG 检索层&quot;</text>
-<rect x="5971.262500000001" y="1220" width="469.25" height="860" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="5971.262500000001" y="1220" width="469.25" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="5983.262500000001" y="1234" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;🖧 后端 (Node.js WS Server + Electron 主进程)&quot;</text>
-<rect x="4034.162500000001" y="1220" width="1917.0999999999995" height="624" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="4034.162500000001" y="1220" width="1917.0999999999995" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="4046.162500000001" y="1234" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;🤖 Multi-Agent 编排系统&quot;</text>
-<rect x="505.6749999999997" y="1220" width="3508.487500000001" height="152" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="505.6749999999997" y="1220" width="3508.487500000001" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="517.6749999999997" y="1234" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;💾 持久化层 (4 个 IndexedDB + LanceDB + localStorage)&quot;</text>
-<polyline points="1302.1125,152 1302.1125,352" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1302.1125,388 1302.1125,408 2472.3875,408 2472.3875,588" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1302.1125,388 1302.1125,408 2167.7124999999996,408 2167.7124999999996,842 2824.2,842" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1302.1125,388 1302.1125,408 294.625,408 294.625,588" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="3870.1875,624 3870.1875,842 3213.7,842" fill="none" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
-<polyline points="3827.6875000000005,860 3827.6875000000005,1078 3625.1375000000003,1078" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="4507.925,388 4507.925,1078 3625.1375000000003,1078" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="715.2749999999999,624 715.2749999999999,824" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1674.5499999999997,860 1674.5499999999997,880 1886.325,880 1886.325,1078 3092.6375000000003,1078" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="5960.2125,1096 5960.2125,1116 6205.887500000001,1116 6205.887500000001,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="6205.887500000001,1332 6205.887500000001,1532" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="6205.887500000001,1568 6205.887500000001,1768" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="6205.887500000001,1804 6205.887500000001,2004" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="5960.2125,1096 5960.2125,1116 5451.637500000001,1116 5451.637500000001,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
-<polyline points="5451.637500000001,1332 5451.637500000001,1352 5727.362500000001,1352 5727.362500000001,1532" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="5451.637500000001,1332 5451.637500000001,1352 5188.737500000001,1352 5188.737500000001,1532" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="5451.637500000001,1332 5451.637500000001,1352 4664.4125,1352 4664.4125,1532" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="5451.637500000001,1332 5451.637500000001,1352 4254.487500000001,1352 4254.487500000001,1532" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="4254.487500000001,1568 4254.487500000001,1768" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="3358.8875000000003,1096 3358.8875000000003,1116 3453.6250000000005,1116 3453.6250000000005,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="3358.8875000000003,1096 3358.8875000000003,1116 1991.5249999999999,1116 1991.5249999999999,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1674.5499999999997,860 1674.5499999999997,880 1585.1749999999997,880 1585.1749999999997,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1674.5499999999997,860 1674.5499999999997,880 1189.5499999999997,880 1189.5499999999997,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
-<polyline points="715.2749999999999,860 715.2749999999999,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="3851.037500000001,1096 3851.037500000001,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<rect x="1089.4875" y="116" width="425.25000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="2209.7124999999996" y="588" width="525.35" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="2759.0625" y="588" width="432.40000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3215.4625" y="588" width="403.8" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3643.2625" y="588" width="453.85" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1082.3374999999999" y="352" width="439.55" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3134.2375" y="352" width="368.05" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="4313.175" y="352" width="389.50000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="2824.2" y="824" width="389.50000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3265.9125" y="824" width="353.75" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3643.6625000000004" y="824" width="368.05" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3092.6375000000003" y="1060" width="532.5" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3649.1375000000007" y="1060" width="403.8" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="4098.725" y="1060" width="353.75" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="5794.0625" y="1060" width="332.3" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="81.99999999999997" y="588" width="425.25000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="531.2499999999999" y="588" width="368.05" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="484.77499999999986" y="824" width="461.00000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="969.7749999999997" y="824" width="439.55" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1433.3249999999998" y="824" width="482.45000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="6046.887500000001" y="1296" width="318" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="5993.262500000001" y="1532" width="425.25000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="6025.437500000001" y="1768" width="360.90000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="6018.2875" y="2004" width="375.20000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="5303.362500000001" y="1296" width="296.55" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="5525.4625000000015" y="1532" width="403.8" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="4476.8125" y="1532" width="375.20000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="4056.1625000000013" y="1532" width="396.65000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="4876.012500000001" y="1532" width="625.45" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="4059.737500000001" y="1768" width="389.50000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3316.0750000000003" y="1296" width="275.1" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1807.4999999999998" y="1296" width="368.05" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1386.8499999999997" y="1296" width="396.65000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="527.6749999999998" y="1296" width="375.20000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1016.2499999999998" y="1296" width="346.6" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3709.912500000001" y="1296" width="282.25" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<text x="1302.1125" y="134" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Prompt 输入 + 附件上传&lt;br/&gt;+ RAG 检索上下文注入&lt;br/&gt;+ /agent 多代理模式&quot;</text>
-<text x="2472.3875" y="606" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;VisualFlowBuilder: 拖拽流程设计器&lt;br/&gt;5 种拓扑模式 (seq/para/pipe/coord/review)&quot;</text>
-<text x="2975.2625" y="606" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;AgentMonitoringPanel: 实时代理监控&lt;br/&gt;进度条 + 展开详情 + Token 统计&quot;</text>
-<text x="3417.3625" y="606" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;KanbanBoard: 四列看板&lt;br/&gt;Todo → Doing → Review → Done&quot;</text>
-<text x="3870.1875" y="606" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;ExpertModeLayout: 专家模式&lt;br/&gt;Terminal | Agent | Hooks | MCP&quot;</text>
-<text x="1302.1125" y="370" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;TerminalView: 多工作区标签切换&lt;br/&gt;MutationObserver 自动滚动 + 附件输入&quot;</text>
-<text x="3318.2625000000003" y="370" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;LiveCard: 流式问答卡片&lt;br/&gt;工具时间线 + StreamingSummary&quot;</text>
-<text x="4507.925" y="370" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;MarkdownCard: 历史卡片&lt;br/&gt;可折叠 + agent-process 三阶段渲染&quot;</text>
-<text x="3018.95" y="842" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;DAGCanvas: 12 种节点 + 6 种边样式&lt;br/&gt;自动布局 + 碰撞检测 + 虚拟化&quot;</text>
-<text x="3442.7875" y="842" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;AgentGroupNode: 代理节点&lt;br/&gt;类型标签 + 进度条 + 子工具步骤&quot;</text>
-<text x="3827.6875000000005" y="842" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;PlanConfirmModal: 计划确认&lt;br/&gt;增删代理 + 依赖编辑 + 保存模板&quot;</text>
-<text x="3358.8875000000003" y="1078" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useTaskStore: 14 种事件处理&lt;br/&gt;DAG nodes Map + currentCard/markdownCards&quot;</text>
-<text x="3851.037500000001" y="1078" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useSessionStore: 会话 CRUD&lt;br/&gt;FIFO 淘汰 (&gt;100) + 隐私模式&quot;</text>
-<text x="4275.6" y="1078" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useTerminalWorkspaceStore&lt;br/&gt;多工作区标签 + 执行状态&quot;</text>
-<text x="5960.2125" y="1078" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useMultiDispatchStore&lt;br/&gt;批量分发聚合 + AI 分析&quot;</text>
-<text x="294.625" y="606" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useFileUpload: 图片压缩 + mammoth/xlsx 提取&lt;br/&gt;拖拽上传 + 自动分块&quot;</text>
-<text x="715.2749999999999" y="606" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useAttachmentStore: 待发送/已发送&lt;br/&gt;缩略图预览 + 多格式弹窗&quot;</text>
-<text x="715.2749999999999" y="842" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;RAGRetrievalPanel: 检索 UI&lt;br/&gt;类型切换 (all/conv/attach) + 参数调节&quot;</text>
-<text x="1189.5499999999997" y="842" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useRAGContext: 上下文管理&lt;br/&gt;getPromptContext() → Prompt 注入&quot;</text>
-<text x="1674.5499999999997" y="842" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;vectorStorage: 双后端适配&lt;br/&gt;LanceDB (Electron) | IndexedDB (Dev)&quot;</text>
-<text x="6205.887500000001" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;WebSocket Server :5300&lt;br/&gt;事件路由 + 会话复用&quot;</text>
-<text x="6205.887500000001" y="1550" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;ANSI Parser: stdout → JSON 事件&lt;br/&gt;14 种 ClaudeEvent 类型&quot;</text>
-<text x="6205.887500000001" y="1786" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;双模执行器&lt;br/&gt;Electron PM spawn | WebSocket 开发模式&quot;</text>
-<text x="6205.887500000001" y="2022" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Claude Code CLI 进程&lt;br/&gt;stdio 管道 + switch_model&quot;</text>
-<text x="5451.637500000001" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;CEOAgent: 中央编排器&lt;br/&gt;混合分解 + 依赖感知拓扑执行&quot;</text>
-<text x="5727.362500000001" y="1550" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;LLMDecomposer: 智能分解&lt;br/&gt;LLM 在线 → 规则引擎 (20+ 关键词) 降级&quot;</text>
-<text x="4664.4125" y="1550" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;TerminalExecutor: 桥接层&lt;br/&gt;多工作区会话创建 + Prompt 适配&quot;</text>
-<text x="4254.487500000001" y="1550" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;EvolutionLoop: 自进化闭环&lt;br/&gt;轨迹收集 → 技能注册 → SkillStore&quot;</text>
-<text x="5188.737500000001" y="1550" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Worker Agents × 4&lt;br/&gt;ContextAgent | PlanningAgent | ExecutionAgent | ReviewAgent&quot;</text>
-<text x="4254.487500000001" y="1786" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;SkillStore + SkillRetriever&lt;br/&gt;LRU 缓存 + 触发式自动检索&quot;</text>
-<text x="3453.6250000000005" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;CCWebDB: 会话 + 查询&lt;br/&gt;自动压缩 + 分片存储&quot;</text>
-<text x="1991.5249999999999" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;stats DB: Token + 工具调用&lt;br/&gt;按 workspacePath 过滤&quot;</text>
-<text x="1585.1749999999997" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;cc-web-vector: 向量索引&lt;br/&gt;chunkType 含 attachment 类型&quot;</text>
-<text x="715.2749999999999" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;cc-web-embedding: API 配置&lt;br/&gt;AES-GCM 加密 ApiKey&quot;</text>
-<text x="1189.5499999999997" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;LanceDB (Electron)&lt;br/&gt;Rust FFI 高性能 ANN 搜索&quot;</text>
-<text x="3851.037500000001" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;localStorage&lt;br/&gt;隐私模式标记 + 工作区索引状态&quot;</text>
+<rect x="1267.6875" y="40" width="426.35000000000014" height="152" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="1267.6875" y="40" width="426.35000000000014" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="1279.6875" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;User Layer&quot;</text>
+<rect x="40" y="260" width="7593.837500000001" height="876" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="40" y="260" width="7593.837500000001" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="52" y="274" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Frontend: React 18 + Zustand + ReactFlow + Vite&quot;</text>
+<rect x="2607.7749999999996" y="532" width="1845.6" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="2607.7749999999996" y="532" width="1845.6" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="2619.7749999999996" y="546" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;V3 Intelligence Layer&quot;</text>
+<rect x="175.1875" y="296" width="5110.7625" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="175.1875" y="296" width="5110.7625" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="187.1875" y="310" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Terminal Layer&quot;</text>
+<rect x="2418.2875000000004" y="768" width="2466.3999999999996" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="2418.2875000000004" y="768" width="2466.3999999999996" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="2430.2875000000004" y="782" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;DAG Visualization Layer (ReactFlow v12)&quot;</text>
+<rect x="2088.6375000000003" y="1004" width="5525.2" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="2088.6375000000003" y="1004" width="5525.2" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="2100.6375000000003" y="1018" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Zustand State Layer&quot;</text>
+<rect x="60" y="532" width="1133" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="60" y="532" width="1133" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="72" y="546" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Attachment Pipeline (V1.4.1)&quot;</text>
+<rect x="598.6250000000001" y="768" width="1799.6625000000001" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="598.6250000000001" y="768" width="1799.6625000000001" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="610.6250000000001" y="782" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;RAG Retrieval Layer&quot;</text>
+<rect x="7099.175000000001" y="1220" width="519.2999999999993" height="860" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="7099.175000000001" y="1220" width="519.2999999999993" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="7111.175000000001" y="1234" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Backend: Node.js WS Server + Electron Main Process&quot;</text>
+<rect x="4761.675000000001" y="1220" width="2317.5" height="624" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="4761.675000000001" y="1220" width="2317.5" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="4773.675000000001" y="1234" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Multi-Agent Orchestration System&quot;</text>
+<rect x="648.6750000000002" y="1220" width="4093.000000000001" height="152" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="648.6750000000002" y="1220" width="4093.000000000001" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="660.6750000000002" y="1234" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Persistence: 4×IndexedDB + LanceDB + localStorage&quot;</text>
+<polyline points="1480.8625000000002,152 1480.8625000000002,352" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1480.8625000000002,388 1480.8625000000002,408 2856.7000000000003,408 2856.7000000000003,588" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1480.8625000000002,388 1480.8625000000002,408 2587.775,408 2587.775,842 3122.7125000000005,842" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1480.8625000000002,388 1480.8625000000002,408 330.375,408 330.375,588" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="4211.6,624 4211.6,842 3676.6625000000004,842" fill="none" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline points="4494.425,860 4494.425,1078 4178.200000000001,1078" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="5015.575,388 5015.575,1078 4178.200000000001,1078" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="886.875,624 886.875,824" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="2007.025,860 2007.025,880 2252.7625000000007,880 2252.7625000000007,1078 3645.7000000000003,1078" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="7168.562500000001,1096 7168.562500000001,1116 7358.825000000001,1116 7358.825000000001,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="7358.825000000001,1332 7358.825000000001,1532" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="7358.825000000001,1568 7358.825000000001,1768" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="7358.825000000001,1804 7358.825000000001,2004" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="7168.562500000001,1096 7168.562500000001,1116 6488.375000000001,1116 6488.375000000001,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline points="6488.375000000001,1332 6488.375000000001,1352 6808.800000000001,1352 6808.800000000001,1532" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="6488.375000000001,1332 6488.375000000001,1352 6238.000000000001,1352 6238.000000000001,1532" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="6488.375000000001,1332 6488.375000000001,1352 5649.325000000001,1352 5649.325000000001,1532" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="6488.375000000001,1332 6488.375000000001,1352 5071.375000000001,1352 5071.375000000001,1532" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="5071.375000000001,1568 5071.375000000001,1768" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="3911.9500000000003,1096 3911.9500000000003,1116 4000.600000000001,1116 4000.600000000001,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="3911.9500000000003,1096 3911.9500000000003,1116 2402.6500000000005,1116 2402.6500000000005,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="2007.025,860 2007.025,880 1921.2250000000004,880 1921.2250000000004,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="2007.025,860 2007.025,880 1436.2250000000004,880 1436.2250000000004,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="4 4" marker-end="url(#arrowhead)" />
+<polyline points="886.875,860 886.875,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="4499.900000000001,1096 4499.900000000001,1296" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<rect x="1289.6875000000002" y="116" width="382.35" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2629.775" y="588" width="453.85" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="3107.625" y="588" width="475.3" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="3606.925" y="588" width="360.90000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="3991.8250000000003" y="588" width="439.55" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1218.1875000000002" y="352" width="525.35" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="3427.3875" y="352" width="489.6" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="4767.2" y="352" width="496.75000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="3122.7125000000005" y="824" width="553.95" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="3739.6000000000004" y="824" width="482.45000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="4246.05" y="824" width="496.75000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="3645.7000000000003" y="1060" width="532.5" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="4237.225" y="1060" width="525.35" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="4858.4125" y="1060" width="446.70000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="6920.187500000001" y="1060" width="496.75000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="81.99999999999997" y="588" width="496.75000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="602.75" y="588" width="568.25" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="620.625" y="824" width="532.5" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1177.125" y="824" width="546.8000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1747.9250000000002" y="824" width="518.2" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="7146.200000000001" y="1296" width="425.25000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="7135.475" y="1532" width="446.70000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="7121.175000000001" y="1768" width="475.3" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="7156.925000000001" y="2004" width="403.8" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="6200.675000000001" y="1296" width="575.4000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="6560.425000000001" y="1532" width="496.75000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="5383.075000000001" y="1532" width="532.5" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="4783.675000000001" y="1532" width="575.4000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="5939.575000000001" y="1532" width="596.85" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="4801.550000000001" y="1768" width="539.6500000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="3798.7000000000007" y="1296" width="403.8" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2182.8750000000005" y="1296" width="439.55" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1683.5750000000003" y="1296" width="475.3" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="670.675" y="1296" width="432.40000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1212.8750000000005" y="1296" width="446.70000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="4280.125000000001" y="1296" width="439.55" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="1480.8625000000002" y="134" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Prompt + Attachment + RAG Context + /agent Mode&quot;</text>
+<text x="2856.7000000000003" y="606" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;VisualFlowBuilder: Drag-drop Flow Designer (5 topologies)&quot;</text>
+<text x="3345.275" y="606" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;AgentMonitoringPanel: Real-time Agent Progress + Token Stats&quot;</text>
+<text x="3787.375" y="606" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;KanbanBoard: 4-column Todo→Doing→Review→Done&quot;</text>
+<text x="4211.6" y="606" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;ExpertModeLayout: Terminal | Agent Canvas | Hooks | MCP&quot;</text>
+<text x="1480.8625000000002" y="370" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;TerminalView: Multi-workspace Tabs + Auto-scroll + Attachment Input&quot;</text>
+<text x="3672.1875" y="370" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;LiveCard: Streaming Card with Tool Timeline + StreamingSummary&quot;</text>
+<text x="5015.575" y="370" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;MarkdownCard: History Cards, Collapsible + Agent-Process Render&quot;</text>
+<text x="3399.6875000000005" y="842" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;DAGCanvas: 12 Node Types + 6 Edge Styles + Auto-layout + Virtualization&quot;</text>
+<text x="3980.8250000000003" y="842" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;AgentGroupNode: Type Labels + Progress Bar + Child Tool Steps&quot;</text>
+<text x="4494.425" y="842" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;PlanConfirmModal: Plan Review, Add/Remove Agents, Save Template&quot;</text>
+<text x="3911.9500000000003" y="1078" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useTaskStore: 14 Event Types → DAG Nodes + currentCard/markdownCards&quot;</text>
+<text x="4499.900000000001" y="1078" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useSessionStore: Session CRUD + FIFO Eviction (&gt;100) + Privacy Mode&quot;</text>
+<text x="5081.762500000001" y="1078" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useTerminalWorkspaceStore: Multi-workspace Tab Isolation&quot;</text>
+<text x="7168.562500000001" y="1078" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useMultiDispatchStore: Batch Dispatch Aggregation + AI Analysis&quot;</text>
+<text x="330.375" y="606" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useFileUpload: Image Compression + mammoth/xlsx Text Extraction&quot;</text>
+<text x="886.875" y="606" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useAttachmentStore: Pre-send/Post-send + Thumbnail + Multi-format Preview&quot;</text>
+<text x="886.875" y="842" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;RAGRetrievalPanel: Type Filter (all/conv/attach) + Top-K + Threshold&quot;</text>
+<text x="1450.525" y="842" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;useRAGContext: Context Manager → getPromptContext() → Prompt Injection&quot;</text>
+<text x="2007.025" y="842" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;vectorStorage: Dual Backend — LanceDB (Electron) | IndexedDB (Dev)&quot;</text>
+<text x="7358.825000000001" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;WebSocket Server :5300, Event Routing + Session Reuse&quot;</text>
+<text x="7358.825000000001" y="1550" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;ANSI Parser: stdout → JSON Events (14 ClaudeEvent Types)&quot;</text>
+<text x="7358.825000000001" y="1786" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Dual-mode Executor: Electron PM.spawn() | WebSocket Dev Mode&quot;</text>
+<text x="7358.825000000001" y="2022" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Claude Code CLI Process: stdio Pipe + switch_model&quot;</text>
+<text x="6488.375000000001" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;CEOAgent: Central Orchestrator — Hybrid Decomposition + Topology Execution&quot;</text>
+<text x="6808.800000000001" y="1550" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;LLMDecomposer: LLM Online → Rule Engine (20+ Keywords) Fallback&quot;</text>
+<text x="5649.325000000001" y="1550" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;TerminalExecutor: Multi-workspace Session Bridge + Prompt Adaptation&quot;</text>
+<text x="5071.375000000001" y="1550" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;EvolutionLoop: Self-evolution — Trajectory Collection → Skill Registration&quot;</text>
+<text x="6238.000000000001" y="1550" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Worker Agents ×4: ContextAgent | PlanningAgent | ExecutionAgent | ReviewAgent&quot;</text>
+<text x="5071.375000000001" y="1786" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;SkillStore + SkillRetriever: LRU Cache + Trigger-based Auto-retrieval&quot;</text>
+<text x="4000.600000000001" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;CCWebDB: Sessions + Queries, Auto-compress + Shard&quot;</text>
+<text x="2402.6500000000005" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;stats DB: Token + Tool Calls, Filtered by workspacePath&quot;</text>
+<text x="1921.2250000000004" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;cc-web-vector: Vector Index, chunkType includes &#39;attachment&#39;&quot;</text>
+<text x="886.875" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;cc-web-embedding: API Config, AES-GCM Encrypted ApiKey&quot;</text>
+<text x="1436.2250000000004" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;LanceDB (Electron): Rust FFI High-performance ANN Search&quot;</text>
+<text x="4499.900000000001" y="1314" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;localStorage: Privacy Mode Flag + Workspace Index State&quot;</text>
 </svg>

@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5609.8 296" width="5609.8" height="296" style="--bg:#1a1b26;--fg:#a9b1d6;--line:#3d59a1;--accent:#7aa2f7;--muted:#565f89;background:var(--bg)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5895.8 296" width="100%" height="296" style="--bg:#1a1b26;--fg:#a9b1d6;--line:#3d59a1;--accent:#7aa2f7;--muted:#565f89;background:var(--bg)">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Inter', system-ui, sans-serif; }
@@ -26,48 +26,48 @@
     <polygon points="8 0, 0 2.4, 8 4.8" fill="var(--_arrow)" />
   </marker>
 </defs>
-<rect x="1130.5" y="40" width="2955.55" height="116" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="1130.5" y="40" width="2955.55" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="1142.5" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;📝 Answer 分块管线&quot;</text>
-<rect x="40" y="140" width="3198.65" height="116" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="40" y="140" width="3198.65" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="52" y="154" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;📎 附件分块管线 (V1.4.1)&quot;</text>
-<rect x="4166.05" y="40" width="1403.75" height="116" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="4166.05" y="40" width="1403.75" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="4178.05" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;🎯 输出标准&quot;</text>
-<polyline points="1447.0500000000002,116 1708.175,116 1708.175,198" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1849.3,216 2246.275,216 2246.275,134" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="2362.375,116 2930.95,116 2930.95,198" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="3218.6499999999996,216 3258.65,216 3258.65,116 3338.65,116" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="3692.4,116 3812.4,116" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="378,216 498,216" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1030.5,216 1175.525,216" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1422.025,216 1567.05,216" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="2523.25,216 2643.25,216" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="4066.0499999999997,116 4186.05,116" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="4668.500000000001,116 4788.5,116" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<rect x="1150.5" y="98" width="296.55" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1567.05" y="198" width="282.25" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="2130.175" y="98" width="232.20000000000002" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="2643.25" y="198" width="575.4000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3338.65" y="98" width="353.75" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3812.4" y="98" width="253.65" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="60" y="198" width="318" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="498" y="198" width="532.5" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1175.525" y="198" width="246.50000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1969.3000000000002" y="198" width="553.95" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="4186.05" y="98" width="482.45000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="4788.5" y="98" width="761.3000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<text x="1298.775" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;原始 Answer 文本&lt;br/&gt;(Claude Code 完整输出)&quot;</text>
-<text x="1708.175" y="216" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;按 Markdown 段落分隔&lt;br/&gt;(## 标题 或 双换行)&quot;</text>
-<text x="2246.275" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;长段落按句子分隔&lt;br/&gt;(中文句号 / 英文句号)&quot;</text>
-<text x="2930.95" y="216" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;约束检查&lt;br/&gt;MAX_CHUNK_SIZE = 1000 字符&lt;br/&gt;MIN_CHUNK_SIZE = 100 字符&lt;br/&gt;不足合并到前一个&quot;</text>
-<text x="3515.525" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;每个 chunk 独立 embedding&lt;br/&gt;保留 parentQuery 追溯&quot;</text>
-<text x="3939.225" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;写入向量库&lt;br/&gt;chunkType: &#39;answer&#39;&quot;</text>
-<text x="219" y="216" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;上传文件&lt;br/&gt;docx / xlsx / pptx / txt / md&quot;</text>
-<text x="764.25" y="216" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;文本提取层&lt;br/&gt;mammoth (DOCX/PPTX)&lt;br/&gt;xlsx (Excel → CSV)&lt;br/&gt;原生 (txt/md)&quot;</text>
-<text x="1298.775" y="216" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;输出纯文本&lt;br/&gt;进入与 Answer 相同的分块流程&quot;</text>
-<text x="2246.275" y="216" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;元数据注入&lt;br/&gt;每个 chunk 携带:&lt;br/&gt;• fileName&lt;br/&gt;• mimeType&lt;br/&gt;• attachmentId&quot;</text>
-<text x="4427.275000000001" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;统一的 Chunk 格式&lt;br/&gt;chunkType: &#39;attachment&#39;&lt;br/&gt;检索时可通过 type 参数过滤&quot;</text>
-<text x="5169.15" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;检索过滤&lt;br/&gt;type=&#39;all&#39; → 混合&lt;br/&gt;type=&#39;conversation&#39; → query+answer+toolcall&lt;br/&gt;type=&#39;attachment&#39; → 仅附件&quot;</text>
+<rect x="1044.6999999999998" y="40" width="3298.75" height="116" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="1044.6999999999998" y="40" width="3298.75" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="1056.6999999999998" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Answer Chunking Pipeline&quot;</text>
+<rect x="40" y="140" width="3177.2" height="116" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="40" y="140" width="3177.2" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="52" y="154" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Attachment Chunking Pipeline (V1.4.1)&quot;</text>
+<rect x="4423.45" y="40" width="1432.3500000000004" height="116" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="4423.45" y="40" width="1432.3500000000004" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="4435.45" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Output Standard&quot;</text>
+<polyline points="1429.1749999999997,116 1818.9999999999998,116 1818.9999999999998,198" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1999.4499999999998,216 2364.25,216 2364.25,134" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="2541.125,116 2963.1249999999995,116 2963.1249999999995,198" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="3197.1999999999994,216 3237.2,216 3237.2,116 3317.2,116" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="3856.8499999999995,116 3976.8499999999995,116" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="313.65,216 433.65,216" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="944.6999999999999,216 1064.6999999999998,216" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="1518.5499999999997,216 1638.5499999999997,216" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="2609.05,216 2729.0499999999997,216" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="4323.45,116 4443.45,116" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="5018.849999999999,116 5138.85,116" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<rect x="1154.0749999999998" y="98" width="275.1" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1638.5499999999997" y="198" width="360.90000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2187.375" y="98" width="353.75" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2729.0499999999997" y="198" width="468.15000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="3317.2" y="98" width="539.6500000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="3976.8499999999995" y="98" width="346.6" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="59.999999999999986" y="198" width="253.65" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="433.65" y="198" width="511.05" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1064.6999999999998" y="198" width="453.85" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2119.45" y="198" width="489.6" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="4443.45" y="98" width="575.4000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="5138.85" y="98" width="696.95" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="1291.6249999999998" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Raw Answer Text from Claude Code&quot;</text>
+<text x="1818.9999999999998" y="216" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Split by Markdown headings or double-newline&quot;</text>
+<text x="2364.25" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Long paragraphs split by sentence delimiter&quot;</text>
+<text x="2963.1249999999995" y="216" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Constraints: MAX=1000 chars, MIN=100 chars, merge underflow&quot;</text>
+<text x="3587.0249999999996" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Each chunk independently embedded, keeps parentQuery for traceability&quot;</text>
+<text x="4150.15" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Write to vector DB with chunkType=&#39;answer&#39;&quot;</text>
+<text x="186.825" y="216" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Upload: docx/xlsx/pptx/txt/md&quot;</text>
+<text x="689.175" y="216" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Extract text: mammoth(DOCX/PPTX), xlsx(Excel→CSV), native(txt/md)&quot;</text>
+<text x="1291.6249999999998" y="216" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Output plain text, enter same chunking pipeline as Answer&quot;</text>
+<text x="2364.25" y="216" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Metadata injection per chunk: fileName, mimeType, attachmentId&quot;</text>
+<text x="4731.15" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Unified Chunk Format: chunkType=&#39;attachment&#39;, filterable by type parameter&quot;</text>
+<text x="5487.325000000001" y="116" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Retrieval Filter: type=&#39;all&#39; mixed, &#39;conversation&#39; query+answer+toolcall, &#39;attachment&#39; only&quot;</text>
 </svg>

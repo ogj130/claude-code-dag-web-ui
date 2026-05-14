@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3663.7 348" width="3663.7" height="348" style="--bg:#1a1b26;--fg:#a9b1d6;--line:#3d59a1;--accent:#7aa2f7;--muted:#565f89;background:var(--bg)">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4707.5 348" width="100%" height="348" style="--bg:#1a1b26;--fg:#a9b1d6;--line:#3d59a1;--accent:#7aa2f7;--muted:#565f89;background:var(--bg)">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
   text { font-family: 'Inter', system-ui, sans-serif; }
@@ -26,45 +26,45 @@
     <polygon points="8 0, 0 2.4, 8 4.8" fill="var(--_arrow)" />
   </marker>
 </defs>
-<rect x="715.1500000000003" y="40" width="2908.5499999999997" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="715.1500000000003" y="40" width="2908.5499999999997" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="727.1500000000003" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;✍️ 写入策略&quot;</text>
-<rect x="572.1499999999999" y="196" width="1646.6" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="572.1499999999999" y="196" width="1646.6" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="584.1499999999999" y="210" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;📖 读取策略&quot;</text>
-<rect x="2241.6499999999996" y="196" width="1296.25" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="2241.6499999999996" y="196" width="1296.25" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="2253.6499999999996" y="210" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;📊 监控与维护&quot;</text>
-<rect x="40" y="40" width="512.1499999999996" height="268" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
-<rect x="40" y="40" width="512.1499999999996" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
-<text x="52" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;🔒 隐私模式&quot;</text>
-<polyline points="953.3499999999999,132 953.3499999999999,252" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="2483.425,132 2483.425,252" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="3353.325,132 3353.325,252" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="1923.35,132 1923.35,252" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<polyline points="296.0749999999998,132 296.0749999999998,252" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
-<rect x="737.1499999999999" y="96" width="432.40000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="2199.3" y="96" width="568.25" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3104.95" y="96" width="496.75000000000006" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1671.3999999999999" y="96" width="503.90000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="594.1499999999999" y="252" width="718.4000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1336.55" y="252" width="289.40000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="1649.9499999999998" y="252" width="546.8000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="2263.65" y="252" width="439.55" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="2727.2" y="252" width="439.55" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="3190.75" y="252" width="325.15000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="122.7749999999998" y="96" width="346.6" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<rect x="61.9999999999998" y="252" width="468.15000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
-<text x="953.3499999999999" y="114" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;新建会话&lt;br/&gt;writeSessionImmediately()&lt;br/&gt;立即同步写 IndexedDB&quot;</text>
-<text x="2483.425" y="114" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;会话更新&lt;br/&gt;writeSessionDebounced(id, updates)&lt;br/&gt;500ms 防抖合并 pendingUpdates&quot;</text>
-<text x="3353.325" y="114" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;删除会话&lt;br/&gt;cancelDebounce + deleteSession()&lt;br/&gt;同步删除 IndexedDB 记录&quot;</text>
-<text x="1923.35" y="114" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Query 存储&lt;br/&gt;createQuery() → CCWebDB + stats DB&lt;br/&gt;自动压缩长文本 + 分片&quot;</text>
-<text x="953.3499999999999" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;缓存优先加载&lt;br/&gt;loadSessionsCacheFirst(limit)&lt;br/&gt;1. IndexedDB 立即返回&lt;br/&gt;2. 后台 serverSync(&#39;pull&#39;) 拉取&quot;</text>
-<text x="1481.25" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;服务端合并&lt;br/&gt;服务端数据优先覆盖&lt;br/&gt;保留仅本地存在的会话&quot;</text>
-<text x="1923.35" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;分页查询&lt;br/&gt;getQueriesBySession(page, pageSize)&lt;br/&gt;按 timestamp 降序 + 全文搜索&quot;</text>
-<text x="2483.425" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;存储空间监控&lt;br/&gt;isStorageNearlyFull() &gt; 80%&lt;br/&gt;自动驱逐最旧 5 个会话&quot;</text>
-<text x="2946.975" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;内存监控&lt;br/&gt;performance.memory.usedJSHeapSize&lt;br/&gt;60s 间隔检查&quot;</text>
-<text x="3353.325" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;FIFO 淘汰&lt;br/&gt;会话数 &gt; 100 时&lt;br/&gt;自动删除最旧非活跃会话&quot;</text>
-<text x="296.0749999999998" y="114" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;isPrivacyModeEnabled()&lt;br/&gt;localStorage 标记&quot;</text>
-<text x="296.0749999999998" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;仅 localStorage 存储&lt;br/&gt;不写入 IndexedDB&lt;br/&gt;无网络同步&lt;br/&gt;跳过 RAG 索引&quot;</text>
+<rect x="833.1250000000002" y="40" width="3795.8250000000003" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="833.1250000000002" y="40" width="3795.8250000000003" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="845.1250000000002" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Write Strategies&quot;</text>
+<rect x="672.2500000000002" y="196" width="2147.1" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="672.2500000000002" y="196" width="2147.1" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="684.2500000000002" y="210" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Read Strategies&quot;</text>
+<rect x="2839.35" y="196" width="1768.1500000000003" height="112" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="2839.35" y="196" width="1768.1500000000003" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="2851.35" y="210" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Monitoring &amp; Maintenance&quot;</text>
+<rect x="40" y="40" width="612.25" height="268" rx="0" ry="0" fill="var(--_group-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+<rect x="40" y="40" width="612.25" height="28" rx="0" ry="0" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+<text x="52" y="54" dy="0.35em" font-size="12" font-weight="600" fill="var(--_text-sec)">&quot;Privacy Mode&quot;</text>
+<polyline points="1107.0749999999998,132 1107.0749999999998,252" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="3149.05,132 3149.05,252" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="4304.950000000001,132 4304.950000000001,252" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="2441.725,132 2441.725,252" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<polyline points="346.125,132 346.125,252" fill="none" stroke="var(--_line)" stroke-width="0.75" marker-end="url(#arrowhead)" />
+<rect x="855.1249999999998" y="96" width="503.90000000000003" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2804.15" y="96" width="689.8000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="4002.9500000000007" y="96" width="604" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2168.325" y="96" width="546.8000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="694.2499999999998" y="252" width="825.6500000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="1543.9" y="252" width="518.2" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2086.1" y="252" width="711.25" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="2861.3500000000004" y="252" width="575.4000000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="3460.75" y="252" width="539.6500000000001" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="4024.4000000000005" y="252" width="561.1" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="176.39999999999998" y="96" width="339.45000000000005" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<rect x="62" y="252" width="568.25" height="36" rx="0" ry="0" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+<text x="1107.0749999999998" y="114" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;New Session: writeSessionImmediately() → sync write to IndexedDB&quot;</text>
+<text x="3149.05" y="114" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Session Update: writeSessionDebounced(id, updates), 500ms debounce merge to pendingUpdates&quot;</text>
+<text x="4304.950000000001" y="114" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Delete Session: cancelDebounce + deleteSession(), sync delete IndexedDB record&quot;</text>
+<text x="2441.725" y="114" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Query Store: createQuery() → CCWebDB + stats DB, auto-compress + shard&quot;</text>
+<text x="1107.0749999999998" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Cache-First Load: loadSessionsCacheFirst(limit), IndexedDB returns immediately, background serverSync(&#39;pull&#39;)&quot;</text>
+<text x="1803" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Server Merge: Server data takes priority, keep local-only sessions&quot;</text>
+<text x="2441.725" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Paged Query: getQueriesBySession(page, pageSize), sorted by timestamp desc + full-text search&quot;</text>
+<text x="3149.05" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Storage Monitor: isStorageNearlyFull() &gt; 80%, auto-evict oldest 5 sessions&quot;</text>
+<text x="3730.575" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;Memory Monitor: performance.memory.usedJSHeapSize, 60s interval check&quot;</text>
+<text x="4304.950000000001" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;FIFO Eviction: session count &gt; 100, auto-delete oldest inactive sessions&quot;</text>
+<text x="346.125" y="114" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;isPrivacyModeEnabled(): localStorage flag&quot;</text>
+<text x="346.125" y="270" text-anchor="middle" dy="0.35em" font-size="13" font-weight="500" fill="var(--_text)">&quot;localStorage only: no IndexedDB write, no network sync, skip RAG indexing&quot;</text>
 </svg>
