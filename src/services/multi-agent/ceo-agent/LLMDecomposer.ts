@@ -58,23 +58,29 @@ export class LLMDecomposer {
 
   decomposeWithRules(requirement: string): AgentPlan {
     const lower = requirement.toLowerCase();
-    const agents: AgentPlan['agents'] = [];
+
+    // ── 单 Agent 判定：简单问题不需要多 Agent 分解 ──
+    if (this.isSimpleQuery(requirement)) {
+      return {
+        agents: [this.makeAgent('agent-execution', 'execution', 'ExecutionAgent',
+          requirement.slice(0, 80), [], 1, ['task_completed'])],
+        strategy: 'parallel',
+        estimatedDuration: 1000,
+      };
+    }
 
     interface KeywordRule { keywords: string[]; type: WorkerType; weight: number; description: string }
     const rules: KeywordRule[] = [
       { keywords: ['分析', 'analyze', '了解', 'understand', '查看', '检查', 'review code',
                     '项目', 'project', '代码', 'codebase', '结构', 'structure', '依赖', 'dependency'],
         type: 'context', weight: 0, description: '分析项目上下文和技术栈' },
-
       { keywords: ['设计', 'design', '架构', 'architect', '方案', 'plan', '规划',
                     '接口', 'interface', 'api', '数据模型', 'data model'],
         type: 'planning', weight: 0, description: '设计实现方案和架构' },
-
       { keywords: ['实现', 'implement', '写', 'write', '构建', 'build', '修复', 'fix',
                     '重构', 'refactor', '优化', 'optimize', '新增', 'add', '修改', 'modify',
                     '创建', 'create', '删除', 'delete', '更新', 'update', '配置', 'config'],
         type: 'execution', weight: 0, description: '执行代码实现和修改' },
-
       { keywords: ['审查', 'review', '测试', 'test', '验证', 'verify',
                     '质量', 'quality', '安全', 'security', '性能', 'performance'],
         type: 'review', weight: 0, description: '审查代码质量和正确性' },
@@ -82,52 +88,58 @@ export class LLMDecomposer {
 
     for (const rule of rules) {
       let hits = 0;
-      for (const kw of rule.keywords) {
-        if (lower.includes(kw)) hits++;
-      }
+      for (const kw of rule.keywords) if (lower.includes(kw)) hits++;
       rule.weight = hits;
     }
 
     const matched = rules.filter(r => r.weight > 0).sort((a, b) => b.weight - a.weight);
+    const agents: AgentPlan['agents'] = [];
 
+    // 无关键词匹配 → 至少给一个 execution agent（不再强制 context+execution 双 Agent）
     if (matched.length === 0) {
       agents.push(
-        this.makeAgent('agent-context', 'context', 'ContextAgent', `分析需求：${requirement.slice(0, 60)}`, [], 1, ['project_structure_analyzed']),
-        this.makeAgent('agent-execution', 'execution', 'ExecutionAgent', `执行：${requirement.slice(0, 60)}`, ['agent-context'], 2, ['task_completed']),
+        this.makeAgent('agent-execution', 'execution', 'ExecutionAgent',
+          requirement.slice(0, 80), [], 1, ['task_completed']),
       );
     } else {
       const seenTypes = new Set<WorkerType>();
       let idx = 0;
-
       for (const { type, description } of matched) {
         if (seenTypes.has(type)) continue;
         seenTypes.add(type);
         idx++;
-
         const deps: string[] = [];
-        if (type !== 'context' && matched.some(r => r.type === 'context')) {
-          deps.push('agent-context');
-        }
-        if (type === 'execution' && matched.some(r => r.type === 'planning')) {
-          deps.push('agent-planning');
-        }
-
-        agents.push(this.makeAgent(
-          `agent-${type}`,
-          type,
-          this.agentNameForType(type),
-          `${description}：${requirement.slice(0, 60)}`,
-          deps,
-          idx,
-          this.inferCriteria(type),
-        ));
+        if (type !== 'context' && matched.some(r => r.type === 'context')) deps.push('agent-context');
+        if (type === 'execution' && matched.some(r => r.type === 'planning')) deps.push('agent-planning');
+        agents.push(this.makeAgent(`agent-${type}`, type, this.agentNameForType(type),
+          `${description}：${requirement.slice(0, 60)}`, deps, idx, this.inferCriteria(type)));
       }
     }
 
+    // 单 Agent 也标记 _singleAgent
     const strategy: AgentPlan['strategy'] =
       agents.some(a => a.dependsOn.length > 0) ? 'pipeline' : 'parallel';
 
     return { agents, strategy, estimatedDuration: agents.length * 1500 };
+  }
+
+  /** 判断是否为简单查询——不需要多 Agent 分解 */
+  private isSimpleQuery(requirement: string): boolean {
+    const lower = requirement.toLowerCase();
+    // 纯提问/了解类 → 单 Agent
+    const questionPatterns = [
+      '是什么', '做什么', '有什么用', '介绍一下', '解释', '说明一下',
+      'what is', 'what does', 'explain', 'describe', 'tell me about',
+      '怎么用', '如何使用', 'how to use', 'how do',
+    ];
+    if (questionPatterns.some(p => lower.includes(p))) return true;
+
+    // 极短输入（<15 字）且无动作词 → 单 Agent
+    const actionWords = ['实现', '构建', '修复', '重构', '新增', '创建', '添加', '修改', '设计',
+      'implement', 'build', 'fix', 'refactor', 'add', 'create', 'modify', 'design'];
+    if (requirement.length < 15 && !actionWords.some(w => lower.includes(w))) return true;
+
+    return false;
   }
 
   private validateAndNormalize(plan: AgentPlan): AgentPlan {
