@@ -39,6 +39,7 @@ export class CEOAgent {
   private skillsUsed: Set<string> = new Set();
   private allAgentOutputs: Map<string, unknown> = new Map();
   private decomposer?: LLMDecomposer;
+  private currentRequirement: string = '';
   /** 当前工作区 ID（由调用方通过 setWorkspace() 注入） */
   private workspaceId: string = '';
   /** 当前工作区路径（项目根目录） */
@@ -385,6 +386,7 @@ export class CEOAgent {
       return this.executeWithOrchestration(requirement, executor, options);
     }
 
+    this.currentRequirement = requirement;
     this.startTime = Date.now();
     this.iteration = 0;
     this.skillsUsed = new Set();
@@ -673,9 +675,17 @@ export class CEOAgent {
         await this.injectSkillNode(goal.id, skill.name, skill.domain ?? 'general', undefined);
       }
 
+      // 构建 B+C 格式 prompt：系统角色 + 依赖输出 + 子任务 + 输出要求
+      const depOutputs = (goal.dependsOn ?? [])
+        .filter(depId => this.allAgentOutputs.has(depId))
+        .map(depId => ({ goalId: depId, output: this.allAgentOutputs.get(depId) }));
+      const subAgentPrompt = this.buildSubAgentPrompt(
+        goal, this.currentRequirement, depOutputs, options?.systemPrompt
+      );
+
       const taskContext = {
         taskId: goal.id,
-        description: goal.description,
+        description: subAgentPrompt,
         workspaceId: this.workspaceId,
         workspacePath: this.workspacePath,
         context: {
@@ -777,6 +787,66 @@ export class CEOAgent {
       skillsUsed: result.skillsUsed,
       subTasks: result.subTasks ?? [],
     };
+  }
+
+  /**
+   * 构建 B+C 格式子 Agent prompt
+   * 包含：系统角色 + 依赖 Agent 输出 + 子任务 + 输出格式要求
+   */
+  private buildSubAgentPrompt(
+    goal: AgentGoal,
+    requirement: string,
+    depOutputs: Array<{ goalId: string; output: unknown }>,
+    systemPrompt?: string,
+  ): string {
+    const parts: string[] = [];
+
+    // 系统角色
+    if (systemPrompt) {
+      parts.push(systemPrompt);
+    }
+    parts.push(`[系统角色]`);
+    parts.push(`你是 CEO Agent 的一个子 Agent：${goal.agentName}（${goal.workerType}）`);
+    parts.push(`用户原始需求：${requirement}`);
+    parts.push(`完成后请在最终回复中给出一段结构化的执行总结。`);
+
+    // 依赖 Agent 的输出
+    if (depOutputs.length > 0) {
+      parts.push('');
+      parts.push(`[依赖 Agent 的输出]`);
+      for (const dep of depOutputs) {
+        const outStr = typeof dep.output === 'string'
+          ? dep.output
+          : JSON.stringify(dep.output, null, 2);
+        parts.push(`--- ${dep.goalId} 的输出 ---`);
+        parts.push(outStr.slice(0, 2000)); // 限制上下文长度
+      }
+    }
+
+    // 子任务
+    parts.push('');
+    parts.push(`[你的子任务]`);
+    parts.push(goal.description);
+
+    // 验证标准
+    if (goal.verificationCriteria.length > 0) {
+      parts.push('');
+      parts.push(`[验证标准]`);
+      parts.push(goal.verificationCriteria.join('\n'));
+    }
+
+    // 输出格式要求
+    parts.push('');
+    parts.push(`[输出格式]`);
+    parts.push(`请在最终回复末尾包含以下结构化总结：`);
+    parts.push(`### 执行总结`);
+    parts.push(`（一段话总结你完成了什么）`);
+    parts.push(`### 涉及的文件`);
+    parts.push(`- path/to/changed/file`);
+    parts.push(`### 关键决策`);
+    parts.push(`（如果有的话）`);
+
+    return parts.join('\n');
   }
 
   /**
