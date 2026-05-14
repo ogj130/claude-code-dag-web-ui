@@ -1,6 +1,4 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import { useTaskStore } from '../../stores/useTaskStore';
 import type { MarkdownCardData } from '../../stores/taskTypes';
 import { useRAGContext } from '../../hooks/useRAGContext';
@@ -80,6 +78,11 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
   const [planConfirmed, setPlanConfirmed] = useState(false);
   const [agentExecuting, setAgentExecuting] = useState(false);
 
+  // 自动滚动容器引用
+  const contentScrollRef = useRef<HTMLDivElement>(null);
+  const isUserScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // 编排模式：终端打开时从 localStorage 加载预定义 Flow 拓扑
   const orchestrationFlowRef = useRef<FlowDefinition | null>(null);
   useEffect(() => {
@@ -104,6 +107,74 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
     window.addEventListener('cc-open-terminal-with-orchestration', handler);
     return () => window.removeEventListener('cc-open-terminal-with-orchestration', handler);
   }, []);
+
+  // ── 自动滚动：MutationObserver 监听 DOM 变化 → 新内容滚到 viewport 顶部 ──
+  useEffect(() => {
+    const el = contentScrollRef.current;
+    if (!el) return;
+
+    const scrollToNewContent = () => {
+      if (isUserScrollingRef.current) return;
+
+      // 优先定位到 [data-new-content] 标记的最新内容区域
+      const newContent = el.querySelector('[data-new-content]') as HTMLElement | null;
+      if (newContent) {
+        // 计算新内容相对于滚动容器的偏移
+        const containerRect = el.getBoundingClientRect();
+        const contentRect = newContent.getBoundingClientRect();
+        const relativeTop = contentRect.top - containerRect.top + el.scrollTop;
+
+        // 滚动使新内容对齐到 viewport 顶部，历史卡片自然被推出视图
+        el.scrollTop = Math.max(0, relativeTop);
+      } else {
+        // 无标记时回退到底部
+        el.scrollTop = el.scrollHeight;
+      }
+    };
+
+    // 初始滚动
+    scrollToNewContent();
+
+    // 监听 DOM 变化（新卡片、流式内容、工具节点等任何增长都触发）
+    const observer = new MutationObserver(() => {
+      scrollToNewContent();
+    });
+
+    observer.observe(el, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
+  // 监听用户手动滚动：暂停自动跟随，3 秒后自动恢复
+  useEffect(() => {
+    const el = contentScrollRef.current;
+    if (!el) return;
+
+    const handleScroll = () => {
+      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+      isUserScrollingRef.current = !atBottom;
+
+      if (atBottom) {
+        isUserScrollingRef.current = false;
+      }
+
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      scrollTimeoutRef.current = setTimeout(() => {
+        isUserScrollingRef.current = false;
+      }, 3000);
+    };
+
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', handleScroll);
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
+  }, []);
+
 
   // Task 5: Upper/lower split state
   const [workspaceList, setWorkspaceList] = useState<Workspace[]>([]);
@@ -141,6 +212,17 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
 
   // ── V3.0.0: 工作区隔离 — 非全局视图时过滤卡片 ──
   const { markdownCards, currentCard, previousCard } = useWorkspaceFilter();
+
+  // ── 自动滚动：当新内容到达时滚动到底部 ─────────────────
+  useEffect(() => {
+    const el = contentScrollRef.current;
+    if (!el || isUserScrollingRef.current) return;
+
+    // 使用 requestAnimationFrame 确保在 DOM 更新后再滚动
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+  }, [markdownCards.length, currentCard?.queryId, previousCard?.queryId, summaryChunks.length, agentExecuting, pendingQueryText]);
 
   // 历史召回 Hook
   const {
@@ -644,10 +726,12 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
 
       {/* 主内容区 */}
       <div
+        ref={contentScrollRef}
         data-testid={isGlobalView ? 'global-workspace-home' : 'workspace-current-workbench'}
         style={{
         flex: 1,
-        overflow: 'auto',
+        overflowY: 'scroll',
+        overflowX: 'hidden',
         display: 'flex',
         flexDirection: 'column',
         background: 'var(--term-bg)',
@@ -656,6 +740,8 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
         borderBottom: 'none',
         transition: 'background 0.3s, border-color 0.3s',
         maxHeight: '65vh',
+        // macOS 强制显示滚动条（覆盖系统"自动隐藏滚动条"设置）
+        WebkitOverflowScrolling: 'touch' as const,
       }}>
 
         {/* 欢迎页：无历史卡片、无用户交互时展示（绫华欢迎内容） */}
@@ -672,7 +758,7 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
 
         {/* Agent 执行卡片（Multi-Agent 模式下的结构化展示） */}
         {agentExecuting && (
-          <div style={{ padding: '0 4px' }}>
+          <div data-new-content="true" style={{ padding: '0 4px' }}>
             <CEOAgentCard
               phase={ceoPhase}
               plan={ceoPlan}
@@ -705,78 +791,17 @@ export function TerminalView({ theme: _theme, onInput, style }: Props) {
 
         {/* 当前问答（进行中） */}
         {currentCard && (
-          <div style={{ padding: '0 4px' }}>
+          <div data-new-content="true" style={{ padding: '0 4px' }}>
             <LiveCard card={currentCard} />
           </div>
         )}
 
 
-        {/* 流式总结（实时 Markdown 渲染，只要有 chunk 就显示，不依赖 currentCard） */}
-        {summaryChunks.length > 0 && (
-          <div style={{
-            padding: '10px 12px',
-            background: 'rgba(46,204,113,0.04)',
-            borderTop: '1px solid rgba(46,204,113,0.15)',
-            marginTop: 4,
-          }}>
-            {/* 状态头 */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              marginBottom: 6,
-            }}>
-              <div style={{
-                width: 6, height: 6, borderRadius: '50%',
-                background: 'var(--success)',
-                animation: 'stream-pulse 1s ease-in-out infinite',
-                flexShrink: 0,
-              }} />
-              <span style={{
-                fontSize: 9, color: 'var(--success)',
-                fontFamily: "'JetBrains Mono', monospace",
-                letterSpacing: '0.08em', textTransform: 'uppercase',
-              }}>
-                总结生成中
-              </span>
-              <span style={{
-                color: 'var(--success)', fontSize: 11,
-                animation: 'cursor-blink 0.8s step-end infinite',
-              }}>▊</span>
-            </div>
-            {/* Markdown 流式内容 */}
-            <div style={{
-              fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-              fontSize: 11,
-              color: 'var(--text-secondary)',
-              lineHeight: 1.7,
-              maxHeight: 300,
-              overflowY: 'auto',
-            }}>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  code: ({ className, children, ...props }) => {
-                    const isBlock = className?.startsWith('language-');
-                    return isBlock
-                      ? <code style={{ background: 'transparent', padding: 0, color: 'var(--text-secondary)', fontSize: 10 }} className={className} {...props}>{children}</code>
-                      : <code style={{ background: 'var(--bg-input)', borderRadius: 3, padding: '1px 4px', fontSize: 10, color: 'var(--accent)', fontFamily: "'JetBrains Mono', monospace" }} {...props}>{children}</code>;
-                  },
-                  pre: ({ children }) => <pre style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px', overflowX: 'auto', margin: '6px 0' }}>{children}</pre>,
-                }}
-              >
-                {summaryChunks.join('')}
-              </ReactMarkdown>
-            </div>
-            <style>{`
-              @keyframes stream-pulse {
-                0%, 100% { opacity: 1; transform: scale(1); }
-                50% { opacity: 0.4; transform: scale(0.85); }
-              }
-              @keyframes cursor-blink {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0; }
-              }
-            `}</style>
-          </div>
+        {/* 流式总结已由 LiveCard 内部的 <StreamingSummary /> 处理，此处不再重复渲染 */}
+
+        {/* ── 滚动空间占位：确保新内容有足够空间将历史卡片推出 viewport ── */}
+        {(currentCard || agentExecuting) && (
+          <div aria-hidden="true" style={{ minHeight: '55vh', flexShrink: 0 }} />
         )}
 
         {/* ── Query + RAG Chunks 分离显示 ────────────────────────────── */}
