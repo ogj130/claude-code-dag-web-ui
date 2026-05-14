@@ -226,16 +226,42 @@ sudo dpkg -i claude-code-web-ui_*.deb
 
 ### RAG 完整数据流
 
-![RAG 完整数据流](docs/screenshots/arch-rag-flow.svg)
+```mermaid
+flowchart LR
+  A[CCWebDB 会话数据] --> B["文本提取 (mammoth/xlsx)"]
+  B --> C["分块 (段落→句子, MAX=1000 MIN=100)"]
+  C --> D["embedText() 向量化"]
+  D --> E["向量存储 (LanceDB/IndexedDB)"]
+
+  F[用户查询] --> G["embedText() 向量化查询"]
+  G --> H["相似度匹配 (cosine/ANN)"]
+  H --> I["Top-K 过滤 (type + workspacePath 隔离)"]
+  I --> J["useRAGContext 收集结果"]
+  J --> K["getPromptContext() 格式化"]
+  K --> L["注入 Claude Code Prompt"]
+
+  E -.-> H
+
+  M["createQuery() 保存问答"] --> N["indexQueryChunk + indexAnswerChunks"]
+  N --> D
+  O["useFileUpload 上传附件"] --> P["indexAttachmentChunks (带 fileName/mimeType)"]
+  P --> D
+```
 
 ### 双后端存储策略
 
-| 环境 | 向量库 | 说明 |
-|------|--------|------|
-| **Electron 生产** | LanceDB | 高性能 ANN 搜索、磁盘持久化、Rust FFI |
-| **Vite dev 浏览器** | IndexedDB + JS | 纯浏览器实现，离线可用，无需额外依赖 |
-
-![双后端存储策略](docs/screenshots/arch-storage.svg)
+```mermaid
+flowchart LR
+  subgraph Config["配置层"]
+    CFG["EmbeddingConfig (provider/endpoint/model/apiKey)"]
+  end
+  subgraph Embed["向量化"]
+    E1["Electron: IPC → embeddingService(OpenAI SDK)"] --> L["LanceDB (主进程 Rust FFI)"]
+    E2["Vite Dev: fetch /v1/embeddings 代理"] --> I1["IndexedDB + cosine 相似度"]
+    E3["生产: dangerouslyAllowBrowser 直调"] --> I2["IndexedDB + cosine 相似度"]
+  end
+  CFG --> Embed
+```
 
 ### 向量化调用链路
 
@@ -336,7 +362,18 @@ chunks 表:
 每个 chunk 携带 fileName / mimeType / attachmentId 元数据
 ```
 
-![分块策略](docs/screenshots/arch-chunking.svg)
+```mermaid
+flowchart LR
+  A["原始 Answer 文本"] --> B["按 Markdown 段落分隔"]
+  B --> C["长段落按句子分隔"]
+  C --> D["约束: MAX=1000, MIN=100 字符"]
+  D --> E["每个 chunk 独立 embedding"]
+  E --> F["写入向量库 chunkType='answer'"]
+
+  U["上传附件 (docx/xlsx/txt)"] --> X["mammoth/xlsx 提取纯文本"]
+  X --> B
+  Y["注入元数据 fileName/mimeType/attachmentId"] --> D
+```
 
 ### RAG 配置管理
 
@@ -396,19 +433,100 @@ Claude Code prompt → 生成更精准的回答
 
 ### 系统架构（完整分层）
 
-![系统架构](docs/screenshots/arch-system.svg)
+```mermaid
+flowchart TB
+  subgraph Frontend["前端 (React + Zustand + ReactFlow)"]
+    V3["V3 智能层: VisualFlowBuilder | AgentMonitoring | KanbanBoard | ExpertMode"]
+    TV["终端层: TerminalView (多工作区+自动滚动) | LiveCard (流式) | MarkdownCard (历史)"]
+    DAG["DAG 层: DAGCanvas (12节点+6边) | AgentGroupNode | PlanConfirmModal"]
+    Store["状态层: useTaskStore (14事件) | useSessionStore | useTerminalWorkspaceStore"]
+    Attach["附件层: useFileUpload (图片压缩+mammoth提取) | 自动RAG索引"]
+  end
+  subgraph Backend["后端 (Node.js WS Server)"]
+    WS["WebSocket :5300"] --> ANSI["ANSI Parser → JSON Event"]
+    ANSI --> CC["Claude Code CLI (spawn)"]
+  end
+  subgraph Agent["Multi-Agent 编排"]
+    CEO["CEOAgent (混合分解+拓扑执行)"] --> Workers["Worker Agents ×4"]
+    CEO --> EVO["EvolutionLoop (自进化)"]
+  end
+  Frontend --> WS
+  Store -.-> CEO
+```
 
 ### 事件驱动数据流
 
-![事件驱动数据流](docs/screenshots/arch-sequence.svg)
+```mermaid
+sequenceDiagram
+  participant U as 用户
+  participant UI as 前端 TerminalView
+  participant Store as useTaskStore
+  participant WS as WebSocket
+  participant CC as Claude Code
+  participant CEO as CEO Agent
 
-### 缓存同步策略（Phase 2.2）
+  U->>UI: 输入问题 (/agent 前缀 → Multi-Agent)
+  UI->>WS: send_input(payload + ragChunks + attachments)
+  WS->>CC: stdin 写入
+  CC-->>WS: stdout ANSI 输出
+  WS-->>Store: handleEvent(JSON event)
+  loop 执行中
+    Store->>Store: agent_start → tool_call → summary_chunk
+  end
+  Store->>Store: query_summary → markdownCards 归档 + IndexedDB
+  Store-->>UI: Zustand 通知重渲染
+  UI->>UI: LiveCard → MarkdownCard + 自动滚动
 
-![缓存同步策略](docs/screenshots/arch-cache.svg)
+  opt Multi-Agent 模式
+    UI->>CEO: 启动 CEO Agent
+    CEO->>CEO: LLMDecomposer 分解 → Worker Agents 执行
+    CEO->>CEO: EvolutionLoop 技能注册
+  end
+```
+
+### 缓存同步策略
+
+```mermaid
+flowchart LR
+  W1["新建会话: 立即同步写 IndexedDB"]
+  W2["会话更新: 500ms 防抖合并写入"]
+  W3["删除会话: 同步删除 + 取消防抖"]
+
+  R1["加载: IndexedDB 缓存优先 + 后台服务端同步"]
+  R2["服务端合并: 服务端优先, 保留本地独有"]
+
+  M1["存储监控: >80% 自动驱逐最旧5条"]
+  M2["FIFO 淘汰: >100条自动删除最旧非活跃"]
+
+  P1["隐私模式: 仅 localStorage, 无网络同步"]
+
+  W1 --> R1
+  W2 --> M1
+  M1 --> M2
+```
 
 ### 状态转换
 
-![状态转换](docs/screenshots/arch-state.svg)
+```mermaid
+stateDiagram-v2
+  [*] --> Idle: 页面加载
+  Idle --> Running: user_input_sent
+  Idle --> AgentPlanning: /agent 模式
+  state AgentPlanning {
+    [*] --> Decomposing: LLMDecomposer
+    Decomposing --> Executing: 自动/确认后执行
+  }
+  state Running {
+    [*] --> Streaming: query_start
+    Streaming --> Streaming: summary_chunk
+    Streaming --> Completed: query_summary
+  }
+  AgentPlanning --> Completed: CEO 摘要归档
+  Running --> Completed: 持久化 + RAG索引
+  Completed --> Idle: 新问题 / session_end
+  Idle --> Privacy: 开启隐私模式
+  Privacy --> Idle: 关闭隐私模式
+```
 
 ### 模块说明
 
