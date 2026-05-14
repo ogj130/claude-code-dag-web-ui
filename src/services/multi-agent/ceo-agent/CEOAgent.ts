@@ -861,44 +861,33 @@ export class CEOAgent {
     parts.push(`## CEO 执行总结\n`);
     parts.push(`**原始需求**：${requirement}\n`);
 
-    // Summarize each agent's contribution
+    parts.push(`### 📋 各 Agent 执行详情\n`);
     for (const goal of goals) {
       const result = allResults.find(r => r.taskId === goal.id);
       const icon = result?.success ? '✅' : '❌';
-      parts.push(`### ${icon} ${goal.agentName}：${goal.description}`);
-      if (result?.output) {
-        parts.push(this.formatAgentOutput(result.output));
-      }
-      if (result?.error) {
-        parts.push(`> ⚠️ 错误：${result.error}`);
-      }
+      const details = this.formatAgentOutput(result?.output);
+      parts.push(`#### ${icon} ${goal.agentName}`);
+      parts.push(`**任务**：${goal.description}`);
+      parts.push(`**耗时**：${result?.duration ?? '?'}ms`);
+      if (details) parts.push(details);
+      if (result?.error) parts.push(`> ⚠️ 错误：${result.error}`);
       parts.push('');
     }
 
-    // ── CEO 最终自然语言总结 ─────────────────────────
     const successCount = allResults.filter(r => r.success).length;
-    const failedCount = allResults.length - successCount;
-    const strategy = goals[0]?.dependsOn ? '流水线' : '并行';
     const elapsed = Date.now() - this.startTime;
+    const elapsedStr = elapsed < 1000 ? `${elapsed}ms` : `${(elapsed / 1000).toFixed(1)}s`;
 
     parts.push(`---`);
     parts.push(`### 📊 执行统计`);
     parts.push(`- 总Agent数：${goals.length}`);
     parts.push(`- 成功：${successCount}`);
-    parts.push(`- 失败：${failedCount}`);
-    parts.push(`- Agent类型：${goals.map(g => g.agentName).join(' → ')}`);
-    parts.push(`- 执行策略：${strategy}`);
-    parts.push(`- 耗时：${elapsed}ms`);
+    parts.push(`- 失败：${allResults.length - successCount}`);
+    parts.push(`- 总耗时：${elapsedStr}`);
 
-    // 自然语言总结段落
     parts.push('');
     parts.push(`### 🧠 CEO 总结`);
-    const agentNames = goals.map(g => g.agentName).join('、');
-    const naturalSummary = this.buildNaturalSummary(
-      requirement, goals, allResults, agentNames,
-      successCount, failedCount, strategy, elapsed
-    );
-    parts.push(naturalSummary);
+    parts.push(this.buildNaturalSummary(requirement, goals, allResults, elapsedStr));
 
     return parts.join('\n');
   }
@@ -907,149 +896,67 @@ export class CEOAgent {
    * Build a natural language summary of the entire execution.
    */
   private buildNaturalSummary(
-    requirement: string,
-    goals: AgentGoal[],
-    allResults: TaskResult[],
-    agentNames: string,
-    successCount: number,
-    _failedCount: number,
-    strategy: string,
-    elapsed: number
+    requirement: string, goals: AgentGoal[], allResults: TaskResult[], elapsedStr: string,
   ): string {
+    const successCount = allResults.filter(r => r.success).length;
     const firstWord = requirement.slice(0, Math.min(20, requirement.length));
-    const elapsedStr = elapsed < 1000 ? `${elapsed}ms` : `${(elapsed / 1000).toFixed(1)}s`;
-
-    let summary = `针对「${firstWord}${requirement.length > 20 ? '…' : ''}」的需求，`;
-    summary += `CEO 引擎调用了 ${goals.length} 个子 Agent（${agentNames}），采用${strategy}策略执行，总耗时 ${elapsedStr}。\n\n`;
-
+    const prefix = requirement.length > 20 ? '…' : '';
+    let s = `针对「${firstWord}${prefix}」的需求，CEO 调用了 ${goals.length} 个子 Agent，总耗时 ${elapsedStr}。\n\n`;
     for (const goal of goals) {
-      const result = allResults.find(r => r.taskId === goal.id);
-      const icon = result?.success ? '✅' : '❌';
-      summary += `${icon} **${goal.agentName}**：${goal.description}`;
-      if (result) {
-        const meaning = this.extractMeaning(result.output, goal.workerType);
-        if (meaning) summary += ` — ${meaning}`;
-      }
-      summary += '\n';
+      const r = allResults.find(x => x.taskId === goal.id);
+      const icon = r?.success ? '✅' : '❌';
+      const parsed = this.parseSubAgentOutput(r?.output);
+      s += `${icon} **${goal.agentName}**（${goal.workerType}）`;
+      if (parsed.execSummary) s += ` — ${parsed.execSummary.slice(0, 150)}`;
+      if (parsed.changedFiles.length > 0) s += ` | 修改 ${parsed.changedFiles.length} 个文件`;
+      s += '\n';
     }
-
-    if (successCount === goals.length) {
-      summary += `\n所有子任务均已完成，目标达成。`;
+    if (successCount === goals.length && successCount > 0) {
+      s += `\n所有 ${goals.length} 个子任务均已成功完成。`;
+    } else if (successCount > 0) {
+      s += `\n${successCount}/${goals.length} 个子任务完成，${goals.length - successCount} 个失败。`;
     } else {
-      summary += `\n${goals.length - successCount} 个子任务未完成，建议检查相关 Agent 输出并重试。`;
+      s += `\n所有子任务均未成功完成，请检查子 Agent 输出排查问题。`;
     }
-
-    return summary;
+    return s;
   }
 
   /**
    * Extract a short meaningful description from an agent's output.
    */
-  private extractMeaning(output: unknown, workerType: string): string {
-    if (!output || typeof output !== 'object') return '';
-    const obj = output as Record<string, unknown>;
-
-    switch (workerType) {
-      case 'context':
-        if (obj.summary) return String(obj.summary).slice(0, 200);
-        if (obj.filesAnalyzed !== undefined) return `分析了 ${obj.filesAnalyzed} 个文件`;
-        return '';
-      case 'planning':
-        if (obj.approved === true) return '方案已通过审核';
-        if (obj.designDocument && typeof obj.designDocument === 'string') {
-          return `生成了设计方案（${obj.designDocument.length} 字）`;
-        }
-        return '';
-      case 'execution':
-        if (obj.aggregated && typeof obj.aggregated === 'object') {
-          const agg = obj.aggregated as Record<string, unknown>;
-          if (agg.summary) return String(agg.summary);
-        }
-        return '';
-      default:
-        return '';
+  /** Parse sub-agent B+C format output: exec summary / changed files / key decisions */
+  private parseSubAgentOutput(output: unknown): {
+    execSummary: string; changedFiles: string[]; keyDecisions: string[];
+  } {
+    const r = { execSummary: '', changedFiles: [] as string[], keyDecisions: [] as string[] };
+    let text = '';
+    if (typeof output === 'string') { text = output; }
+    else if (output && typeof output === 'object') {
+      text = String((output as Record<string,unknown>).summary ?? (output as Record<string,unknown>).message ?? JSON.stringify(output));
     }
+    if (!text) return r;
+    const em = text.match(/###\s*执行总结\s*\n([\s\S]*?)(?=###|$)/i);
+    r.execSummary = em ? em[1].trim().slice(0, 500) : text.slice(0, 300).trim();
+    const fm = text.match(/###\s*涉及的文件\s*\n([\s\S]*?)(?=###|$)/i);
+    if (fm) r.changedFiles = fm[1].split('\n').map(l=>l.replace(/^[\s\-*]+/,'').trim()).filter(l=>l.length>0).slice(0,20);
+    const dm = text.match(/###\s*关键决策\s*\n([\s\S]*?)(?=###|$)/i);
+    if (dm) r.keyDecisions = dm[1].split('\n').map(l=>l.replace(/^[\s\-*]+/,'').trim()).filter(l=>l.length>0).slice(0,10);
+    return r;
   }
 
-  /**
-   * Format agent output as a natural language summary line.
-   * Extracts meaningful information from each agent type's structured output.
-   */
+  /** Format agent output — delegates to parseSubAgentOutput */
   private formatAgentOutput(output: unknown): string {
     if (!output) return '';
-    if (typeof output === 'string') return output;
-    try {
-      const obj = output as Record<string, unknown>;
-
-      // ── PlanningAgent output ──────────────────────────
-      if (obj.goalAnalysis && obj.designDocument) {
-        const ga = obj.goalAnalysis as Record<string, unknown>;
-        const goalType = ga.type ?? 'general';
-        const approved = obj.approved === true ? '✅ 通过' : '⚠️ 待审核';
-        const lines: string[] = [];
-        lines.push(`**目标类型**：${goalType}`);
-        lines.push(`**审核结果**：${approved}`);
-        const designDoc = obj.designDocument as string;
-        if (typeof designDoc === 'string' && designDoc.length > 0) {
-          // 提取设计文档的第一段（## Goal 后的内容）
-          const goalMatch = designDoc.match(/## Goal\n(.+?)(?:\n|$)/);
-          if (goalMatch) lines.push(`**设计方案**：${goalMatch[1].trim()}`);
-        }
-        if (obj.reviewResult) {
-          const review = obj.reviewResult as Record<string, unknown>;
-          if (Array.isArray(review.feedback) && review.feedback.length > 0) {
-            lines.push(`**评审反馈**：${review.feedback[0]}`);
-          }
-        }
-        return lines.join('\n');
-      }
-
-      // ── ExecutionAgent output ─────────────────────────
-      if (obj.plan && obj.aggregated) {
-        const agg = obj.aggregated as Record<string, unknown>;
-        const ver = (obj.verification ?? {}) as Record<string, unknown>;
-        const lines: string[] = [];
-        if (agg.summary) lines.push(`**执行结果**：${agg.summary}`);
-        if (agg.successRate !== undefined) {
-          lines.push(`**成功率**：${Math.round(Number(agg.successRate) * 100)}%`);
-        }
-        if (ver.verificationPassed !== undefined) {
-          lines.push(`**验证**：${ver.verificationPassed ? '✅ 通过' : '❌ 未通过'}`);
-        }
-        return lines.join('\n');
-      }
-
-      // ── ContextAgent output ───────────────────────────
-      if (obj.relevantCode || obj.projectStructure) {
-        const lines: string[] = [];
-        if (obj.summary) {
-          lines.push(`**摘要**：${obj.summary}`);
-        }
-        if (obj.filesAnalyzed !== undefined) {
-          lines.push(`**分析文件数**：${obj.filesAnalyzed}`);
-        }
-        if (obj.contextNeeded && Array.isArray(obj.contextNeeded)) {
-          lines.push(`**分析领域**：${(obj.contextNeeded as string[]).join('、')}`);
-        }
-        return lines.join('\n');
-      }
-
-      // ── Fallback: known keys ─────────────────────────
-      const lines: string[] = [];
-      if (obj.summary) lines.push(`**摘要**：${obj.summary}`);
-      if (obj.successRate !== undefined) lines.push(`**成功率**：${Number(obj.successRate) * 100}%`);
-      if (obj.filesAnalyzed !== undefined) lines.push(`**分析文件数**：${obj.filesAnalyzed}`);
-      if (obj.approved !== undefined) lines.push(`**审批**：${obj.approved ? '通过' : '未通过'}`);
-      if (lines.length > 0) return lines.join('\n');
-
-      // 最后的 fallback：不返回原始 JSON，而是提取有意义的信息
-      const keys = Object.keys(obj);
-      const sampleKeys = keys.slice(0, 3).join('、');
-      return `处理完成（输出包含 ${keys.length} 个结果字段：${sampleKeys}${keys.length > 3 ? '...' : ''}）`;
-    } catch {
-      return String(output).slice(0, 200);
-    }
+    if (typeof output === 'string') return output.slice(0, 500);
+    const p = this.parseSubAgentOutput(output);
+    const parts: string[] = [];
+    if (p.execSummary) parts.push(`**执行总结**：${p.execSummary}`);
+    if (p.changedFiles.length > 0) parts.push(`**涉及的文件**：${p.changedFiles.join('、')}`);
+    if (p.keyDecisions.length > 0) parts.push(`**关键决策**：${p.keyDecisions.join('；')}`);
+    return parts.join('\n');
   }
+
+  /* old extractMeaning — kept for reference, unused *
 
   /**
    * Inject CEO summary node into DAG so Agent → Summary edges have a real sink.
