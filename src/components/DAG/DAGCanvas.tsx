@@ -171,41 +171,59 @@ export function DAGCanvas({ style }: Props) {
     return 'dagNode';
   };
 
-  const flowNodes: Node[] = Array.from(storeNodes.values()).map((node: DAGNode) => ({
-    id: node.id,
-    type: resolveNodeType(node.type),
-    data: {
-      ...node,
-      onOpenDetail: handleOpenDetail,
-      isCollapsed: node.type === 'query' && collapsedQueryIds.has(node.id),
-      // AgentGroupNode 专用 props
-      agentType: node.type === 'agent_group' ? (node as DAGNode & { agentType?: string }).agentType ?? 'default' : undefined,
-      agentName: node.type === 'agent_group' ? node.agentName : undefined,
-      liveOutput: node.type === 'agent_group' ? (node.toolMessage ?? undefined) : undefined,
-      collapsed: node.type === 'agent_group' ? useTaskStore.getState().collapsedAgentIds.has(node.id) : undefined,
-      childCount: node.type === 'agent_group' ? (node.childCount ?? 0) : undefined,
-      onToggleCollapse: node.type === 'agent_group' ? handleAgentGroupToggleCollapse : handleToggleCollapse,
-      // V1.4.1: 附件徽章数量
-      attachmentCount: attachmentCountByQueryId.get(node.id) ?? 0,
-      // V1.4.1: 完整附件数据（用于渲染附件列表）
-      attachmentData: attachmentDataByQueryId.get(node.id) ?? null,
-      // V1.4.1: 附件点击回调
-      onAttachmentClick: (att: PendingAttachmentData) => setPreviewAttachment(att),
-    },
-    position: { x: 0, y: 0 },
-  }));
+  // 创建 Agent 容器 id 集合，用于判断 tool 节点是否属于 agent 容器
+  const agentNodeIds = new Set<string>();
+  for (const [id, node] of storeNodes) {
+    if (node.type === 'agent_group') agentNodeIds.add(id);
+  }
 
-  // 过滤：折叠 query 的工具节点不参与布局（summary 必须保留以维持链条可见）
+  const flowNodes: Node[] = Array.from(storeNodes.values()).map((node: DAGNode) => {
+    // tool 节点挂在 agent_group 父节点下作为容器子节点
+    const isToolInAgent = node.type === 'tool' && node.parentId && agentNodeIds.has(node.parentId);
+    return {
+      id: node.id,
+      type: resolveNodeType(node.type),
+      parentId: isToolInAgent ? node.parentId : undefined,
+      extent: isToolInAgent ? 'parent' as const : undefined,
+      data: {
+        ...node,
+        onOpenDetail: handleOpenDetail,
+        isCollapsed: node.type === 'query' && collapsedQueryIds.has(node.id),
+        agentType: node.type === 'agent_group' ? (node as DAGNode & { agentType?: string }).agentType ?? 'default' : undefined,
+        agentName: node.type === 'agent_group' ? node.agentName : undefined,
+        liveOutput: node.type === 'agent_group' ? (node.toolMessage ?? undefined) : undefined,
+        collapsed: node.type === 'agent_group' ? useTaskStore.getState().collapsedAgentIds.has(node.id) : undefined,
+        childCount: node.type === 'agent_group' ? (node.childCount ?? 0) : undefined,
+        onToggleCollapse: node.type === 'agent_group' ? handleAgentGroupToggleCollapse : handleToggleCollapse,
+        attachmentCount: attachmentCountByQueryId.get(node.id) ?? 0,
+        attachmentData: attachmentDataByQueryId.get(node.id) ?? null,
+        onAttachmentClick: (att: PendingAttachmentData) => setPreviewAttachment(att),
+      },
+      position: { x: 0, y: 0 },
+    };
+  });
+
+  // 过滤：折叠 query 的工具节点不参与布局
+  // Agent 容器内的 tool 子节点不参与顶层布局（由 ReactFlow 在容器内定位）
+  const isAgentContainerChild = (n: Node) => {
+    return n.parentId !== undefined && agentNodeIds.has(n.parentId);
+  };
+
   const filteredFlowNodes = flowNodes.filter(n => {
-    if (n.data.type === 'query') return true;   // query 节点本身永远显示
+    if (n.data.type === 'query') return true;
     if (n.id === 'main-agent') return true;
-    if (n.data.type === 'summary') return true;  // summary 是链条必须保留
-    if (n.data.type === 'agent_group') return true;  // Agent 分组节点永远显示
+    if (n.data.type === 'summary') return true;
+    if (n.data.type === 'agent_group') return true;
     if (n.data.type === 'skill') return true;
     if (n.data.type === 'recovery') return true;
     if (n.data.type === 'evolution') return true;
+    // Agent 容器子节点：由 Agent 容器的 collapsed 状态控制显隐
+    if (isAgentContainerChild(n)) {
+      const agentNode = flowNodes.find(p => p.id === n.parentId);
+      return agentNode ? !(agentNode.data.collapsed) : true;
+    }
     const parentId = (n.data as DAGNode).parentId ?? 'main-agent';
-    return !collapsedQueryIds.has(parentId);       // 工具节点隐藏
+    return !collapsedQueryIds.has(parentId);
   });
 
   // 按 (toolType, queryId) 分组，返回每个分组的元信息
@@ -550,10 +568,16 @@ export function DAGCanvas({ style }: Props) {
     });
   }, [activeTab, workspaceTabs.length, overlapOptimizedNodes]);
 
+  // 收集 Agent 容器子节点（不在 positionedNodes 中，由 ReactFlow 在容器内定位）
+  const agentContainerChildren = flowNodes.filter(n => isAgentContainerChild(n));
+
   // 全局视图：追加容器节点；单工作区视图：使用过滤后的节点
-  const finalNodes: Node[] = activeTab === 'global' && workspaceTabs.length > 0
-    ? [...containerNodes, ...overlapOptimizedNodes]
-    : singleWorkspaceNodes;
+  const finalNodes: Node[] = [
+    ...(activeTab === 'global' && workspaceTabs.length > 0
+      ? [...containerNodes, ...overlapOptimizedNodes]
+      : singleWorkspaceNodes),
+    ...agentContainerChildren,
+  ];
 
   // 聚焦当前问题 query 链（当 currentQueryId 或 positionedNodes 变化时触发）
   useEffect(() => {
